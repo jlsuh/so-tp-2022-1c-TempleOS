@@ -10,7 +10,7 @@
  *
  * @example stream_recv_header(socketModuloRemitente);
  */
-uint32_t stream_recv_header(int fromSocket);
+uint8_t stream_recv_header(int fromSocket);
 
 /**
  * @brief Recibe solamente el payload (stream de bytes) del buffer enviado
@@ -32,15 +32,15 @@ void stream_recv_empty_buffer(int fromSocket);
 /**
  * @brief Envía un buffer previamente serializado, asignándole un header en su envío
  *
- * @example stream_send_buffer(socketModuloDestinatario, headerOpCode, bufferSerializado);
+ * @example stream_send_buffer(socketModuloDestinatario, header, bufferSerializado);
  */
-void stream_send_buffer(int toSocket, uint32_t opCodeTarea, t_buffer* buffer);
+void stream_send_buffer(int toSocket, uint8_t header, t_buffer* buffer);
 
 /**
  * @brief Envía solamente el header del buffer (sin payload)
  *
- * @example stream_send_empty_buffer(socketModuloDestinatario, headerOpCode);
+ * @example stream_send_empty_buffer(socketModuloDestinatario, header);
  */
-void stream_send_empty_buffer(int toSocket, uint32_t opCode);
+void stream_send_empty_buffer(int toSocket, uint8_t header);
 
 #endif
