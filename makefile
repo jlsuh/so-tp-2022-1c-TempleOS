@@ -1,6 +1,6 @@
 PROJECTS=./consola ./cpu ./kernel ./memoria
 LIBS=./utils
-TESTS=./consola_tests ./cpu_tests ./kernel_tests ./memoria_tests
+TESTS=./consola_tests ./cpu_tests ./kernel_tests ./memoria_tests ./utils_tests
 
 all: $(PROJECTS)
 
