@@ -3,8 +3,12 @@
 
 typedef enum {
     HEADER_lista_instrucciones,
-
 } t_header;
+
+typedef enum {
+    HANDSHAKE_consola,
+    HANDSHAKE_ok_continue,
+} t_handshake;
 
 typedef enum {
     INSTRUCCION_no_op,
