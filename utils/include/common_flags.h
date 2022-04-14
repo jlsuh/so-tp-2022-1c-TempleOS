@@ -2,26 +2,17 @@
 #define COMMON_FLAGS_H_INCLUDED
 
 typedef enum {
-    OK_CONTINUE,
-    OK_FINISH,
-    MEMORIA,
-    FAIL,
-    DEADLOCK_END,
-} t_handshake;
+    HEADER_lista_instrucciones,
+
+} t_header;
 
 typedef enum {
-    SEM_INIT,
-    SEM_WAIT,
-    SEM_POST,
-    SEM_DESTROY,
-    CALL_IO,
-    MEM_ALLOC,
-    MEM_FREE,
-    MEM_READ,
-    MEM_WRITE,
-    MATE_CLOSE,
-    MATE_INIT,
-    SUSPEND_CARPINCHO
-} t_tarea;
+    INSTRUCCION_no_op,
+    INSTRUCCION_io,
+    INSTRUCCION_read,
+    INSTRUCCION_copy,
+    INSTRUCCION_write,
+    INSTRUCCION_exit
+} t_instruccion;
 
 #endif
