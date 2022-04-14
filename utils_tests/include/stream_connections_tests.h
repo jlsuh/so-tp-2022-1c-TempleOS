@@ -1,0 +1,10 @@
+#ifndef STREAM_CONNECTIONS_TESTS_H_INCLUDED
+#define STREAM_CONNECTIONS_TESTS_H_INCLUDED
+
+void test_stream_conexiones_setup(void);
+void test_stream_conexiones_tear_down(void);
+
+void test_es_posible_establecer_una_conexion(void);
+void test_es_posible_serializar_un_string_enviarlo_y_deserializarlo(void);
+
+#endif

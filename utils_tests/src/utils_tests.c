@@ -5,6 +5,7 @@
 #include "testing_utils.h"
 
 #include "buffer_tests.h"
+#include "stream_connections_tests.h"
 
 static void buffer_tests(void) {
     CU_pSuite bufferSuite = CU_add_suite_with_setup_and_teardown(
@@ -21,12 +22,27 @@ static void buffer_tests(void) {
     ADD_TEST_CASES_TO_SUITE(bufferSuite, bufferTestCases);
 }
 
+static void stream_connections_tests(void) {
+    CU_pSuite streamConexionesSuite = CU_add_suite_with_setup_and_teardown(
+        "stream.h & conexiones.h Test Suite",
+        NULL,
+        NULL,
+        test_stream_conexiones_setup,
+        test_stream_conexiones_tear_down);
+    t_test_case streamConexionesTestCases[] = {
+        TEST_FUNC(test_es_posible_establecer_una_conexion),
+        TEST_FUNC(test_es_posible_serializar_un_string_enviarlo_y_deserializarlo),
+    };
+    ADD_TEST_CASES_TO_SUITE(streamConexionesSuite, streamConexionesTestCases);
+}
+
 int main(int argc, char* argv[]) {
     CU_initialize_registry();
     CU_basic_set_mode(CU_BRM_VERBOSE);
 
     // Llamadas a funciones que agreguen los tests a sus respectivos suites
     buffer_tests();
+    stream_connections_tests();
 
     CU_basic_run_tests();
     CU_cleanup_registry();
