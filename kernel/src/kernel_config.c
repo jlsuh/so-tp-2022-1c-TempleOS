@@ -15,6 +15,7 @@ struct t_kernel_config {
     int SOCKET_DISPATCH_CPU;
     char* PUERTO_CPU_INTERRUPT;
     int SOCKET_INTERRUPT_CPU;
+    char* IP_ESCUCHA;
     char* PUERTO_ESCUCHA;
     char* ALGORITMO_PLANIFICACION;
     int ESTIMACION_INICIAL;
@@ -33,6 +34,7 @@ static void __kernel_config_initializer(void* moduleConfig, t_config* tempCfg) {
     kernelConfig->SOCKET_DISPATCH_CPU = -1;
     kernelConfig->PUERTO_CPU_INTERRUPT = strdup(config_get_string_value(tempCfg, "PUERTO_CPU_INTERRUPT"));
     kernelConfig->SOCKET_INTERRUPT_CPU = -1;
+    kernelConfig->IP_ESCUCHA = strdup(config_get_string_value(tempCfg, "IP_ESCUCHA"));
     kernelConfig->PUERTO_ESCUCHA = strdup(config_get_string_value(tempCfg, "PUERTO_ESCUCHA"));
     kernelConfig->ALGORITMO_PLANIFICACION = strdup(config_get_string_value(tempCfg, "ALGORITMO_PLANIFICACION"));
     kernelConfig->ESTIMACION_INICIAL = config_get_int_value(tempCfg, "ESTIMACION_INICIAL");
@@ -45,4 +47,24 @@ t_kernel_config* kernel_config_create(char* kernelConfigPath, t_log* kernelLogge
     t_kernel_config* self = malloc(sizeof(*self));
     config_init(self, kernelConfigPath, kernelLogger, __kernel_config_initializer);
     return self;
+}
+
+void kernel_config_destroy(t_kernel_config* self) {
+    free(self->IP_MEMORIA);
+    free(self->PUERTO_MEMORIA);
+    free(self->IP_CPU);
+    free(self->PUERTO_CPU_DISPATCH);
+    free(self->PUERTO_CPU_INTERRUPT);
+    free(self->IP_ESCUCHA);
+    free(self->PUERTO_ESCUCHA);
+    free(self->ALGORITMO_PLANIFICACION);
+    free(self);
+}
+
+char* kernel_config_get_ip_escucha(t_kernel_config* self) {
+    return self->IP_ESCUCHA;
+}
+
+char* kernel_config_get_puerto_escucha(t_kernel_config* self) {
+    return self->PUERTO_ESCUCHA;
 }
