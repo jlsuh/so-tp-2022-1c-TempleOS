@@ -17,14 +17,15 @@
 #define CONSOLA_MODULE_NAME "Consola"
 #define MAX_LENGTH_INSTRUCTION 6
 
-static void __consola_enviar_instrucciones_a_kernel(const char* pathInstrucciones, t_log* consolaLogger) {
+static void __consola_enviar_instrucciones_a_kernel(const char *pathInstrucciones, t_log *consolaLogger, int kernelSocket) {
     FILE *archivoInstrucciones = fopen(pathInstrucciones, "r");
     t_buffer *buffer = buffer_create();
-    uint32_t op1 = 0;
-    uint32_t op2 = 0;
+    uint32_t op1 = -1;
+    uint32_t op2 = -1;
     char *instruccion = malloc(MAX_LENGTH_INSTRUCTION);
     for (;;) {
         fscanf(archivoInstrucciones, "%s", instruccion);
+        bool hayDosArgumentos = false;
         if (strcmp(instruccion, "NO_OP") == 0) {
             fscanf(archivoInstrucciones, "%d", &op1);
             consola_serializer_pack_one_args(buffer, INSTRUCCION_no_op, op1);
@@ -37,25 +38,38 @@ static void __consola_enviar_instrucciones_a_kernel(const char* pathInstruccione
         } else if (strcmp(instruccion, "COPY") == 0) {
             fscanf(archivoInstrucciones, "%d %d", &op1, &op2);
             consola_serializer_pack_two_args(buffer, INSTRUCCION_copy, op1, op2);
+            hayDosArgumentos = true;
         } else if (strcmp(instruccion, "WRITE") == 0) {
             fscanf(archivoInstrucciones, "%d %d", &op1, &op2);
             consola_serializer_pack_two_args(buffer, INSTRUCCION_write, op1, op2);
+            hayDosArgumentos = true;
         } else if (strcmp(instruccion, "EXIT") == 0) {
             consola_serializer_pack_no_args(buffer, INSTRUCCION_exit);
             free(instruccion);
+            log_info(consolaLogger, "Se empaqueta instruccion: EXIT");
             break;
         } else {
             log_error(consolaLogger, "Instruccion invalida");
-            // Free memory
+            buffer_destroy(buffer);
+            fclose(archivoInstrucciones);
+            free(instruccion);
             return;
         }
+
+        if (hayDosArgumentos) {
+            log_info(consolaLogger, "Se empaqueta instruccion: %s con operandos %d y %d", instruccion, op1, op2);
+        } else {
+            log_info(consolaLogger, "Se empaqueta instruccion: %s con operando %d", instruccion, op1);
+        }
     }
+    stream_send_buffer(kernelSocket, HEADER_lista_instrucciones, buffer);
+    log_info(consolaLogger, "Instrucciones enviadas al kernel");
     buffer_destroy(buffer);
     fclose(archivoInstrucciones);
     return;
 }
 
-static void __consola_destroy(t_consola_config* consolaConfig, t_log* consolaLogger) {
+static void __consola_destroy(t_consola_config *consolaConfig, t_log *consolaLogger) {
     consola_config_destroy(consolaConfig);
     log_destroy(consolaLogger);
 }
@@ -80,18 +94,22 @@ int main(int argc, char *argv[]) {
     }
     consola_config_set_kernel_socket(consolaConfig, kernelSocket);
 
-    const uint32_t tamanioProceso = atoi(argv[1]);  // TODO: Enviar esto a Kernel en el handshake inicial
+    uint32_t tamanioProceso = atoi(argv[1]);
 
-    stream_send_empty_buffer(kernelSocket, HANDSHAKE_consola);
+    t_buffer *buffer = buffer_create();
+    buffer_pack(buffer, &tamanioProceso, sizeof(tamanioProceso));
+    stream_send_buffer(kernelSocket, HANDSHAKE_consola, buffer);
+    buffer_destroy(buffer);
     uint8_t response = stream_recv_header(kernelSocket);
-    if(response != HANDSHAKE_ok_continue) {
+    stream_recv_empty_buffer(kernelSocket);
+    if (response != HANDSHAKE_ok_continue) {
         log_error(consolaLogger, "Error al intentar conectar con módulo Kernel");
         __consola_destroy(consolaConfig, consolaLogger);
         return -1;
     }
 
     const char *pathInstrucciones = argv[2];
-    __consola_enviar_instrucciones_a_kernel(pathInstrucciones, consolaLogger);
+    __consola_enviar_instrucciones_a_kernel(pathInstrucciones, consolaLogger, kernelSocket);
 
     consola_config_destroy(consolaConfig);
     log_destroy(consolaLogger);
