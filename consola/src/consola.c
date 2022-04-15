@@ -5,79 +5,24 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "buffer.h"
 #include "common_flags.h"
 #include "connections.h"
 #include "consola_config.h"
-#include "consola_serializer.h"
+#include "consola_parser.h"
 #include "stream.h"
 
 #define CONSOLA_CONFIG_PATH "cfg/consola_config.cfg"
 #define CONSOLA_LOG_PATH "bin/consola.log"
 #define CONSOLA_MODULE_NAME "Consola"
-#define MAX_LENGTH_INSTRUCTION 6
+#define NUMBER_OF_ARGS_REQUIRED 3
 
-static void __consola_enviar_instrucciones_a_kernel(const char *pathInstrucciones, t_log *consolaLogger, int kernelSocket) {
-    FILE *archivoInstrucciones = fopen(pathInstrucciones, "r");
-    t_buffer *buffer = buffer_create();
-    uint32_t op1 = -1;
-    uint32_t op2 = -1;
-    char *instruccion = malloc(MAX_LENGTH_INSTRUCTION);
-    for (;;) {
-        fscanf(archivoInstrucciones, "%s", instruccion);
-        bool hayDosArgumentos = false;
-        if (strcmp(instruccion, "NO_OP") == 0) {
-            fscanf(archivoInstrucciones, "%d", &op1);
-            consola_serializer_pack_one_args(buffer, INSTRUCCION_no_op, op1);
-        } else if (strcmp(instruccion, "I/O") == 0) {
-            fscanf(archivoInstrucciones, "%d", &op1);
-            consola_serializer_pack_one_args(buffer, INSTRUCCION_io, op1);
-        } else if (strcmp(instruccion, "READ") == 0) {
-            fscanf(archivoInstrucciones, "%d", &op1);
-            consola_serializer_pack_one_args(buffer, INSTRUCCION_read, op1);
-        } else if (strcmp(instruccion, "COPY") == 0) {
-            fscanf(archivoInstrucciones, "%d %d", &op1, &op2);
-            consola_serializer_pack_two_args(buffer, INSTRUCCION_copy, op1, op2);
-            hayDosArgumentos = true;
-        } else if (strcmp(instruccion, "WRITE") == 0) {
-            fscanf(archivoInstrucciones, "%d %d", &op1, &op2);
-            consola_serializer_pack_two_args(buffer, INSTRUCCION_write, op1, op2);
-            hayDosArgumentos = true;
-        } else if (strcmp(instruccion, "EXIT") == 0) {
-            consola_serializer_pack_no_args(buffer, INSTRUCCION_exit);
-            free(instruccion);
-            log_info(consolaLogger, "Se empaqueta instruccion: EXIT");
-            break;
-        } else {
-            log_error(consolaLogger, "Instruccion invalida");
-            buffer_destroy(buffer);
-            fclose(archivoInstrucciones);
-            free(instruccion);
-            return;
-        }
-
-        if (hayDosArgumentos) {
-            log_info(consolaLogger, "Se empaqueta instruccion: %s con operandos %d y %d", instruccion, op1, op2);
-        } else {
-            log_info(consolaLogger, "Se empaqueta instruccion: %s con operando %d", instruccion, op1);
-        }
-    }
-    stream_send_buffer(kernelSocket, HEADER_lista_instrucciones, buffer);
-    log_info(consolaLogger, "Instrucciones enviadas al kernel");
-    buffer_destroy(buffer);
-    fclose(archivoInstrucciones);
-    return;
-}
-
-static void __consola_destroy(t_consola_config *consolaConfig, t_log *consolaLogger) {
-    consola_config_destroy(consolaConfig);
-    log_destroy(consolaLogger);
-}
+static void __consola_enviar_instrucciones_a_kernel(const char *pathInstrucciones, t_log *, int kernelSocket);
+static void __consola_destroy(t_consola_config *, t_log *);
 
 int main(int argc, char *argv[]) {
     t_log *consolaLogger = log_create(CONSOLA_LOG_PATH, CONSOLA_MODULE_NAME, true, LOG_LEVEL_INFO);
     t_consola_config *consolaConfig = consola_config_create(CONSOLA_CONFIG_PATH, consolaLogger);
-    if (argc != 3) {
+    if (argc != NUMBER_OF_ARGS_REQUIRED) {
         log_error(consolaLogger, "Cantidad de argumentos invalida.\n Formato <tamaño> <path>");
         __consola_destroy(consolaConfig, consolaLogger);
         return -1;
@@ -93,7 +38,6 @@ int main(int argc, char *argv[]) {
         return -1;
     }
     consola_config_set_kernel_socket(consolaConfig, kernelSocket);
-
     uint32_t tamanioProceso = atoi(argv[1]);
 
     t_buffer *buffer = buffer_create();
@@ -114,4 +58,18 @@ int main(int argc, char *argv[]) {
     consola_config_destroy(consolaConfig);
     log_destroy(consolaLogger);
     return 0;
+}
+
+static void __consola_enviar_instrucciones_a_kernel(const char *pathInstrucciones, t_log *consolaLogger, int kernelSocket) {
+    t_buffer *instructionsBuffer = buffer_create();
+    consola_parser_parse_instructions(instructionsBuffer, pathInstrucciones, consolaLogger);
+    stream_send_buffer(kernelSocket, HEADER_lista_instrucciones, instructionsBuffer);
+    log_info(consolaLogger, "Instrucciones enviadas al kernel");
+    buffer_destroy(instructionsBuffer);
+    return;
+}
+
+static void __consola_destroy(t_consola_config *consolaConfig, t_log *consolaLogger) {
+    consola_config_destroy(consolaConfig);
+    log_destroy(consolaLogger);
 }
