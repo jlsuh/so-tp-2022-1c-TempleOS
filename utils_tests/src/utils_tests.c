@@ -1,11 +1,10 @@
-#include <stdio.h>
-#include <stdbool.h>
 #include <CUnit/Basic.h>
-
-#include "testing_utils.h"
+#include <stdbool.h>
+#include <stdio.h>
 
 #include "buffer_tests.h"
 #include "stream_connections_tests.h"
+#include "testing_utils.h"
 
 static void buffer_tests(void) {
     CU_pSuite bufferSuite = CU_add_suite_with_setup_and_teardown(

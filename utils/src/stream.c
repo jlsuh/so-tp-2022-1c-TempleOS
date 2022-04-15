@@ -6,31 +6,31 @@
 #include <sys/socket.h>
 
 static void __stream_send(int toSocket, void* streamToSend, uint32_t bufferSize) {
-    uint32_t opCode = 0;
+    uint8_t header = 0;
     uint32_t size = 0;
-    send(toSocket, streamToSend, sizeof(opCode) + sizeof(size) + bufferSize, 0);
+    send(toSocket, streamToSend, sizeof(header) + sizeof(size) + bufferSize, 0);
 }
 
-static void* __stream_create(uint32_t opCode, t_buffer* buffer) {
-    void* streamToSend = malloc(sizeof(opCode) + sizeof(buffer->size) + buffer->size);
+static void* __stream_create(uint8_t header, t_buffer* buffer) {
+    void* streamToSend = malloc(sizeof(header) + sizeof(buffer->size) + buffer->size);
     int offset = 0;
-    memcpy(streamToSend + offset, &opCode, sizeof(opCode));
-    offset += sizeof(opCode);
+    memcpy(streamToSend + offset, &header, sizeof(header));
+    offset += sizeof(header);
     memcpy(streamToSend + offset, &(buffer->size), sizeof(buffer->size));
     offset += sizeof(buffer->size);
     memcpy(streamToSend + offset, buffer->stream, buffer->size);
     return streamToSend;
 }
 
-void stream_send_buffer(int toSocket, uint32_t opCodeTarea, t_buffer* buffer) {
-    void* stream = __stream_create(opCodeTarea, buffer);
+void stream_send_buffer(int toSocket, uint8_t header, t_buffer* buffer) {
+    void* stream = __stream_create(header, buffer);
     __stream_send(toSocket, stream, buffer->size);
     free(stream);
 }
 
-void stream_send_empty_buffer(int toSocket, uint32_t opCode) {
+void stream_send_empty_buffer(int toSocket, uint8_t header) {
     t_buffer* emptyBuffer = buffer_create();
-    stream_send_buffer(toSocket, opCode, emptyBuffer);
+    stream_send_buffer(toSocket, header, emptyBuffer);
     buffer_destroy(emptyBuffer);
 }
 
@@ -48,8 +48,8 @@ void stream_recv_empty_buffer(int fromSocket) {
     buffer_destroy(buffer);
 }
 
-uint32_t stream_recv_header(int fromSocket) {
-    uint32_t opCode;
-    recv(fromSocket, &opCode, sizeof(opCode), 0);
-    return opCode;
+uint8_t stream_recv_header(int fromSocket) {
+    uint8_t header;
+    recv(fromSocket, &header, sizeof(header), 0);
+    return header;
 }

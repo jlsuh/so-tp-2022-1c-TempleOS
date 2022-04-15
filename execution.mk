@@ -3,7 +3,7 @@ LD_LIBRARY_PATH != echo $(addsuffix /bin,$(SHARED_LIBPATHS)) | tr ' ' ':'
 .PHONY: start
 start: all
 	export LD_LIBRARY_PATH=$(LD_LIBRARY_PATH); \
-	valgrind --tool=none ./$(BIN) $(ARGS)
+	valgrind --tool=memcheck --leak-check=full --show-leak-kinds=all ./$(BIN) $(ARGS)
 
 .PHONY: daemon
 daemon:

@@ -1,0 +1,13 @@
+#ifndef CONSOLA_PARSE_TESTS_H_INCLUDED
+#define CONSOLA_PARSE_TESTS_H_INCLUDED
+
+void test_consola_parser_setup(void);
+void test_consola_parser_tear_down(void);
+
+void test_es_posible_parsear_un_archivo_valido_de_instrucciones(void);
+void test_es_posible_parsear_un_archivo_valido_de_instrucciones_con_lineas_vacias(void);
+void test_no_es_posible_parsear_un_archivo_invalido_de_instrucciones_debido_a_la_primer_instruccion(void);
+void test_no_es_posible_parsear_un_archivo_invalido_de_instrucciones_debido_a_la_ultima_instruccion(void);
+void test_no_es_posible_parsear_un_archivo_invalido_de_instrucciones_con_lineas_vacias_debido_a_la_ultima_instruccion(void);
+
+#endif

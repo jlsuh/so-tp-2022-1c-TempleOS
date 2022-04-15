@@ -137,6 +137,7 @@ local.properties
 */obj/
 .vscode/
 *.log
+*/vgcore.*
 
 # Support for Project snippet scope
 
