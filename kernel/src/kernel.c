@@ -33,7 +33,7 @@ static void* testTemporal(void* socket) {
     } else {
         t_buffer* buffer = buffer_create();
         stream_recv_buffer(*socketProceso, buffer);
-        buffer_unpack(buffer, &tamanio, sizeof(uint32_t));
+        buffer_unpack(buffer, &tamanio, sizeof(tamanio));
         buffer_destroy(buffer);
         log_info(kernelLogger, "Se establece handshake con proceso %d de tamaño %d", *socketProceso, tamanio);
         stream_send_empty_buffer(*socketProceso, HANDSHAKE_ok_continue);
