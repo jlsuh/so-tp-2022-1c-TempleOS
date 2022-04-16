@@ -1,5 +1,6 @@
 #include "stream.h"
 
+#include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -8,7 +9,10 @@
 static void __stream_send(int toSocket, void* streamToSend, uint32_t bufferSize) {
     uint8_t header = 0;
     uint32_t size = 0;
-    send(toSocket, streamToSend, sizeof(header) + sizeof(size) + bufferSize, 0);
+    ssize_t bytesSent = send(toSocket, streamToSend, sizeof(header) + sizeof(size) + bufferSize, 0);
+    if (bytesSent == -1) {
+        printf("\e[0;31m__stream_send: Error en el envío del buffer [%s]\e[0m", strerror(errno));
+    }
 }
 
 static void* __stream_create(uint8_t header, t_buffer* buffer) {
@@ -35,8 +39,10 @@ void stream_send_empty_buffer(int toSocket, uint8_t header) {
 }
 
 void stream_recv_buffer(int fromSocket, t_buffer* destBuffer) {
-    recv(fromSocket, &(destBuffer->size), sizeof(destBuffer->size), 0);
-    if (destBuffer->size > 0) {
+    ssize_t msgBytes = recv(fromSocket, &(destBuffer->size), sizeof(destBuffer->size), 0);
+    if (msgBytes == -1) {
+        printf("\e[0;31mstream_recv_buffer: Error en la recepción del buffer [%s]\e[0m", strerror(errno));
+    } else if (destBuffer->size > 0) {
         destBuffer->stream = malloc(destBuffer->size);
         recv(fromSocket, destBuffer->stream, destBuffer->size, 0);
     }
@@ -50,6 +56,9 @@ void stream_recv_empty_buffer(int fromSocket) {
 
 uint8_t stream_recv_header(int fromSocket) {
     uint8_t header;
-    recv(fromSocket, &header, sizeof(header), 0);
+    ssize_t msgBytes = recv(fromSocket, &header, sizeof(header), 0);
+    if (msgBytes == -1) {
+        printf("\e[0;31mstream_recv_buffer: Error en la recepción del header [%s]\e[0m", strerror(errno));
+    }
     return header;
 }
