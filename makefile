@@ -10,7 +10,7 @@ $(PROJECTS): $(LIBS)
 $(LIBS):
 	$(MAKE) -C $@
 
-clean:
+clean: clean-vgcores clean-logs
 	$(foreach PROJ, $(LIBS) $(PROJECTS) $(TESTS), $(MAKE) -C $(PROJ) clean;)
 
 release: test
@@ -19,4 +19,10 @@ release: test
 test:
 	$(foreach PROJ, $(TESTS), $(MAKE) -C $(PROJ) start;)
 
-.PHONY: all $(PROJECTS) $(LIBS) $(TESTS) clean release test
+clean-vgcores:
+	$(RM) **/vgcore.*
+
+clean-logs:
+	$(RM) **/**/*.log
+
+.PHONY: all $(PROJECTS) $(LIBS) $(TESTS) clean release test clean-vgcores clean-logs
