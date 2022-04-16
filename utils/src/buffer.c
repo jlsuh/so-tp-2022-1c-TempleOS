@@ -1,6 +1,8 @@
 #include "buffer.h"
 
+#include <stdbool.h>
 #include <stdint.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -23,6 +25,10 @@ void buffer_pack(t_buffer* self, void* streamToAdd, int size) {
 }
 
 void buffer_unpack(t_buffer* self, void* dest, int size) {
+    if (self->stream == NULL || self->size == 0) {
+        puts("\e[0;31mbuffer_unpack: Error en el desempaquetado del buffer\e[0m");
+        exit(-1);
+    }
     memcpy(dest, self->stream, size);
     self->size -= size;
     memmove(self->stream, self->stream + size, self->size);

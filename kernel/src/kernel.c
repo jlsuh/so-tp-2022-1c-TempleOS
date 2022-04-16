@@ -29,7 +29,7 @@ static void* testTemporal(void* socket) {
     uint32_t tamanio = 0;
     if (response != HANDSHAKE_consola) {
         log_error(kernelLogger, "Error al intentar establecer conexión con proceso %d", *socketProceso);
-        pthread_exit(NULL);
+        return NULL;
     } else {
         t_buffer* buffer = buffer_create();
         stream_recv_buffer(*socketProceso, buffer);
@@ -67,7 +67,7 @@ static void* testTemporal(void* socket) {
                 buffer_unpack(instructionsBuffer, &op2, sizeof(op2));
                 break;
             default:
-                log_error(kernelLogger, "Error al intentar establecer conexión con proceso %d", *socketProceso);
+                log_error(kernelLogger, "Error al intentar desempaquetar una instrucción del proceso %d", *socketProceso);
                 pthread_exit(NULL);
         }
         printf("Instrucción: %d con argumento/s %d %d\n", instruction, op1, op2);
