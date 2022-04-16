@@ -5,9 +5,9 @@
 #include "consola_parser_tests.h"
 #include "testing_utils.h"
 
-static void consola_parser_tests(void) {
+static void consola_tests(void) {
     CU_pSuite consolaParserSuite = CU_add_suite_with_setup_and_teardown(
-        "consola.h Test Suite",
+        "consola_parser.h Test Suite",
         NULL,
         NULL,
         test_consola_parser_setup,
@@ -26,7 +26,7 @@ int main(int argc, char* argv[]) {
     CU_initialize_registry();
     CU_basic_set_mode(CU_BRM_VERBOSE);
 
-    consola_parser_tests();
+    consola_tests();
 
     CU_basic_run_tests();
     CU_cleanup_registry();
