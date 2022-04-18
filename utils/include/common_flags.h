@@ -8,6 +8,8 @@ typedef enum {
 typedef enum {
     HANDSHAKE_consola,
     HANDSHAKE_ok_continue,
+    HANDSHAKE_cpu,
+    HANDSHAKE_kernel
 } t_handshake;
 
 typedef enum {
