@@ -1,10 +1,10 @@
 #include "kernel_config.h"
 
-#include "module_config.h"
-
 #include <commons/config.h>
 #include <stdlib.h>
 #include <string.h>
+
+#include "module_config.h"
 
 struct t_kernel_config {
     char* IP_MEMORIA;
@@ -67,4 +67,24 @@ char* kernel_config_get_ip_escucha(t_kernel_config* self) {
 
 char* kernel_config_get_puerto_escucha(t_kernel_config* self) {
     return self->PUERTO_ESCUCHA;
+}
+
+char* kernel_config_get_ip_cpu(t_kernel_config* self) {
+    return self->IP_CPU;
+}
+
+char* kernel_config_get_puerto_cpu_dispatch(t_kernel_config* self) {
+    return self->PUERTO_CPU_DISPATCH;
+}
+
+char* kernel_config_get_puerto_cpu_interrupt(t_kernel_config* self) {
+    return self->PUERTO_CPU_INTERRUPT;
+}
+
+void kernel_config_set_socket_dispatch_cpu(t_kernel_config* self, int socket) {
+    self->SOCKET_DISPATCH_CPU = socket;
+}
+
+void kernel_config_set_socket_interrupt_cpu(t_kernel_config* self, int socket) {
+    self->SOCKET_INTERRUPT_CPU = socket;
 }

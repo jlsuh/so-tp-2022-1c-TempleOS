@@ -118,7 +118,28 @@ int main(int argc, char* argv[]) {
     kernelLogger = log_create(KERNEL_LOG_PATH, KERNEL_MODULE_NAME, true, LOG_LEVEL_INFO);
     kernelConfig = kernel_config_create(KERNEL_CONFIG_PATH, kernelLogger);
 
+    const int socketCPUDispatch = conectar_a_servidor(kernel_config_get_ip_cpu(kernelConfig), kernel_config_get_puerto_cpu_dispatch(kernelConfig));
+    if (socketCPUDispatch == -1) {
+        log_error(kernelLogger, "Error al intentar conectar con CPU Dispatch");
+        __kernel_destroy(kernelConfig, kernelLogger);
+        exit(-1);
+    }
+    kernel_config_set_socket_dispatch_cpu(kernelConfig, socketCPUDispatch);
+
+    const int socketCPUInterrupt = conectar_a_servidor(kernel_config_get_ip_cpu(kernelConfig), kernel_config_get_puerto_cpu_interrupt(kernelConfig));
+    if (socketCPUInterrupt == -1) {
+        log_error(kernelLogger, "Error al intentar conectar con CPU Interrupt");
+        __kernel_destroy(kernelConfig, kernelLogger);
+        exit(-1);
+    }
+    kernel_config_set_socket_interrupt_cpu(kernelConfig, socketCPUInterrupt);
+
     int socketEscucha = iniciar_servidor(kernel_config_get_ip_escucha(kernelConfig), kernel_config_get_puerto_escucha(kernelConfig));
+    if (socketEscucha == -1) {
+        log_error(kernelLogger, "Error al intentar iniciar servidor");
+        __kernel_destroy(kernelConfig, kernelLogger);
+        exit(-1);
+    }
 
     // TODO borrar
     struct sigaction sigInt;
