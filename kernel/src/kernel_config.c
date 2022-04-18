@@ -81,10 +81,22 @@ char* kernel_config_get_puerto_cpu_interrupt(t_kernel_config* self) {
     return self->PUERTO_CPU_INTERRUPT;
 }
 
+char* kernel_config_get_puerto_memoria(t_kernel_config* self) {
+    return self->PUERTO_MEMORIA;
+}
+
+char *kernel_config_get_ip_memoria(t_kernel_config* self) {
+    return self->IP_MEMORIA;
+}
+
 void kernel_config_set_socket_dispatch_cpu(t_kernel_config* self, int socket) {
     self->SOCKET_DISPATCH_CPU = socket;
 }
 
 void kernel_config_set_socket_interrupt_cpu(t_kernel_config* self, int socket) {
     self->SOCKET_INTERRUPT_CPU = socket;
+}
+
+void kernel_config_set_socket_memoria(t_kernel_config* self, int socketMemoria) {
+    self->SOCKET_MEMORIA = socketMemoria;
 }

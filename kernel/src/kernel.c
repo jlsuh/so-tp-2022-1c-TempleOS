@@ -134,6 +134,14 @@ int main(int argc, char* argv[]) {
     }
     kernel_config_set_socket_interrupt_cpu(kernelConfig, socketCPUInterrupt);
 
+    const int socketMemoria = conectar_a_servidor(kernel_config_get_ip_memoria(kernelConfig), kernel_config_get_puerto_memoria(kernelConfig));
+    if (socketCPUInterrupt == -1) {
+        log_error(kernelLogger, "Error al intentar conectar con módulo Memoria");
+        __kernel_destroy(kernelConfig, kernelLogger);
+        exit(-1);
+    }
+    kernel_config_set_socket_memoria(kernelConfig, socketMemoria);
+
     int socketEscucha = iniciar_servidor(kernel_config_get_ip_escucha(kernelConfig), kernel_config_get_puerto_escucha(kernelConfig));
     if (socketEscucha == -1) {
         log_error(kernelLogger, "Error al intentar iniciar servidor");
