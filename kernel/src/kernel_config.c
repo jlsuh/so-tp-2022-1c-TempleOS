@@ -85,7 +85,7 @@ char* kernel_config_get_puerto_memoria(t_kernel_config* self) {
     return self->PUERTO_MEMORIA;
 }
 
-char *kernel_config_get_ip_memoria(t_kernel_config* self) {
+char* kernel_config_get_ip_memoria(t_kernel_config* self) {
     return self->IP_MEMORIA;
 }
 
