@@ -10,6 +10,8 @@ typedef enum {
     HANDSHAKE_ok_continue,
     HANDSHAKE_cpu,
     HANDSHAKE_kernel,
+    HANDSHAKE_dispatch,
+    HANDSHAKE_interrupt,
 } t_handshake;
 
 typedef enum {
