@@ -11,7 +11,7 @@ struct t_memoria_config {
     char* PUERTO_ESCUCHA;
     int TAM_MEMORIA;
     int TAM_PAGINA;
-    int ENTRADAS_POR_TABLA;
+    int PAGINAS_POR_TABLA;
     int RETARDO_MEMORIA;
     char* ALGORITMO_REEMPLAZO;
     int MARCOS_POR_PROCESO;
@@ -27,7 +27,7 @@ static void __memoria_config_initializer(void* moduleConfig, t_config* tempCfg) 
     memoriaConfig->PUERTO_ESCUCHA = strdup(config_get_string_value(tempCfg, "PUERTO_ESCUCHA"));
     memoriaConfig->TAM_MEMORIA = config_get_int_value(tempCfg, "TAM_MEMORIA");
     memoriaConfig->TAM_PAGINA = config_get_int_value(tempCfg, "TAM_PAGINA");
-    memoriaConfig->ENTRADAS_POR_TABLA = config_get_int_value(tempCfg, "ENTRADAS_POR_TABLA");
+    memoriaConfig->PAGINAS_POR_TABLA = config_get_int_value(tempCfg, "PAGINAS_POR_TABLA");
     memoriaConfig->RETARDO_MEMORIA = config_get_int_value(tempCfg, "RETARDO_MEMORIA");
     memoriaConfig->ALGORITMO_REEMPLAZO = strdup(config_get_string_value(tempCfg, "ALGORITMO_REEMPLAZO"));
     memoriaConfig->MARCOS_POR_PROCESO = config_get_int_value(tempCfg, "MARCOS_POR_PROCESO");
