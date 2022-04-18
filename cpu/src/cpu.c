@@ -53,11 +53,13 @@ int main(int argc, char* argv[]) {
     cpuLogger = log_create(CPU_LOG_PATH, CPU_MODULE_NAME, true, LOG_LEVEL_INFO);
     cpuConfig = cpu_config_create(CPU_CONFIG_PATH, cpuLogger);
 
-    /* const int memoriaSocket = conectar_a_servidor(cpu_config_get_ip_memoria(cpuConfig), cpu_config_get_puerto_memoria(cpuConfig));
+    const int memoriaSocket = conectar_a_servidor(cpu_config_get_ip_memoria(cpuConfig), cpu_config_get_puerto_memoria(cpuConfig));
     if (memoriaSocket == -1) {
         log_error(cpuLogger, "Error al intentar establecer conexión inicial con módulo Memoria");
         log_destroy(cpuLogger);
         return -1;
+    } else {
+        puts("Se conecta con módulo Memoria");
     }
     cpu_config_set_socket_memoria(cpuConfig, memoriaSocket);
 
@@ -70,13 +72,15 @@ int main(int argc, char* argv[]) {
         log_error(cpuLogger, "Error al intentar establecer Handshake inicial con módulo Memoria");
         log_destroy(cpuLogger);
         return -1;
-    } */
+    }
 
     int* socketEscuchaDispatch = malloc(sizeof(int));
     int* socketEscuchaInterrupt = malloc(sizeof(int));
 
     *socketEscuchaDispatch = iniciar_servidor(cpu_config_get_ip_cpu(cpuConfig), cpu_config_get_puerto_dispatch(cpuConfig));
     *socketEscuchaInterrupt = iniciar_servidor(cpu_config_get_ip_cpu(cpuConfig), cpu_config_get_puerto_interrupt(cpuConfig));
+
+    puts("Servidor levantado");
 
     pthread_t dispatchTh;
     pthread_create(&dispatchTh, NULL, cpu_dispatch_handler, (void*)socketEscuchaDispatch);
