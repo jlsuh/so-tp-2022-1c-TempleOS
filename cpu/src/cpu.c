@@ -17,79 +17,74 @@
 t_log* cpuLogger;
 t_cpu_config* cpuConfig;
 
-void* cpu_dispatch_handler(void* socketEscuchaDispatchVoid) {
-    int* socketEscuchaDispatch = (int*)socketEscuchaDispatchVoid;
-    printf("[CPU] Escuchando en el socket %d\n", *socketEscuchaDispatch);
-    struct sockaddr cliente = {0};
-    socklen_t len = sizeof(cliente);
-    int socketDispatch = accept(*socketEscuchaDispatch, &cliente, &len);
-    if (socketDispatch == -1) {
-        log_error(cpuLogger, "Error al intentar aceptar conexión con CPU Dispatch");
-        log_destroy(cpuLogger);
-        return NULL;
-    }
-    cpu_config_set_socket_dispatch(cpuConfig, socketDispatch);
-    printf("[CPU] Conexión con CPU Dispatch aceptada\n");
-    return NULL;
-}
-
-void* cpu_interrupt_handler(void* socketEscuchaInterruptVoid) {
-    int* socketEscuchaInterrupt = (int*)socketEscuchaInterruptVoid;
-    printf("[CPU] Escuchando en el socket %d\n", *socketEscuchaInterrupt);
-    struct sockaddr cliente = {0};
-    socklen_t len = sizeof(cliente);
-    int socketInterrupt = accept(*socketEscuchaInterrupt, &cliente, &len);
-    if (socketInterrupt == -1) {
-        log_error(cpuLogger, "Error al intentar aceptar conexión con CPU Interrupt");
-        log_destroy(cpuLogger);
-        return NULL;
-    }
-    cpu_config_set_socket_interrupt(cpuConfig, socketInterrupt);
-    printf("[CPU] Conexión con CPU Interrupt aceptada\n");
-    return NULL;
-}
-
 int main(int argc, char* argv[]) {
     cpuLogger = log_create(CPU_LOG_PATH, CPU_MODULE_NAME, true, LOG_LEVEL_INFO);
     cpuConfig = cpu_config_create(CPU_CONFIG_PATH, cpuLogger);
 
+    // Conexión con Memoria
     const int memoriaSocket = conectar_a_servidor(cpu_config_get_ip_memoria(cpuConfig), cpu_config_get_puerto_memoria(cpuConfig));
     if (memoriaSocket == -1) {
         log_error(cpuLogger, "Error al intentar establecer conexión inicial con módulo Memoria");
         log_destroy(cpuLogger);
         return -1;
-    } else {
-        puts("Se conecta con módulo Memoria");
     }
     cpu_config_set_socket_memoria(cpuConfig, memoriaSocket);
 
     stream_send_empty_buffer(memoriaSocket, HANDSHAKE_cpu);
-
     uint8_t memoriaResponse = stream_recv_header(memoriaSocket);
     stream_recv_empty_buffer(memoriaSocket);
-
     if (memoriaResponse != HANDSHAKE_ok_continue) {
         log_error(cpuLogger, "Error al intentar establecer Handshake inicial con módulo Memoria");
         log_destroy(cpuLogger);
         return -1;
     }
+    log_info(cpuLogger, "Conexión con Memoria establecida");
 
-    int* socketEscuchaDispatch = malloc(sizeof(int));
-    int* socketEscuchaInterrupt = malloc(sizeof(int));
+    // Servidor de Kernel
+    int socketEscuchaDispatch = iniciar_servidor(cpu_config_get_ip_cpu(cpuConfig), cpu_config_get_puerto_dispatch(cpuConfig));
+    int socketEscuchaInterrupt = iniciar_servidor(cpu_config_get_ip_cpu(cpuConfig), cpu_config_get_puerto_interrupt(cpuConfig));
 
-    *socketEscuchaDispatch = iniciar_servidor(cpu_config_get_ip_cpu(cpuConfig), cpu_config_get_puerto_dispatch(cpuConfig));
-    *socketEscuchaInterrupt = iniciar_servidor(cpu_config_get_ip_cpu(cpuConfig), cpu_config_get_puerto_interrupt(cpuConfig));
+    struct sockaddr cliente = {0};
+    socklen_t len = sizeof(cliente);
 
-    puts("Servidor levantado");
+    // Conexión con Kernel en canal Dispatch
+    int kernelDispatchSocket = accept(socketEscuchaDispatch, &cliente, &len);
+    if (kernelDispatchSocket == -1) {
+        log_error(cpuLogger, "Error al intentar establecer conexión inicial módulo Kernel por canal Dispatch");
+        log_destroy(cpuLogger);
+        return -1;
+    }
+    cpu_config_set_socket_dispatch(cpuConfig, kernelDispatchSocket);
 
-    pthread_t dispatchTh;
-    pthread_create(&dispatchTh, NULL, cpu_dispatch_handler, (void*)socketEscuchaDispatch);
+    uint8_t kernelDispatchResponse = stream_recv_header(kernelDispatchSocket);
+    stream_recv_empty_buffer(kernelDispatchSocket);
+    if (kernelDispatchResponse != HANDSHAKE_dispatch) {
+        log_error(cpuLogger, "Error al intentar establecer Handshake inicial con módulo Kernel por canal Dispatch");
+        log_destroy(cpuLogger);
+        return -1;
+    }
+    stream_send_empty_buffer(kernelDispatchSocket, HANDSHAKE_ok_continue);
+    log_info(cpuLogger, "Conexión con Kernel por canal Dispatch establecida");
 
-    pthread_t interruptTh;
-    pthread_create(&interruptTh, NULL, cpu_interrupt_handler, (void*)socketEscuchaInterrupt);
+    // Conexión con Kernel en canal Interrupt
+    int kernelInterruptSocket = accept(socketEscuchaInterrupt, &cliente, &len);
+    if (kernelInterruptSocket == -1) {
+        log_error(cpuLogger, "Error al intentar establecer conexión inicial módulo Kernel por canal Interrupt");
+        log_destroy(cpuLogger);
+        return -1;
+    }
 
-    pthread_join(dispatchTh, NULL);
-    pthread_join(interruptTh, NULL);
+    uint8_t kernelInterruptResponse = stream_recv_header(kernelInterruptSocket);
+    stream_recv_empty_buffer(kernelInterruptSocket);
+    if (kernelInterruptResponse != HANDSHAKE_interrupt) {
+        log_error(cpuLogger, "Error al intentar establecer Handshake inicial con módulo Kernel por canal Interrupt");
+        log_destroy(cpuLogger);
+        return -1;
+    }
+    stream_send_empty_buffer(kernelInterruptSocket, HANDSHAKE_ok_continue);
+    log_info(cpuLogger, "Conexión con Kernel por canal Interrupt establecida");
+
+    // Seguir aquí
 
     return 0;
 }
