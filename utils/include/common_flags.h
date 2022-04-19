@@ -3,6 +3,12 @@
 
 typedef enum {
     HEADER_lista_instrucciones,
+    HEADER_nuevo_proceso,
+    HEADER_proceso_terminado,
+    HEADER_proceso_suspendido,
+    HEADER_read,
+    HEADER_write,
+    HEADER_copy,
 } t_header;
 
 typedef enum {
@@ -21,6 +27,6 @@ typedef enum {
     INSTRUCCION_copy,
     INSTRUCCION_write,
     INSTRUCCION_exit
-} t_instruccion;
+} t_tipo_instruccion;
 
 #endif
