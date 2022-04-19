@@ -12,6 +12,7 @@
 #include "common_flags.h"
 #include "connections.h"
 #include "kernel_config.h"
+#include "scheduler.h"
 #include "stream.h"
 
 #define KERNEL_CONFIG_PATH "cfg/kernel_config.cfg"
@@ -21,7 +22,7 @@
 t_log* kernelLogger;
 t_kernel_config* kernelConfig;
 
-static void* testTemporal(void* socket) {
+/* static void* testTemporal(void* socket) {
     int* socketProceso = (int*)socket;
     uint8_t response = stream_recv_header(*socketProceso);
     uint32_t tamanio = 0;
@@ -76,11 +77,11 @@ static void* testTemporal(void* socket) {
     puts("Proceso terminado");
     buffer_destroy(instructionsBuffer);
     pthread_exit(NULL);
-}
+} */
 
 static void __crear_hilo_handler_conexion_entrante(int* socket) {
     pthread_t threadSuscripcion;
-    pthread_create(&threadSuscripcion, NULL, testTemporal, (void*)socket);  // TODO: modificar puntero a función para que encole en new al nuevo PCB
+    pthread_create(&threadSuscripcion, NULL, encolar_en_new_a_nuevo_pcb_entrante, (void*)socket);  // TODO: modificar puntero a función para que encole en new al nuevo PCB
     pthread_detach(threadSuscripcion);
 }
 
