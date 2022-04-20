@@ -9,23 +9,7 @@
 
 #include "buffer.h"
 #include "common_flags.h"
-
-typedef enum estado {
-    NEW,
-    READY,
-    EXEC,
-    EXIT,
-    BLOCKED,
-    SUSPENDED_READY,
-    SUSPENDED_BLOCKED,
-} t_nombre_estado;
-
-typedef struct {
-    t_nombre_estado nombre;
-    t_list* listaProcesos;
-    sem_t semaforoEstado;
-    pthread_mutex_t mutexEstado;
-} t_estado;
+#include "estados.h"
 
 // static t_estado pcbsNew;
 

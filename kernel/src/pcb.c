@@ -18,4 +18,5 @@ struct t_pcb {
     uint64_t programCounter;  // Contiene un índice de la t_list instrucciones
     uint32_t tablaPaginaPrimerNivel;
     double estimacionRafaga;
+    t_nombre_estado estadoActual;
 };
