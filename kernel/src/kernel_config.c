@@ -108,3 +108,15 @@ void kernel_config_set_socket_memoria(t_kernel_config* self, int socketMemoria) 
 int kernel_config_get_grado_multiprogramacion(t_kernel_config* self) {
     return self->GRADO_MULTIPROGRAMACION;
 }
+
+int kernel_config_get_alfa(t_kernel_config* self) {
+    return self->ALFA;
+}
+
+char* kernel_config_get_algoritmo(t_kernel_config* self) {
+    return self->ALGORITMO_PLANIFICACION;
+}
+
+int kernel_config_get_maximo_bloq(t_kernel_config* self) {
+    return self->TIEMPO_MAXIMO_BLOQUEADO;
+}

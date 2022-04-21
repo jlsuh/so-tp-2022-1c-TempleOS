@@ -14,8 +14,12 @@ uint32_t pcb_get_pid(t_pcb*);
 uint32_t pcb_get_tamanio(t_pcb*);
 t_list* pcb_get_instrucciones(t_pcb*);
 uint64_t pcb_get_program_counter(t_pcb*);
-double pcb_get_ultima_est(t_pcb*);
+double pcb_get_est_actual(t_pcb*);
+void pcb_set_est_actual(t_pcb*, double est);
+double pcb_get_ultima_ejecucion(t_pcb*);
+void pcb_set_ultima_ejecucion(t_pcb*, double ej);
 uint32_t pcb_get_tabla_pagina_primer_nivel(t_pcb*);
+uint32_t pcb_get_tiempo_de_bloq(t_pcb* self);
 t_pcb* pcb_create(uint32_t pid, uint32_t tamanio, double estimacionRafaga);
 
 #endif

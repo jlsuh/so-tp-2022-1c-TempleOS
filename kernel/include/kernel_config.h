@@ -19,5 +19,8 @@ void kernel_config_set_socket_interrupt_cpu(t_kernel_config*, int socket);
 void kernel_config_set_socket_memoria(t_kernel_config*, int socketMemoria);
 void kernel_config_destroy(t_kernel_config*);
 int kernel_config_get_grado_multiprogramacion(t_kernel_config* self);
+int kernel_config_get_alfa(t_kernel_config* self);
+char* kernel_config_get_algoritmo(t_kernel_config* self);
+int kernel_config_get_maximo_bloq(t_kernel_config* self);
 
 #endif

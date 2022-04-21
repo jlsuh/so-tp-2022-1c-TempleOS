@@ -63,6 +63,14 @@ void inicializar_estructuras(void) {
     pthread_t largoPlazoTh;
     pthread_create(&largoPlazoTh, NULL, (void*)planificador_largo_plazo, NULL);
     pthread_detach(largoPlazoTh);
+
+  /*  pthread_t medianoPlazoTh;
+    pthread_create(&medianoPlazoTh, NULL, (void*)planificador_mediano_plazo, NULL);
+    pthread_detach(medianoPlazoTh);
+
+    pthread_t cortoPlazoTh;
+    pthread_create(&cortoPlazoTh, NULL, (void*)planificador_corto_plazo, NULL);
+    pthread_detach(cortoPlazoTh);*/
 }
 
 void* encolar_en_new_a_nuevo_pcb_entrante(void* socket) {
@@ -147,50 +155,64 @@ static noreturn void planificador_largo_plazo(void) {
     }
 }
 
-/*static noreturn void planificador_mediano_plazo(void) {
 
+/*
+
+double srt(t_pcb* proceso){
+	double alfa = kernel_config_get_alfa(kernelConfig);
+
+	if(pcb_get_ultima_ejecucion(proceso) == -1){
+		return pcb_get_est_actual(proceso);
+	}
+
+	pcb_set_est_actual(proceso,(alfa*pcb_get_ultima_ejecucion(proceso) + (1-alfa)*pcb_get_est_actual(proceso)));
+	return pcb_get_est_actual(proceso);
+}
+
+t_pcb* planificar(void){
+    void* t_planificar_srt(t_pcb* p1, t_pcb* p2){
+    	return (srt(p1) <= srt(p2)) ? p1 : p2;
+    }
+    t_pcb* seleccionado = NULL;
+
+    if(strcmp(kernel_config_get_algoritmo(kernelConfig), "SRT") == 0){
+        if(list_size(estado_get_list(estadoReady)) == 1){
+            seleccionado = list_get(estado_get_list(estadoReady),0);
+			srt(seleccionado);
+			return seleccionado;
+		}
+	    seleccionado = list_get_minimum(estado_get_list(estadoReady),(void*)t_planificar_srt);
+        return seleccionado;
+    }
+    return list_get(estado_get_list(estadoReady),0); //FIFO
+}
+
+static noreturn void planificador_mediano_plazo(void) {
+    bool supera_limite_block(void* tcb_en_lista) {
+		return (pcb_get_tiempo_de_bloq((t_pcb*)tcb_en_lista) > kernel_config_get_maximo_bloq(kernelConfig)); // TODO: los dos gets de esta linea
+	}
+    
+    t_pcb* pcbASuspender = NULL;
+
+    for (;;) {
+        //SEMAFORO HAY UNO BLOQUEADO
+        if(list_size(estado_get_list(estadoBlocked)) > 0 && list_any_satisfy(estado_get_list(estadoBlocked),(void*)supera_limite_block)){
+            pcbASuspender = list_remove_by_condition(estado_get_list(estadoBlocked),(void*)supera_limite_block);
+            //CAMBIAR ESTADO A SUSP BLOCKED
+            //SACAR TIEMPO BLOQUEO
+            //SEMAFORO BLOQUEADOS -- 
+        }
+    }
 }
 
 static noreturn void planificador_corto_plazo(void) {
-
-}*/
-
-/*
-        pthread_t planif_corto;
-        pthread_create(&planif_corto, NULL, (void*) planificador_corto_plazo, NULL);
-        pthread_detach((pthread_t) planif_corto);
-
-        pthread_t planif_medio_suspender;
-        pthread_create(&planif_medio_suspender, NULL, (void*) planificador_mediano_plazo_suspender, NULL);
-        pthread_detach((pthread_t) planif_medio_suspender);
-*/
-/*
-static noreturn void* __iniciar_largo_plazo(void* _) {
-    pthread_t th;
-    pthread_create(&th, NULL, __liberar_carpinchos_en_exit, NULL);
-    pthread_detach(th);
-    log_info(kernelLogger, "Largo Plazo: Inicialización exitosa");
+    t_pcb* pcbQuePasaAExec = NULL;
     for (;;) {
-        // tanto NEW como SUSREADY son parte del mismo conjunto: "el conjunto a pasar a READY"
-        sem_wait(&hayPCBsParaAgregarAlSistema);
-        log_info(kernelLogger, "Largo Plazo: Se toma una instancia de PCBs a agregar al sistema");
-
-        sem_wait(&gradoMultiprog);
-        log_info(kernelLogger, "Largo Plazo: Se toma una instancia de Grado Multiprogramación");
-
-        if (!list_is_empty(cola_planificacion_get_list(pcbsSusReady))) {
-            sem_post(&transicionarSusReadyAready);
-        } else {
-            t_pcb* pcbQuePasaAReady = __get_and_remove_first_pcb_from_queue(pcbsNew);
-
-            pcb_algoritmo_init(pcbQuePasaAReady);
-            log_info(kernelLogger, "Largo Plazo: Incialización de información del algoritmo correcta");
-
-            pcb_transition_to_ready(pcbQuePasaAReady);
-            __enqueue_pcb(pcbQuePasaAReady, pcbsReady);
-            log_transition("Largo Plazo", "NEW", "READY", pcb_get_pid(pcbQuePasaAReady));
-
-            sem_post(cola_planificacion_get_instancias_disponibles(pcbsReady));
-        }
+        //MUTEX CPU DESOCUPADA
+        pcbQuePasaAExec = planificar();
+        //PASAR A EXEC
+        //MARCAR TIEMPO DE INICIO DE RAFAGA
+        //CREAR HILO DE ATENCION - POSTEAR SEMAFOROS EN SALIDA
     }
-}*/
+}
+*/
