@@ -13,9 +13,11 @@ char* kernel_config_get_puerto_cpu_dispatch(t_kernel_config*);
 char* kernel_config_get_puerto_cpu_interrupt(t_kernel_config*);
 char* kernel_config_get_puerto_memoria(t_kernel_config*);
 char* kernel_config_get_ip_memoria(t_kernel_config*);
+double kernel_config_get_est_inicial(t_kernel_config*);
 void kernel_config_set_socket_dispatch_cpu(t_kernel_config*, int socket);
 void kernel_config_set_socket_interrupt_cpu(t_kernel_config*, int socket);
 void kernel_config_set_socket_memoria(t_kernel_config*, int socketMemoria);
 void kernel_config_destroy(t_kernel_config*);
+int kernel_config_get_grado_multiprogramacion(t_kernel_config* self);
 
 #endif

@@ -18,7 +18,7 @@ struct t_kernel_config {
     char* IP_ESCUCHA;
     char* PUERTO_ESCUCHA;
     char* ALGORITMO_PLANIFICACION;
-    int ESTIMACION_INICIAL;
+    double ESTIMACION_INICIAL;
     double ALFA;
     int GRADO_MULTIPROGRAMACION;
     int TIEMPO_MAXIMO_BLOQUEADO;
@@ -37,7 +37,7 @@ static void __kernel_config_initializer(void* moduleConfig, t_config* tempCfg) {
     kernelConfig->IP_ESCUCHA = strdup(config_get_string_value(tempCfg, "IP_ESCUCHA"));
     kernelConfig->PUERTO_ESCUCHA = strdup(config_get_string_value(tempCfg, "PUERTO_ESCUCHA"));
     kernelConfig->ALGORITMO_PLANIFICACION = strdup(config_get_string_value(tempCfg, "ALGORITMO_PLANIFICACION"));
-    kernelConfig->ESTIMACION_INICIAL = config_get_int_value(tempCfg, "ESTIMACION_INICIAL");
+    kernelConfig->ESTIMACION_INICIAL = config_get_double_value(tempCfg, "ESTIMACION_INICIAL");
     kernelConfig->ALFA = config_get_double_value(tempCfg, "ALFA");
     kernelConfig->GRADO_MULTIPROGRAMACION = config_get_int_value(tempCfg, "GRADO_MULTIPROGRAMACION");
     kernelConfig->TIEMPO_MAXIMO_BLOQUEADO = config_get_int_value(tempCfg, "TIEMPO_MAXIMO_BLOQUEADO");
@@ -59,6 +59,10 @@ void kernel_config_destroy(t_kernel_config* self) {
     free(self->PUERTO_ESCUCHA);
     free(self->ALGORITMO_PLANIFICACION);
     free(self);
+}
+
+double kernel_config_get_est_inicial(t_kernel_config* self) {
+    return self->ESTIMACION_INICIAL / 1000;
 }
 
 char* kernel_config_get_ip_escucha(t_kernel_config* self) {
@@ -99,4 +103,8 @@ void kernel_config_set_socket_interrupt_cpu(t_kernel_config* self, int socket) {
 
 void kernel_config_set_socket_memoria(t_kernel_config* self, int socketMemoria) {
     self->SOCKET_MEMORIA = socketMemoria;
+}
+
+int kernel_config_get_grado_multiprogramacion(t_kernel_config* self) {
+    return self->GRADO_MULTIPROGRAMACION;
 }
