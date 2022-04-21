@@ -2,30 +2,31 @@
 #define ESTADOS_H_INCLUDED
 
 #include <commons/collections/list.h>
-#include <stdint.h>
 #include <pthread.h>
 #include <semaphore.h>
+#include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
-#include <stdbool.h>
 #include <stdlib.h>
 
-typedef struct t_estado{
-	t_nombre_estado nombreEstado;
-    t_list* listaProcesos;
-    sem_t semaforoEstado;
-    pthread_mutex_t mutexEstado;
-}t_estado;
+#include "pcb.h"
 
-struct t_estado nuevo; // TODO: al parecer new es palabra reservada
-struct t_estado ready;
-struct t_estado exec;
-struct t_estado salida; // TODO: exit también, pasar a español si al final hacemos así los estados
-struct t_estado blocked;
-struct t_estado suspendedBlocked;
-struct t_estado suspendedReady;
+typedef struct t_estado t_estado;
+typedef enum {
+    NEW,
+    READY,
+    EXEC,
+    EXIT,
+    BLOCKED,
+    SUSPENDED_READY,
+    SUSPENDED_BLOCKED,
+} t_nombre_estado;
 
-void cambiar_estado(t_estado estadoNuevo, t_pcb* proceso);
-void remover_de_lista_de_estado(t_estado estadoObjetivo, uint32_t idProceso);
+pthread_mutex_t *estado_get_mutex(t_estado *);
+sem_t *estado_get_sem(t_estado *);
+t_estado *estado_create(t_nombre_estado nombre);
+t_list *estado_get_list(t_estado *);
+t_nombre_estado estado_get_nombre_estado(t_estado *);
+void estado_encolar_pcb(t_estado *estadoDest, t_pcb *);
 
 #endif

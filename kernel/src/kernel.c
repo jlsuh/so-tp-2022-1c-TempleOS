@@ -22,63 +22,6 @@
 t_log* kernelLogger;
 t_kernel_config* kernelConfig;
 
-/* static void* testTemporal(void* socket) {
-    int* socketProceso = (int*)socket;
-    uint8_t response = stream_recv_header(*socketProceso);
-    uint32_t tamanio = 0;
-    if (response != HANDSHAKE_consola) {
-        log_error(kernelLogger, "Error al intentar establecer conexión con proceso %d", *socketProceso);
-        return NULL;
-    } else {
-        t_buffer* buffer = buffer_create();
-        stream_recv_buffer(*socketProceso, buffer);
-        buffer_unpack(buffer, &tamanio, sizeof(tamanio));
-        buffer_destroy(buffer);
-        log_info(kernelLogger, "Se establece handshake con proceso %d de tamaño %d", *socketProceso, tamanio);
-        stream_send_empty_buffer(*socketProceso, HANDSHAKE_ok_continue);
-        stream_recv_header(*socketProceso);  // Header lista de instrucciones solamente
-    }
-
-    t_buffer* instructionsBuffer = buffer_create();
-    stream_recv_buffer(*socketProceso, instructionsBuffer);
-
-    uint8_t instruction = -1;
-    uint32_t op1 = -1;
-    uint32_t op2 = -1;
-    buffer_unpack(instructionsBuffer, &instruction, sizeof(instruction));
-    for (; instruction != INSTRUCCION_exit;) {
-        switch (instruction) {
-            case INSTRUCCION_no_op:
-                buffer_unpack(instructionsBuffer, &op1, sizeof(op1));
-                break;
-            case INSTRUCCION_io:
-                buffer_unpack(instructionsBuffer, &op1, sizeof(op1));
-                break;
-            case INSTRUCCION_read:
-                buffer_unpack(instructionsBuffer, &op1, sizeof(op1));
-                break;
-            case INSTRUCCION_copy:
-                buffer_unpack(instructionsBuffer, &op1, sizeof(op1));
-                buffer_unpack(instructionsBuffer, &op2, sizeof(op2));
-                break;
-            case INSTRUCCION_write:
-                buffer_unpack(instructionsBuffer, &op1, sizeof(op1));
-                buffer_unpack(instructionsBuffer, &op2, sizeof(op2));
-                break;
-            default:
-                log_error(kernelLogger, "Error al intentar desempaquetar una instrucción del proceso %d", *socketProceso);
-                pthread_exit(NULL);
-        }
-        printf("Instrucción: %d con argumento/s %d %d\n", instruction, op1, op2);
-        op1 = -1;
-        op2 = -1;
-        buffer_unpack(instructionsBuffer, &instruction, sizeof(instruction));
-    }
-    puts("Proceso terminado");
-    buffer_destroy(instructionsBuffer);
-    pthread_exit(NULL);
-} */
-
 static void __crear_hilo_handler_conexion_entrante(int* socket) {
     pthread_t threadSuscripcion;
     pthread_create(&threadSuscripcion, NULL, encolar_en_new_a_nuevo_pcb_entrante, (void*)socket);  // TODO: modificar puntero a función para que encole en new al nuevo PCB
@@ -91,7 +34,7 @@ static noreturn void __aceptar_conexiones_kernel(int socketEscucha) {
     log_info(kernelLogger, "Kernel: A la escucha de nuevas conexiones en puerto %d", socketEscucha);
     int socketCliente;
     for (;;) {
-        // socketCliente = malloc(sizeof(*socketCliente));
+        // socketCliente = malloc(sizeof(*socketCliente)); // TODO esto que es?
         socketCliente = accept(socketEscucha, &cliente, &len);
         if (socketCliente > 0) {
             __crear_hilo_handler_conexion_entrante(&socketCliente);
@@ -110,6 +53,7 @@ int main(int argc, char* argv[]) {
     kernelLogger = log_create(KERNEL_LOG_PATH, KERNEL_MODULE_NAME, true, LOG_LEVEL_INFO);
     kernelConfig = kernel_config_create(KERNEL_CONFIG_PATH, kernelLogger);
 
+    /*
     // Conexión con CPU en canal Dispatch
     const int socketCPUDispatch = conectar_a_servidor(kernel_config_get_ip_cpu(kernelConfig), kernel_config_get_puerto_cpu_dispatch(kernelConfig));
     if (socketCPUDispatch == -1) {
@@ -166,6 +110,7 @@ int main(int argc, char* argv[]) {
         exit(-1);
     }
     log_info(kernelLogger, "Conexión con módulo Memoria establecida");
+    */
 
     // Levantar servidor de instancias Consola
     int socketEscucha = iniciar_servidor(kernel_config_get_ip_escucha(kernelConfig), kernel_config_get_puerto_escucha(kernelConfig));
@@ -174,6 +119,9 @@ int main(int argc, char* argv[]) {
         __kernel_destroy(kernelConfig, kernelLogger);
         exit(-1);
     }
+
+    inicializar_estructuras();
+
     __aceptar_conexiones_kernel(socketEscucha);
 
     return 0;
