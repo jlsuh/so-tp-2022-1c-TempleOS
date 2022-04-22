@@ -10,6 +10,7 @@ typedef enum {
     HEADER_write,
     HEADER_copy,
     HEADER_tabla_de_paginas,
+    HEADER_solicitud_tabla_paginas,
 } t_header;
 
 typedef enum {
