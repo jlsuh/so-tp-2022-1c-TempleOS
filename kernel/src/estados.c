@@ -13,40 +13,40 @@ struct t_estado {
     pthread_mutex_t* mutexEstado;
 };
 
-/* void cambiar_estado(t_estado estadoDest, t_pcb* pcb) {
-    switch (pcb_get_estado_actual(pcb)) {
+ void cambiar_estado(t_estado* estadoDest, t_pcb* pcb) {
+   /* switch (pcb_get_estado_actual(pcb)) {
         case NEW:
-            remover_de_lista_de_estado(estadoNew, pcb_get_pid(pcb));
+            remover_de_lista_de_estado(estadoNew, pcb);
         case READY:
-            remover_de_lista_de_estado(READY, pcb_get_pid(pcb));
+            remover_de_lista_de_estado(estadoReady, pcb);
         case EXEC:
-            remover_de_lista_de_estado(EXEC, pcb_get_pid(pcb));
+            remover_de_lista_de_estado(estadoExec, pcb);
         case EXIT:
-            remover_de_lista_de_estado(EXIT, pcb_get_pid(pcb));
+            remover_de_lista_de_estado(estadoExit, pcb);
         case BLOCKED:
-            remover_de_lista_de_estado(BLOCKED, pcb_get_pid(pcb));
+            remover_de_lista_de_estado(estadoBlocked, pcb);
         case SUSPENDED_BLOCKED:
-            remover_de_lista_de_estado(SUSPENDED_READY, pcb_get_pid(pcb));
+            remover_de_lista_de_estado(estadoSuspendedBlocked, pcb);
         case SUSPENDED_READY:
-            remover_de_lista_de_estado(SUSPENDED_BLOCKED, pcb_get_pid(pcb));
+            remover_de_lista_de_estado(estadoSuspendedReady, pcb);
         default:
             break;
-    }
+    }*/ // TODO: terminar de ver esto, los structs estados estan en el scheduler.c
     estado_encolar_pcb(estadoDest,pcb);
     return;
 }
 
-void remover_de_lista_de_estado(t_estado estadoObjetivo, uint32_t idProceso) {
+void remover_de_lista_de_estado(t_estado* estadoObjetivo, t_pcb* pcb) {
     bool buscar_proceso_en_lista_de_estado(void* proceso_en_lista) {
-        return ((t_pcb*)proceso_en_lista)->pid == idProceso;
+        return (pcb_get_pid((t_pcb*)proceso_en_lista)) == pcb_get_pid(pcb);
     }
 
-    pthread_mutex_lock(&estadoObjetivo.mutexEstado);
-    list_remove_by_condition(estadoObjetivo.listaProcesos, buscar_proceso_en_lista_de_estado);
-    pthread_mutex_unlock(&estadoObjetivo.mutexEstado);
-    sem_wait(&estadoObjetivo.semaforoEstado);
+    pthread_mutex_lock(estado_get_mutex(estadoObjetivo));
+    pcb = list_remove_by_condition(estado_get_list(estadoObjetivo), buscar_proceso_en_lista_de_estado); // TODO: ver si esto está bien, esto devolvería el mismo pcb pero sacado de la lista? 
+    sem_wait(estado_get_sem(estadoObjetivo));
+    pthread_mutex_unlock(estado_get_mutex(estadoObjetivo));
     return;
-} */
+}
 
 t_estado* estado_create(t_nombre_estado nombre) {
     t_estado* self = malloc(sizeof(*self));
