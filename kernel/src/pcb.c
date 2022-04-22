@@ -9,7 +9,7 @@ struct t_pcb {
     uint32_t pid;
     uint32_t tamanio;
     t_list* instrucciones;
-    uint64_t programCounter;  // Contiene un índice de la t_list instrucciones
+    uint64_t programCounter;
     uint32_t tablaPaginaPrimerNivel;
     double ultimaEstimacion;
     double ultimaEjecucion;
@@ -74,10 +74,10 @@ void pcb_set_estado_actual(t_pcb* self, uint8_t estado) {
     self->estadoActual = estado;
 }
 
-uint32_t pcb_get_tiempo_de_bloq(t_pcb* self){
+uint32_t pcb_get_tiempo_de_bloq(t_pcb* self) {
     return self->tiempoDeBloqueo;
 }
 
-void pcb_set_tabla_paginas(t_pcb* self, uint32_t tp){
-    self->tablaPaginaPrimerNivel = tp;
+void pcb_set_tabla_paginas(t_pcb* self, uint32_t tablaPaginaPrimerNivel) {
+    self->tablaPaginaPrimerNivel = tablaPaginaPrimerNivel;
 }

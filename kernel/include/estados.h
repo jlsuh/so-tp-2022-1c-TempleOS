@@ -22,8 +22,8 @@ typedef enum {
     SUSPENDED_BLOCKED,
 } t_nombre_estado;
 
-void cambiar_estado(t_estado* estadoDest, t_pcb* pcb);
-void remover_de_lista_de_estado(t_estado* estadoObjetivo, t_pcb*);
+void cambiar_estado(t_estado *estadoDest, t_pcb *pcb);
+t_pcb *estado_remover_pcb_de_cola(t_estado *estadoTarget, t_pcb *targetPcb);
 pthread_mutex_t *estado_get_mutex(t_estado *);
 sem_t *estado_get_sem(t_estado *);
 t_estado *estado_create(t_nombre_estado nombre);
