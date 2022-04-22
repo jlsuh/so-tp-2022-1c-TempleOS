@@ -105,6 +105,18 @@ void kernel_config_set_socket_memoria(t_kernel_config* self, int socketMemoria) 
     self->SOCKET_MEMORIA = socketMemoria;
 }
 
+int kernel_config_get_socket_dispatch_cpu(t_kernel_config* self) {
+    return self->SOCKET_DISPATCH_CPU;
+}
+
+int kernel_config_get_socket_interrupt_cpu(t_kernel_config* self) {
+    return self->SOCKET_INTERRUPT_CPU;
+}
+
+int kernel_config_get_socket_memoria(t_kernel_config* self) {
+    return self->SOCKET_MEMORIA;
+}
+
 int kernel_config_get_grado_multiprogramacion(t_kernel_config* self) {
     return self->GRADO_MULTIPROGRAMACION;
 }

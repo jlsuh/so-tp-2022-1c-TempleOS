@@ -17,6 +17,7 @@
 
 extern t_log* kernelLogger;
 extern t_kernel_config* kernelConfig;
+extern t_log* kernelLogger;
 
 static uint32_t nextPid;
 static pthread_mutex_t nextPidMutex;
@@ -138,6 +139,34 @@ void* encolar_en_new_a_nuevo_pcb_entrante(void* socket) {
     return NULL;
 }
 
+void interrumpir_cpu(void) {
+    stream_send_empty_buffer(kernel_config_get_socket_interrupt_cpu(kernelConfig), INT_interrumpir_ejecucion);
+    uint8_t cpuInterruptResponse = stream_recv_header(kernel_config_get_socket_interrupt_cpu(kernelConfig));
+    stream_recv_empty_buffer(kernel_config_get_socket_interrupt_cpu(kernelConfig));
+    if (cpuInterruptResponse != INT_cpu_interrumpida) {
+        log_error(kernelLogger, "Error al intentar interrumpir CPU");
+        // TODO: Manejar este caso
+        exit(-1);
+    }
+    log_info(kernelLogger, "CPU interrumpida");
+}
+
+uint32_t iniciar_proceso_en_memoria(t_pcb* pcbAIniciar) {
+    uint32_t nroTabla = 0;
+    // TODO: enviar pid + tamaño
+    uint8_t response = stream_recv_header(kernel_config_get_socket_memoria(kernelConfig));
+    if (response != HEADER_tabla_de_paginas) {
+        // TODO: Manejar este caso
+    } else {
+        t_buffer* bufferTabla = buffer_create();
+        stream_recv_buffer(kernel_config_get_socket_memoria(kernelConfig), bufferTabla);
+        buffer_unpack(bufferTabla, &nroTabla, sizeof(nroTabla));
+        buffer_destroy(bufferTabla);
+        log_info(kernelLogger, "Proceso: %d - Tabla de página de primer nivel: %d", pcb_get_pid(pcbAIniciar), nroTabla);
+    }
+    return nroTabla;
+}
+
 static noreturn void planificador_largo_plazo(void) {
     t_pcb* pcbQuePasaAReady = NULL;
     for (;;) {
@@ -148,42 +177,15 @@ static noreturn void planificador_largo_plazo(void) {
             pcbQuePasaAReady = list_remove(estado_get_list(estadoSuspendedReady), 0);
         } else {
             pcbQuePasaAReady = list_remove(estado_get_list(estadoNew), 0);
-            pcb_set_tabla_paginas(iniciar_proceso_en_memoria(pcbQuePasaAReady));
+            pcb_set_tabla_paginas(pcbQuePasaAReady,iniciar_proceso_en_memoria(pcbQuePasaAReady));
             log_info(kernelLogger, "List get de PCB de ID: %d", pcb_get_pid(pcbQuePasaAReady));
         }
-        estado_encolar_pcb(estadoReady, newPcb);
+        estado_encolar_pcb(estadoReady, pcbQuePasaAReady);
         // if(hay_uno_planificando()){  // TODO: enviar interrupcion a CPU si ya hay uno planificando
             interrumpir_cpu();
        // }
        // TODO: Semaforo de que hay un pcb en ready
     }
-}
-
-void interrumpir_cpu(void) {
-    stream_send_empty_buffer(socketCPUInterrupt, INT_interrumpir_ejecucion);
-    uint8_t cpuInterruptResponse = stream_recv_header(socketCPUInterrupt);
-    stream_recv_empty_buffer(socketCPUInterrupt);
-    if (cpuInterruptResponse != INT_cpu_interrumpida) {
-        log_error(kernelLogger, "Error al intentar interrumpir CPU");
-        __kernel_destroy(kernelConfig, kernelLogger);
-        exit(-1);
-    }
-    log_info(kernelLogger, "CPU interrumpida");
-}
-
-uint32_t iniciar_proceso_en_memoria(t_pcb* pcbAIniciar) {
-    uint32_t nroTabla = 0;
-    // TODO: enviar pid + tamaño
-    if (response != HEADER_tabla_de_paginas) {
-        log_error(kernelLogger, "Error al intentar establecer conexión con memoria", *socketProceso);
-    } else {
-        t_buffer* bufferTabla = buffer_create();
-        stream_recv_buffer(*socketMemoria, bufferTabla);
-        buffer_unpack(bufferTabla, &nroTabla, sizeof(nroTabla));
-        buffer_destroy(bufferTabla);
-        log_info(kernelLogger, "Proceso: %d - Tabla de página de primer nivel: %d", pcb_get_pid(pcbAIniciar), nroTabla);
-    }
-    return nroTabla;
 }
 
 /*
