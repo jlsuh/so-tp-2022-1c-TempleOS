@@ -9,6 +9,8 @@ typedef enum {
     HEADER_read,
     HEADER_write,
     HEADER_copy,
+    HEADER_tabla_de_paginas,
+    HEADER_solicitud_tabla_paginas,
 } t_header;
 
 typedef enum {
@@ -28,5 +30,10 @@ typedef enum {
     INSTRUCCION_write,
     INSTRUCCION_exit
 } t_tipo_instruccion;
+
+typedef enum {
+    INT_interrumpir_ejecucion,
+    INT_cpu_interrumpida,
+} t_interrupciones;
 
 #endif

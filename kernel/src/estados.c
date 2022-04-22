@@ -4,6 +4,7 @@
 #include <semaphore.h>
 
 #include "common_flags.h"
+#include "common_utils.h"
 #include "pcb.h"
 
 struct t_estado {
@@ -13,40 +14,41 @@ struct t_estado {
     pthread_mutex_t* mutexEstado;
 };
 
-/* void cambiar_estado(t_estado estadoDest, t_pcb* pcb) {
-    switch (pcb_get_estado_actual(pcb)) {
-        case NEW:
-            remover_de_lista_de_estado(estadoNew, pcb_get_pid(pcb));
-        case READY:
-            remover_de_lista_de_estado(READY, pcb_get_pid(pcb));
-        case EXEC:
-            remover_de_lista_de_estado(EXEC, pcb_get_pid(pcb));
-        case EXIT:
-            remover_de_lista_de_estado(EXIT, pcb_get_pid(pcb));
-        case BLOCKED:
-            remover_de_lista_de_estado(BLOCKED, pcb_get_pid(pcb));
-        case SUSPENDED_BLOCKED:
-            remover_de_lista_de_estado(SUSPENDED_READY, pcb_get_pid(pcb));
-        case SUSPENDED_READY:
-            remover_de_lista_de_estado(SUSPENDED_BLOCKED, pcb_get_pid(pcb));
-        default:
-            break;
-    }
-    estado_encolar_pcb(estadoDest,pcb);
+void cambiar_estado(t_estado* estadoDest, t_pcb* targetPcb) {
+    /* switch (pcb_get_estado_actual(targetPcb)) {
+         case NEW:
+             estado_remover_pcb_de_cola(estadoNew, targetPcb);
+         case READY:
+             estado_remover_pcb_de_cola(estadoReady, targetPcb);
+         case EXEC:
+             estado_remover_pcb_de_cola(estadoExec, targetPcb);
+         case EXIT:
+             estado_remover_pcb_de_cola(estadoExit, targetPcb);
+         case BLOCKED:
+             estado_remover_pcb_de_cola(estadoBlocked, targetPcb);
+         case SUSPENDED_BLOCKED:
+             estado_remover_pcb_de_cola(estadoSuspendedBlocked, targetPcb);
+         case SUSPENDED_READY:
+             estado_remover_pcb_de_cola(estadoSuspendedReady, targetPcb);
+         default:
+             break;
+     }*/
+    // TODO: terminar de ver esto, los structs estados estan en el scheduler.c
+    estado_encolar_pcb(estadoDest, targetPcb);
     return;
 }
 
-void remover_de_lista_de_estado(t_estado estadoObjetivo, uint32_t idProceso) {
-    bool buscar_proceso_en_lista_de_estado(void* proceso_en_lista) {
-        return ((t_pcb*)proceso_en_lista)->pid == idProceso;
-    }
+static bool es_este_pcb_por_id(void* pcbDeLaLista, void* targetPcb) {
+    return (pcb_get_pid((t_pcb*)pcbDeLaLista)) == pcb_get_pid(targetPcb);
+}
 
-    pthread_mutex_lock(&estadoObjetivo.mutexEstado);
-    list_remove_by_condition(estadoObjetivo.listaProcesos, buscar_proceso_en_lista_de_estado);
-    pthread_mutex_unlock(&estadoObjetivo.mutexEstado);
-    sem_wait(&estadoObjetivo.semaforoEstado);
-    return;
-} */
+t_pcb* estado_remover_pcb_de_cola(t_estado* estadoTarget, t_pcb* targetPcb) {
+    pthread_mutex_lock(estado_get_mutex(estadoTarget));
+    uint32_t index = list_get_index(estado_get_list(estadoTarget), es_este_pcb_por_id, targetPcb);
+    t_pcb* pcb = list_remove(estado_get_list(estadoTarget), index);
+    pthread_mutex_unlock(estado_get_mutex(estadoTarget));
+    return pcb;
+}
 
 t_estado* estado_create(t_nombre_estado nombre) {
     t_estado* self = malloc(sizeof(*self));
@@ -59,10 +61,10 @@ t_estado* estado_create(t_nombre_estado nombre) {
     return self;
 }
 
-void estado_encolar_pcb(t_estado* estadoDest, t_pcb* pcb) {
+void estado_encolar_pcb(t_estado* estadoDest, t_pcb* targetPcb) {
     pthread_mutex_lock(estado_get_mutex(estadoDest));
-    list_add(estado_get_list(estadoDest), pcb);
-    pcb_set_estado_actual(pcb, estado_get_nombre_estado(estadoDest));
+    list_add(estado_get_list(estadoDest), targetPcb);
+    pcb_set_estado_actual(targetPcb, estado_get_nombre_estado(estadoDest));
     pthread_mutex_unlock(estado_get_mutex(estadoDest));
 }
 
