@@ -148,16 +148,45 @@ static noreturn void planificador_largo_plazo(void) {
             pcbQuePasaAReady = list_remove(estado_get_list(estadoSuspendedReady), 0);
         } else {
             pcbQuePasaAReady = list_remove(estado_get_list(estadoNew), 0);
-            // TODO: avisar a memoria y pedir tabla
+            pcb_set_tabla_paginas(iniciar_proceso_en_memoria(pcbQuePasaAReady));
             log_info(kernelLogger, "List get de PCB de ID: %d", pcb_get_pid(pcbQuePasaAReady));
         }
-        // TODO: pasar a ready
+        estado_encolar_pcb(estadoReady, newPcb);
+        // if(hay_uno_planificando()){  // TODO: enviar interrupcion a CPU si ya hay uno planificando
+            interrumpir_cpu();
+       // }
+       // TODO: Semaforo de que hay un pcb en ready
     }
 }
 
+void interrumpir_cpu(void) {
+    stream_send_empty_buffer(socketCPUInterrupt, INT_interrumpir_ejecucion);
+    uint8_t cpuInterruptResponse = stream_recv_header(socketCPUInterrupt);
+    stream_recv_empty_buffer(socketCPUInterrupt);
+    if (cpuInterruptResponse != INT_cpu_interrumpida) {
+        log_error(kernelLogger, "Error al intentar interrumpir CPU");
+        __kernel_destroy(kernelConfig, kernelLogger);
+        exit(-1);
+    }
+    log_info(kernelLogger, "CPU interrumpida");
+}
+
+uint32_t iniciar_proceso_en_memoria(t_pcb* pcbAIniciar) {
+    uint32_t nroTabla = 0;
+    // TODO: enviar pid + tamaño
+    if (response != HEADER_tabla_de_paginas) {
+        log_error(kernelLogger, "Error al intentar establecer conexión con memoria", *socketProceso);
+    } else {
+        t_buffer* bufferTabla = buffer_create();
+        stream_recv_buffer(*socketMemoria, bufferTabla);
+        buffer_unpack(bufferTabla, &nroTabla, sizeof(nroTabla));
+        buffer_destroy(bufferTabla);
+        log_info(kernelLogger, "Proceso: %d - Tabla de página de primer nivel: %d", pcb_get_pid(pcbAIniciar), nroTabla);
+    }
+    return nroTabla;
+}
 
 /*
-
 double srt(t_pcb* proceso){
 	double alfa = kernel_config_get_alfa(kernelConfig);
 
@@ -198,7 +227,7 @@ static noreturn void planificador_mediano_plazo(void) {
         //SEMAFORO HAY UNO BLOQUEADO
         if(list_size(estado_get_list(estadoBlocked)) > 0 && list_any_satisfy(estado_get_list(estadoBlocked),(void*)supera_limite_block)){
             pcbASuspender = list_remove_by_condition(estado_get_list(estadoBlocked),(void*)supera_limite_block);
-            //CAMBIAR ESTADO A SUSP BLOCKED
+            estado_encolar_pcb(estadoSuspendedBlocked, pcbASuspender);
             //SACAR TIEMPO BLOQUEO
             //SEMAFORO BLOQUEADOS -- 
         }
@@ -208,7 +237,7 @@ static noreturn void planificador_mediano_plazo(void) {
 static noreturn void planificador_corto_plazo(void) {
     t_pcb* pcbQuePasaAExec = NULL;
     for (;;) {
-        //MUTEX CPU DESOCUPADA
+        //MUTEX CPU DESOCUPADA (INTERRUPCION O SALIDA)
         pcbQuePasaAExec = planificar();
         //PASAR A EXEC
         //MARCAR TIEMPO DE INICIO DE RAFAGA

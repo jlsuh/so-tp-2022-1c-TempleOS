@@ -77,3 +77,7 @@ void pcb_set_estado_actual(t_pcb* self, uint8_t estado) {
 uint32_t pcb_get_tiempo_de_bloq(t_pcb* self){
     return self->tiempoDeBloqueo;
 }
+
+void pcb_set_tabla_paginas(t_pcb* self, uint32_t tp){
+    self->tablaPaginaPrimerNivel = tp;
+}
