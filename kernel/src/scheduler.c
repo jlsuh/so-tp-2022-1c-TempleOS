@@ -108,6 +108,7 @@ void* encolar_en_new_a_nuevo_pcb_entrante(void* socket) {
 
         uint32_t newPid = get_next_pid();
         t_pcb* newPcb = pcb_create(newPid, tamanio, kernel_config_get_est_inicial(kernelConfig));
+        pcb_set_socket(newPcb,socketProceso);
 
         uint8_t instruction = -1;
         bool isExit = false;
@@ -253,11 +254,7 @@ static noreturn void planificador_corto_plazo(void) {
         //MARCAR TIEMPO DE INICIO DE RAFAGA
         //CREAR HILO DE ATENCION - POSTEAR SEMAFOROS EN SALIDA
     }
-}
-
-//ENVIAR PCB A CPU (datos q necesite)
-//SWITCHEAR LOS RETORNOS
-*/
+}*/
 
 void atender_pcb(void* pcbAEjecutar){ // TEMPORALMENTE ACÁ, QUIZÁS SE MUEVA A OTRO ARCHIVO
     t_pcb* pcb = (t_pcb*)pcbAEjecutar;
@@ -287,7 +284,7 @@ void atender_pcb(void* pcbAEjecutar){ // TEMPORALMENTE ACÁ, QUIZÁS SE MUEVA A 
             sem_post(&gradoMultiprog);
             mem_adapter_finalizar_proceso(t_pcb* pcbAFinalizar, t_kernel_config* kernelConfig, t_log* kernelLogger)
             //RESPONDER A CONSOLA
-            //FINALIZAR PCB
+            //FINALIZAR Y DESTRUIR PCB - NECESARIO? 
             break;
         case HEADER_proceso_suspendido:
             pcb = cpu_adapter_recibir_pcb_de_cpu(pcb, kernelConfig, kernelLogger);

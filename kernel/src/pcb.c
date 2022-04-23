@@ -15,6 +15,7 @@ struct t_pcb {
     double ultimaEjecucion;
     uint8_t estadoActual;
     uint32_t tiempoDeBloqueo;
+    int socketConsola;
 };
 
 t_pcb* pcb_create(uint32_t pid, uint32_t tamanio, double estimacionInicial) {
@@ -28,6 +29,10 @@ t_pcb* pcb_create(uint32_t pid, uint32_t tamanio, double estimacionInicial) {
     self->estadoActual = NEW;
     self->tiempoDeBloqueo = 0;
     return self;
+}
+
+t_pcb* pcb_responder_a_consola(uint32_t pid, uint32_t tamanio, double estimacionInicial) {
+
 }
 
 uint32_t pcb_get_pid(t_pcb* self) {
@@ -88,4 +93,12 @@ uint32_t pcb_get_tiempo_de_bloq(t_pcb* self) {
 
 void pcb_set_tiempo_de_bloq(t_pcb* self, uint32_t t) {
     self->tiempoDeBloqueo = t;
+}
+
+int pcb_get_socket(t_pcb* self) {
+    return self->socketConsola;
+}
+
+void pcb_set_socket(t_pcb* self, int socket) {
+    self->socketConsola = socket;
 }
