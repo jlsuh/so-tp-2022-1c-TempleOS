@@ -168,7 +168,7 @@ static noreturn void planificador_largo_plazo(void) {
             pcbQuePasaAReady = list_remove(estado_get_list(estadoNew), 0);
             pthread_mutex_unlock(estado_get_mutex(estadoNew));
             uint32_t nuevaTablaPagina = mem_adapter_obtener_tabla_pagina(pcbQuePasaAReady, kernelConfig, kernelLogger);
-            pcb_set_tabla_paginas(pcbQuePasaAReady, nuevaTablaPagina);
+            pcb_set_tabla_pagina_primer_nivel(pcbQuePasaAReady, nuevaTablaPagina);
             prevStatus = string_from_format("NEW");
         }
         estado_encolar_pcb(estadoReady, pcbQuePasaAReady);

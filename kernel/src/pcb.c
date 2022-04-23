@@ -46,8 +46,16 @@ uint64_t pcb_get_program_counter(t_pcb* self) {
     return self->programCounter;
 }
 
+void pcb_set_program_counter(t_pcb* self, uint64_t pc) {
+    self->programCounter = pc;
+}
+
 uint32_t pcb_get_tabla_pagina_primer_nivel(t_pcb* self) {
     return self->tablaPaginaPrimerNivel;
+}
+
+void pcb_set_tabla_pagina_primer_nivel(t_pcb* self, uint32_t tablaPaginaPrimerNivel) {
+    self->tablaPaginaPrimerNivel = tablaPaginaPrimerNivel;
 }
 
 double pcb_get_est_actual(t_pcb* self) {
@@ -78,6 +86,6 @@ uint32_t pcb_get_tiempo_de_bloq(t_pcb* self) {
     return self->tiempoDeBloqueo;
 }
 
-void pcb_set_tabla_paginas(t_pcb* self, uint32_t tablaPaginaPrimerNivel) {
-    self->tablaPaginaPrimerNivel = tablaPaginaPrimerNivel;
+void pcb_set_tiempo_de_bloq(t_pcb* self, uint32_t t) {
+    self->tiempoDeBloqueo = t;
 }

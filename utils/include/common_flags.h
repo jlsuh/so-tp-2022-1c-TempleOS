@@ -11,6 +11,7 @@ typedef enum {
     HEADER_copy,
     HEADER_tabla_de_paginas,
     HEADER_solicitud_tabla_paginas,
+    HEADER_pcb_a_ejecutar,
 } t_header;
 
 typedef enum {
