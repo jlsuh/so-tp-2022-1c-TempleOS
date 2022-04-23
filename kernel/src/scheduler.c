@@ -258,3 +258,45 @@ static noreturn void planificador_corto_plazo(void) {
 //ENVIAR PCB A CPU (datos q necesite)
 //SWITCHEAR LOS RETORNOS
 */
+
+void atender_pcb(void* pcbAEjecutar){ // TEMPORALMENTE ACÁ, QUIZÁS SE MUEVA A OTRO ARCHIVO
+    t_pcb* pcb = (t_pcb*)pcbAEjecutar;
+
+    cpu_adapter_enviar_pcb_a_cpu(pcb, kernelConfig, kernelLogger);
+    uint8_t respuesta_cpu = stream_recv_header(kernel_config_get_socket_dispatch_cpu(kernelConfig));
+    //PARAR DE CONTAR TIEMPO
+    pcb = list_remove(estadoExec,0);
+    switch (respuesta_cpu){
+        case HEADER_proceso_desalojado: 
+            pcb = cpu_adapter_recibir_pcb_de_cpu(pcb, kernelConfig, kernelLogger);
+            pthread_mutex_lock(estado_get_mutex(estadoReady));
+            if(list_size(estado_get_list(estadoReady)) > kernel_config_get_grado_multiprogramacion()){
+                estado_encolar_pcb(estadoReady, pcb);
+                log_transition("EXEC", "READY", pcb_get_pid(pcb));
+            }else{
+                estado_encolar_pcb(estadoSuspendedReady, pcb);
+                log_transition("EXEC", "SUSPENDED READY", pcb_get_pid(pcb));
+                sem_post(&gradoMultiprog);
+            }
+            pthread_mutex_unlock(estado_get_mutex(estadoReady));
+            break;
+        case HEADER_proceso_terminado: 
+            pcb = cpu_adapter_recibir_pcb_de_cpu(pcb, kernelConfig, kernelLogger);
+            estado_encolar_pcb(estadoExit, pcb);
+            log_transition("EXEC", "EXIT", pcb_get_pid(pcb));
+            sem_post(&gradoMultiprog);
+            mem_adapter_finalizar_proceso(t_pcb* pcbAFinalizar, t_kernel_config* kernelConfig, t_log* kernelLogger)
+            //RESPONDER A CONSOLA
+            //FINALIZAR PCB
+            break;
+        case HEADER_proceso_suspendido:
+            pcb = cpu_adapter_recibir_pcb_de_cpu(pcb, kernelConfig, kernelLogger);
+            estado_encolar_pcb(estadoSuspended, pcb);
+            log_transition("EXEC", "SUSPENDED", pcb_get_pid(pcb));
+            break; 
+        default:
+            log_error(kernelLogger, "Error al recibir mensaje de CPU");
+            break;
+    }
+    //LIBERAR PLANIFICADOR
+}
