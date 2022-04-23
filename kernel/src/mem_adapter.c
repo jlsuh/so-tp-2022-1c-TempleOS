@@ -1,5 +1,7 @@
 #include "mem_adapter.h"
 
+#include <stdlib.h>
+
 #include "buffer.h"
 #include "common_flags.h"
 #include "kernel_config.h"
@@ -51,8 +53,8 @@ void mem_adapter_finalizar_proceso(t_pcb* pcbAFinalizar, t_kernel_config* kernel
     buffer_destroy(bufferPcbAFinalizar);
 
     uint8_t memoriaResponse = stream_recv_header(kernel_config_get_socket_memoria(kernelConfig));
-    if(memoriaResponse == HEADER_proceso_terminado) {
-        log_info(kernelLogger, "Proceso %d finalizado correctamente en Memoria", pcb_get_pid(pcbAFinalizar), nroTabla);
+    if(memoriaResponse == HEADER_proceso_terminado) { // TODO: Debería utilizar otro header para la rta? 
+        log_info(kernelLogger, "Proceso %d finalizado correctamente en Memoria", pcb_get_pid(pcbAFinalizar));
     } else {
         log_error(kernelLogger, "Error al finalizar proceso en Memoria");
         exit(-1);

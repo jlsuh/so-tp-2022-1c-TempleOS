@@ -33,5 +33,6 @@ int pcb_get_socket(t_pcb* self);
 void pcb_set_socket(t_pcb* self, int); 
 
 t_pcb* pcb_create(uint32_t pid, uint32_t tamanio, double estimacionRafaga);
+void pcb_responder_a_consola(t_pcb* self, uint8_t rta);
 
 #endif

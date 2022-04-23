@@ -15,6 +15,7 @@
 #include "instruccion.h"
 #include "kernel_config.h"
 #include "mem_adapter.h"
+#include "cpu_adapter.h"
 #include "stream.h"
 
 extern t_log* kernelLogger;
@@ -108,7 +109,7 @@ void* encolar_en_new_a_nuevo_pcb_entrante(void* socket) {
 
         uint32_t newPid = get_next_pid();
         t_pcb* newPcb = pcb_create(newPid, tamanio, kernel_config_get_est_inicial(kernelConfig));
-        pcb_set_socket(newPcb,socketProceso);
+        pcb_set_socket(newPcb,*socketProceso);
 
         uint8_t instruction = -1;
         bool isExit = false;
@@ -261,13 +262,13 @@ void atender_pcb(void* pcbAEjecutar){ // TEMPORALMENTE ACÁ, QUIZÁS SE MUEVA A 
 
     cpu_adapter_enviar_pcb_a_cpu(pcb, kernelConfig, kernelLogger);
     uint8_t respuesta_cpu = stream_recv_header(kernel_config_get_socket_dispatch_cpu(kernelConfig));
-    //PARAR DE CONTAR TIEMPO
-    pcb = list_remove(estadoExec,0);
+    // TODO: PARAR DE CONTAR TIEMPO
+    pcb = list_remove(estado_get_list(estadoExec),0);
     switch (respuesta_cpu){
         case HEADER_proceso_desalojado: 
             pcb = cpu_adapter_recibir_pcb_de_cpu(pcb, kernelConfig, kernelLogger);
             pthread_mutex_lock(estado_get_mutex(estadoReady));
-            if(list_size(estado_get_list(estadoReady)) > kernel_config_get_grado_multiprogramacion()){
+            if(list_size(estado_get_list(estadoReady)) > kernel_config_get_grado_multiprogramacion(kernelConfig)){
                 estado_encolar_pcb(estadoReady, pcb);
                 log_transition("EXEC", "READY", pcb_get_pid(pcb));
             }else{
@@ -282,18 +283,18 @@ void atender_pcb(void* pcbAEjecutar){ // TEMPORALMENTE ACÁ, QUIZÁS SE MUEVA A 
             estado_encolar_pcb(estadoExit, pcb);
             log_transition("EXEC", "EXIT", pcb_get_pid(pcb));
             sem_post(&gradoMultiprog);
-            mem_adapter_finalizar_proceso(t_pcb* pcbAFinalizar, t_kernel_config* kernelConfig, t_log* kernelLogger)
-            //RESPONDER A CONSOLA
-            //FINALIZAR Y DESTRUIR PCB - NECESARIO? 
+            mem_adapter_finalizar_proceso(pcbAEjecutar, kernelConfig, kernelLogger);
+            pcb_responder_a_consola(pcbAEjecutar, HEADER_proceso_terminado);
+            // TODO: FINALIZAR Y DESTRUIR PCB - NECESARIO? 
             break;
-        case HEADER_proceso_suspendido:
+        case HEADER_proceso_bloqueado:
             pcb = cpu_adapter_recibir_pcb_de_cpu(pcb, kernelConfig, kernelLogger);
-            estado_encolar_pcb(estadoSuspended, pcb);
-            log_transition("EXEC", "SUSPENDED", pcb_get_pid(pcb));
+            estado_encolar_pcb(estadoBlocked, pcb);
+            log_transition("EXEC", "BLOCKED", pcb_get_pid(pcb));
             break; 
         default:
             log_error(kernelLogger, "Error al recibir mensaje de CPU");
             break;
     }
-    //LIBERAR PLANIFICADOR
+    // TODO: LIBERAR PLANIFICADOR CORTO PLAZO
 }

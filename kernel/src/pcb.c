@@ -4,6 +4,7 @@
 #include <stdint.h>
 
 #include "estados.h"
+#include "stream.h"
 
 struct t_pcb {
     uint32_t pid;
@@ -31,8 +32,8 @@ t_pcb* pcb_create(uint32_t pid, uint32_t tamanio, double estimacionInicial) {
     return self;
 }
 
-t_pcb* pcb_responder_a_consola(uint32_t pid, uint32_t tamanio, double estimacionInicial) {
-
+void pcb_responder_a_consola(t_pcb* self, uint8_t rta) {
+    stream_send_empty_buffer(self->socketConsola, rta);
 }
 
 uint32_t pcb_get_pid(t_pcb* self) {
