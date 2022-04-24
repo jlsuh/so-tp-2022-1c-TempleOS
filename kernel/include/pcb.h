@@ -22,5 +22,6 @@ uint32_t pcb_get_tabla_pagina_primer_nivel(t_pcb*);
 uint32_t pcb_get_tiempo_de_bloq(t_pcb* self);
 void pcb_set_tabla_paginas(t_pcb* self, uint32_t tp);
 t_pcb* pcb_create(uint32_t pid, uint32_t tamanio, double estimacionRafaga);
+void pcb_destroy(t_pcb*);
 
 #endif

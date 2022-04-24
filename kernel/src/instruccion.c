@@ -18,3 +18,8 @@ t_instruccion* instruccion_create(t_tipo_instruccion tipoInstruccion, uint32_t o
     self->operando2 = operando2;
     return self;
 }
+
+void instruccion_destroy(void* selfVoid) {
+    t_instruccion* self = (t_instruccion*)selfVoid;
+    free(self);
+}

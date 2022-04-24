@@ -30,5 +30,6 @@ t_estado *estado_create(t_nombre_estado nombre);
 t_list *estado_get_list(t_estado *);
 t_nombre_estado estado_get_nombre_estado(t_estado *);
 void estado_encolar_pcb(t_estado *estadoDest, t_pcb *);
+t_pcb *estado_desencolar_primer_pcb(t_estado *);
 
 #endif

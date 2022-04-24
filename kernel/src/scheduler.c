@@ -15,6 +15,7 @@
 #include "instruccion.h"
 #include "kernel_config.h"
 #include "mem_adapter.h"
+#include "pcb.h"
 #include "stream.h"
 
 extern t_log* kernelLogger;
@@ -151,7 +152,21 @@ void* encolar_en_new_a_nuevo_pcb_entrante(void* socket) {
     return NULL;
 }
 
+static noreturn void liberar_pcbs_en_exit(void) {
+    for (;;) {
+        sem_wait(estado_get_sem(estadoExit));
+        t_pcb* pcbALiberar = estado_desencolar_primer_pcb(estadoExit);
+        // Acá invocar algo para comunicarse con memoria para que desasigne recursos del proceso en exit
+        pcb_destroy(pcbALiberar);
+        sem_post(&gradoMultiprog);
+    }
+}
+
 static noreturn void planificador_largo_plazo(void) {
+    pthread_t liberarPcbsEnExitTh;
+    pthread_create(&liberarPcbsEnExitTh, NULL, (void*)liberar_pcbs_en_exit, NULL);
+    pthread_detach(liberarPcbsEnExitTh);
+
     t_pcb* pcbQuePasaAReady = NULL;
     char* prevStatus = NULL;
     for (;;) {
