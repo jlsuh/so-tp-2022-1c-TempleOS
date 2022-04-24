@@ -50,6 +50,13 @@ t_pcb* estado_remover_pcb_de_cola(t_estado* estadoTarget, t_pcb* targetPcb) {
     return pcb;
 }
 
+t_pcb* estado_desencolar_primer_pcb(t_estado* estadoTarget) {
+    pthread_mutex_lock(estado_get_mutex(estadoTarget));
+    t_pcb* pcb = list_remove(estado_get_list(estadoTarget), 0);
+    pthread_mutex_unlock(estado_get_mutex(estadoTarget));
+    return pcb;
+}
+
 t_estado* estado_create(t_nombre_estado nombre) {
     t_estado* self = malloc(sizeof(*self));
     self->listaProcesos = list_create();
