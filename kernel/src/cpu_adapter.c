@@ -45,5 +45,12 @@ t_pcb* cpu_adapter_recibir_pcb_de_cpu(t_pcb* pcbARecibir, t_kernel_config* kerne
 }
 
 void cpu_adapter_interrumpir_cpu(int socketInterrupt){
+    stream_send_empty_buffer(socketInterrupt, INT_interrumpir_ejecucion);
+    uint8_t cpuResponse = stream_recv_header(socketCPUDispatch);
+    stream_recv_empty_buffer(socketCPUDispatch);
+    if (cpuResponse != INT_cpu_interrumpida) {
+        log_error(kernelLogger, "Error al interrumpir CPU");
+    }
+    log_info(kernelLogger, "CPU interrumpida");
     return;
 } 

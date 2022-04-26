@@ -285,12 +285,13 @@ static void noreturn atender_pcb(void) {  // TEMPORALMENTE ACÁ, QUIZÁS SE MUEV
                 sem_post(&gradoMultiprog);
                 mem_adapter_finalizar_proceso(pcb, kernelConfig, kernelLogger);
                 pcb_responder_a_consola(pcb, HEADER_proceso_terminado);
-                // TODO: FINALIZAR Y DESTRUIR PCB - NECESARIO?
+                sem_post(estado_get_sem(estadoExit));
                 break;
             case HEADER_proceso_bloqueado:
                 pcb = cpu_adapter_recibir_pcb_de_cpu(pcb, kernelConfig, kernelLogger);
                 estado_encolar_pcb(estadoBlocked, pcb);
                 log_transition("EXEC", "BLOCKED", pcb_get_pid(pcb));
+                // TODO: en otro hilo hacer el wait(tiempo_bloqueo) del pcb
                 break;
             default:
                 log_error(kernelLogger, "Error al recibir mensaje de CPU");
