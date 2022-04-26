@@ -105,10 +105,10 @@ void pcb_set_socket(t_pcb* self, int socket) {
     self->socketConsola = socket;
 }
 
-uint64_t pcb_get_instrution_buffer(t_pcb* self) {
+t_buffer* pcb_get_instruction_buffer(t_pcb* self) {
     return self->instructionsBuffer;
 }
 
-void pcb_set_instrution_buffer(t_pcb* self, t_buffer* buffer) {
-    self->instructionsBuffer = pc;
+void pcb_set_instruction_buffer(t_pcb* self, t_buffer* buffer) {
+    self->instructionsBuffer = buffer;
 }

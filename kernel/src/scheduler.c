@@ -27,9 +27,11 @@ static pthread_mutex_t nextPidMutex;
 
 static sem_t gradoMultiprog;
 static sem_t hayPcbsParaAgregarAlSistema;
+static sem_t recibirPcb;
+static sem_t pcbRecibido;
 
 static t_pcb* pcbEnExec;
-static pthread_t execPCBMutex;
+static pthread_mutex_t execPCBMutex;
 
 static t_estado* estadoNew;
 static t_estado* estadoReady;
@@ -63,6 +65,8 @@ void inicializar_estructuras(void) {
 
     sem_init(&hayPcbsParaAgregarAlSistema, 0, 0);
     sem_init(&gradoMultiprog, 0, valorInicialGradoMultiprog);
+    sem_init(&recibirPcb, 0, 0);
+    sem_init(&pcbRecibido, 0, 1);
     log_info(kernelLogger, "Se inicializa el grado multiprogramación en %d", valorInicialGradoMultiprog);
 
     estadoNew = estado_create(NEW);
@@ -151,7 +155,7 @@ void* encolar_en_new_a_nuevo_pcb_entrante(void* socket) {
         estado_encolar_pcb(estadoNew, newPcb);
         sem_post(&hayPcbsParaAgregarAlSistema);
         log_transition("NULL", "NEW", pcb_get_pid(newPcb));
-        pcb_set_instrution_buffer(newPcb, instructionsBuffer);
+        pcb_set_instruction_buffer(newPcb, instructionsBuffer);
         buffer_destroy(instructionsBuffer);
     }
     return NULL;
@@ -218,6 +222,7 @@ static noreturn void planificador_mediano_plazo(void) {
 }
 }
 
+
 double srt(t_pcb* proceso){
     double alfa = kernel_config_get_alfa(kernelConfig);
 
@@ -228,9 +233,9 @@ double srt(t_pcb* proceso){
     pcb_set_est_actual(proceso,(alfa*pcb_get_ultima_ejecucion(proceso) + (1-alfa)*pcb_get_est_actual(proceso)));
     return pcb_get_est_actual(proceso);
 }
-
-t_pcb* planificar(void){
-    void* t_planificar_srt(t_pcb* p1, t_pcb* p2){
+*/
+t_pcb* elegir_segun_algoritmo(void){
+    /*void* t_planificar_srt(t_pcb* p1, t_pcb* p2){
         return (srt(p1) <= srt(p2)) ? p1 : p2;
     }
     t_pcb* seleccionado = NULL;
@@ -243,38 +248,13 @@ t_pcb* planificar(void){
                 }
             seleccionado = list_get_minimum(estado_get_list(estadoReady),(void*)t_planificar_srt);
         return seleccionado;
-    }
+    }*/
     return list_get(estado_get_list(estadoReady),0); //FIFO
-}*/
-
-static noreturn void planificador_corto_plazo(void) {
-    pthread_t atenderPCBThread;
-    pthread_create(&atenderPCBThread, NULL, (void*)atender_pcb, NULL);
-    pthread_detach(atenderPCBThread);
-
-    for (;;) {
-        sem_wait(estado_get_sem(estadoReady));
-
-        pthread_mutex_lock(&execPCBMutex);
-        if (kernel_config_es_algoritmo_sjf(kernelConfig) && pcbEnExec != NULL) {
-            send_interrupt(kernel_config_get_socket_interrupt_cpu(kernelConfig));
-        }
-        pthread_mutex_unlock(&execPCBMutex);
-
-        sem_wait(&pcbRecibido); // Arranca en 1
-
-        pthread_mutex_lock(estado_get_mutex(estadoReady));
-        t_pcb* pcbToDispatch = elegir_segun_algoritmo(estadoReady);
-        pthread_mutex_unlock(estado_get_mutex(estadoReady));
-
-        pcbEnExec = pcbToDispatch;
-        sem_post(&recibirPCB); // Arranca en 0
-    }
 }
 
 static void noreturn atender_pcb(void) {  // TEMPORALMENTE ACÁ, QUIZÁS SE MUEVA A OTRO ARCHIVO
     for (;;) {  
-        sem_wait(&recibirPCB);
+        sem_wait(&recibirPcb);
 
         pthread_mutex_lock(&execPCBMutex);
         t_pcb* pcb = pcbEnExec;
@@ -303,8 +283,8 @@ static void noreturn atender_pcb(void) {  // TEMPORALMENTE ACÁ, QUIZÁS SE MUEV
                 estado_encolar_pcb(estadoExit, pcb);
                 log_transition("EXEC", "EXIT", pcb_get_pid(pcb));
                 sem_post(&gradoMultiprog);
-                mem_adapter_finalizar_proceso(pcbAEjecutar, kernelConfig, kernelLogger);
-                pcb_responder_a_consola(pcbAEjecutar, HEADER_proceso_terminado);
+                mem_adapter_finalizar_proceso(pcb, kernelConfig, kernelLogger);
+                pcb_responder_a_consola(pcb, HEADER_proceso_terminado);
                 // TODO: FINALIZAR Y DESTRUIR PCB - NECESARIO?
                 break;
             case HEADER_proceso_bloqueado:
@@ -318,8 +298,33 @@ static void noreturn atender_pcb(void) {  // TEMPORALMENTE ACÁ, QUIZÁS SE MUEV
         }
         pthread_mutex_lock(&execPCBMutex);
         pcbEnExec = NULL;
-        pthread_mutex_unlock(execPCBMutex);
+        pthread_mutex_unlock(&execPCBMutex);
 
         sem_post(&pcbRecibido);
+    }
+}
+
+static noreturn void planificador_corto_plazo(void) {
+    pthread_t atenderPCBThread;
+    pthread_create(&atenderPCBThread, NULL, (void*)atender_pcb, NULL);
+    pthread_detach(atenderPCBThread);
+
+    for (;;) {
+        sem_wait(estado_get_sem(estadoReady));
+
+        pthread_mutex_lock(&execPCBMutex);
+        if (kernel_config_es_algoritmo_sjf(kernelConfig) && pcbEnExec != NULL) {
+            cpu_adapter_interrumpir_cpu(kernel_config_get_socket_interrupt_cpu(kernelConfig));
+        }
+        pthread_mutex_unlock(&execPCBMutex);
+
+        sem_wait(&pcbRecibido); // Arranca en 1
+
+        pthread_mutex_lock(estado_get_mutex(estadoReady));
+        t_pcb* pcbToDispatch = elegir_segun_algoritmo();
+        pthread_mutex_unlock(estado_get_mutex(estadoReady));
+
+        pcbEnExec = pcbToDispatch;
+        sem_post(&recibirPcb); // Arranca en 0
     }
 }
