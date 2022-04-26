@@ -17,6 +17,7 @@ struct t_pcb {
     uint8_t estadoActual;
     uint32_t tiempoDeBloqueo;
     int socketConsola;
+    t_buffer* instructionsBuffer;
 };
 
 t_pcb* pcb_create(uint32_t pid, uint32_t tamanio, double estimacionInicial) {
@@ -102,4 +103,12 @@ int pcb_get_socket(t_pcb* self) {
 
 void pcb_set_socket(t_pcb* self, int socket) {
     self->socketConsola = socket;
+}
+
+uint64_t pcb_get_instrution_buffer(t_pcb* self) {
+    return self->instructionsBuffer;
+}
+
+void pcb_set_instrution_buffer(t_pcb* self, t_buffer* buffer) {
+    self->instructionsBuffer = pc;
 }

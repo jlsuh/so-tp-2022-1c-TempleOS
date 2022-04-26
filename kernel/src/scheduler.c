@@ -151,6 +151,7 @@ void* encolar_en_new_a_nuevo_pcb_entrante(void* socket) {
         estado_encolar_pcb(estadoNew, newPcb);
         sem_post(&hayPcbsParaAgregarAlSistema);
         log_transition("NULL", "NEW", pcb_get_pid(newPcb));
+        pcb_set_instrution_buffer(newPcb, instructionsBuffer);
         buffer_destroy(instructionsBuffer);
     }
     return NULL;

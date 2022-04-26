@@ -4,6 +4,8 @@
 #include <commons/collections/list.h>
 #include <stdint.h>
 
+#include "stream.h"
+
 typedef struct t_instruccion t_instruccion;
 typedef struct t_pcb t_pcb;
 
@@ -31,6 +33,9 @@ void pcb_set_tiempo_de_bloq(t_pcb* self, uint32_t);
 
 int pcb_get_socket(t_pcb* self);
 void pcb_set_socket(t_pcb* self, int); 
+
+uint64_t pcb_get_instrution_buffer(t_pcb* self);
+void pcb_set_instrution_buffer(t_pcb* self, t_buffer*);
 
 t_pcb* pcb_create(uint32_t pid, uint32_t tamanio, double estimacionRafaga);
 void pcb_responder_a_consola(t_pcb* self, uint8_t rta);
