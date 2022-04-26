@@ -11,11 +11,11 @@
 
 #include "buffer.h"
 #include "common_flags.h"
+#include "cpu_adapter.h"
 #include "estados.h"
 #include "instruccion.h"
 #include "kernel_config.h"
 #include "mem_adapter.h"
-#include "cpu_adapter.h"
 #include "stream.h"
 
 extern t_log* kernelLogger;
@@ -27,6 +27,9 @@ static pthread_mutex_t nextPidMutex;
 
 static sem_t gradoMultiprog;
 static sem_t hayPcbsParaAgregarAlSistema;
+
+static t_pcb* pcbEnExec;
+static pthread_t execPCBMutex;
 
 static t_estado* estadoNew;
 static t_estado* estadoReady;
@@ -109,7 +112,7 @@ void* encolar_en_new_a_nuevo_pcb_entrante(void* socket) {
 
         uint32_t newPid = get_next_pid();
         t_pcb* newPcb = pcb_create(newPid, tamanio, kernel_config_get_est_inicial(kernelConfig));
-        pcb_set_socket(newPcb,*socketProceso);
+        pcb_set_socket(newPcb, *socketProceso);
 
         uint8_t instruction = -1;
         bool isExit = false;
@@ -195,15 +198,34 @@ void interrumpir_cpu(void) {
     log_info(kernelLogger, "CPU interrumpida");
 }
 
-double srt(t_pcb* proceso){
-        double alfa = kernel_config_get_alfa(kernelConfig);
-
-        if(pcb_get_ultima_ejecucion(proceso) == -1){
-                return pcb_get_est_actual(proceso);
+static noreturn void planificador_mediano_plazo(void) {
+    bool supera_limite_block(void* tcb_en_lista) {
+                return (pcb_get_tiempo_de_bloq((t_pcb*)tcb_en_lista) > kernel_config_get_maximo_bloq(kernelConfig)); // TODO: los dos gets de esta linea
         }
 
-        pcb_set_est_actual(proceso,(alfa*pcb_get_ultima_ejecucion(proceso) + (1-alfa)*pcb_get_est_actual(proceso)));
-        return pcb_get_est_actual(proceso);
+    t_pcb* pcbASuspender = NULL;
+
+    for (;;) {
+        //SEMAFORO HAY UNO BLOQUEADO
+        if(list_size(estado_get_list(estadoBlocked)) > 0 && list_any_satisfy(estado_get_list(estadoBlocked),(void*)supera_limite_block)){
+            pcbASuspender = list_remove_by_condition(estado_get_list(estadoBlocked),(void*)supera_limite_block);
+            estado_encolar_pcb(estadoSuspendedBlocked, pcbASuspender);
+            //SACAR TIEMPO BLOQUEO
+            //SEMAFORO BLOQUEADOS --
+        }
+    }
+}
+}
+
+double srt(t_pcb* proceso){
+    double alfa = kernel_config_get_alfa(kernelConfig);
+
+    if(pcb_get_ultima_ejecucion(proceso) == -1){
+            return pcb_get_est_actual(proceso);
+    }
+
+    pcb_set_est_actual(proceso,(alfa*pcb_get_ultima_ejecucion(proceso) + (1-alfa)*pcb_get_est_actual(proceso)));
+    return pcb_get_est_actual(proceso);
 }
 
 t_pcb* planificar(void){
@@ -222,79 +244,81 @@ t_pcb* planificar(void){
         return seleccionado;
     }
     return list_get(estado_get_list(estadoReady),0); //FIFO
-}
-
-static noreturn void planificador_mediano_plazo(void) {
-    bool supera_limite_block(void* tcb_en_lista) {
-                return (pcb_get_tiempo_de_bloq((t_pcb*)tcb_en_lista) > kernel_config_get_maximo_bloq(kernelConfig)); // TODO: los dos gets de esta linea
-        }
-
-    t_pcb* pcbASuspender = NULL;
-
-    for (;;) {
-        //SEMAFORO HAY UNO BLOQUEADO
-        if(list_size(estado_get_list(estadoBlocked)) > 0 && list_any_satisfy(estado_get_list(estadoBlocked),(void*)supera_limite_block)){
-            pcbASuspender = list_remove_by_condition(estado_get_list(estadoBlocked),(void*)supera_limite_block);
-            estado_encolar_pcb(estadoSuspendedBlocked, pcbASuspender);
-            //SACAR TIEMPO BLOQUEO
-            //SEMAFORO BLOQUEADOS --
-        }
-    }
-}
-
-static noreturn void planificador_corto_plazo(void) {
-    t_pcb* pcbQuePasaAExec = NULL;
-    for (;;) {
-        sem_wait(estado_get_semaforo(estadoReady));
-        // if(hay_uno_planificando()){  // TODO: enviar interrupcion a CPU si ya hay uno planificando y es SRT
-            interrumpir_cpu();
-        // }
-        //MUTEX CPU DESOCUPADA (INTERRUPCION O SALIDA)
-        pcbQuePasaAExec = planificar();
-        //PASAR A EXEC
-        //MARCAR TIEMPO DE INICIO DE RAFAGA
-        //CREAR HILO DE ATENCION - POSTEAR SEMAFOROS EN SALIDA
-    }
 }*/
 
-void atender_pcb(void* pcbAEjecutar){ // TEMPORALMENTE ACÁ, QUIZÁS SE MUEVA A OTRO ARCHIVO
-    t_pcb* pcb = (t_pcb*)pcbAEjecutar;
+static noreturn void planificador_corto_plazo(void) {
+    pthread_t atenderPCBThread;
+    pthread_create(&atenderPCBThread, NULL, (void*)atender_pcb, NULL);
+    pthread_detach(atenderPCBThread);
 
-    cpu_adapter_enviar_pcb_a_cpu(pcb, kernelConfig, kernelLogger);
-    uint8_t respuesta_cpu = stream_recv_header(kernel_config_get_socket_dispatch_cpu(kernelConfig));
-    // TODO: PARAR DE CONTAR TIEMPO
-    pcb = list_remove(estado_get_list(estadoExec),0);
-    switch (respuesta_cpu){
-        case HEADER_proceso_desalojado: 
-            pcb = cpu_adapter_recibir_pcb_de_cpu(pcb, kernelConfig, kernelLogger);
-            pthread_mutex_lock(estado_get_mutex(estadoReady));
-            if(list_size(estado_get_list(estadoReady)) > kernel_config_get_grado_multiprogramacion(kernelConfig)){
-                estado_encolar_pcb(estadoReady, pcb);
-                log_transition("EXEC", "READY", pcb_get_pid(pcb));
-            }else{
-                estado_encolar_pcb(estadoSuspendedReady, pcb);
-                log_transition("EXEC", "SUSPENDED READY", pcb_get_pid(pcb));
-                sem_post(&gradoMultiprog);
-            }
-            pthread_mutex_unlock(estado_get_mutex(estadoReady));
-            break;
-        case HEADER_proceso_terminado: 
-            pcb = cpu_adapter_recibir_pcb_de_cpu(pcb, kernelConfig, kernelLogger);
-            estado_encolar_pcb(estadoExit, pcb);
-            log_transition("EXEC", "EXIT", pcb_get_pid(pcb));
-            sem_post(&gradoMultiprog);
-            mem_adapter_finalizar_proceso(pcbAEjecutar, kernelConfig, kernelLogger);
-            pcb_responder_a_consola(pcbAEjecutar, HEADER_proceso_terminado);
-            // TODO: FINALIZAR Y DESTRUIR PCB - NECESARIO? 
-            break;
-        case HEADER_proceso_bloqueado:
-            pcb = cpu_adapter_recibir_pcb_de_cpu(pcb, kernelConfig, kernelLogger);
-            estado_encolar_pcb(estadoBlocked, pcb);
-            log_transition("EXEC", "BLOCKED", pcb_get_pid(pcb));
-            break; 
-        default:
-            log_error(kernelLogger, "Error al recibir mensaje de CPU");
-            break;
+    for (;;) {
+        sem_wait(estado_get_sem(estadoReady));
+
+        pthread_mutex_lock(&execPCBMutex);
+        if (kernel_config_es_algoritmo_sjf(kernelConfig) && pcbEnExec != NULL) {
+            send_interrupt(kernel_config_get_socket_interrupt_cpu(kernelConfig));
+        }
+        pthread_mutex_unlock(&execPCBMutex);
+
+        sem_wait(&pcbRecibido); // Arranca en 1
+
+        pthread_mutex_lock(estado_get_mutex(estadoReady));
+        t_pcb* pcbToDispatch = elegir_segun_algoritmo(estadoReady);
+        pthread_mutex_unlock(estado_get_mutex(estadoReady));
+
+        pcbEnExec = pcbToDispatch;
+        sem_post(&recibirPCB); // Arranca en 0
     }
-    // TODO: LIBERAR PLANIFICADOR CORTO PLAZO
+}
+
+static void noreturn atender_pcb(void) {  // TEMPORALMENTE ACÁ, QUIZÁS SE MUEVA A OTRO ARCHIVO
+    for (;;) {  
+        sem_wait(&recibirPCB);
+
+        pthread_mutex_lock(&execPCBMutex);
+        t_pcb* pcb = pcbEnExec;
+        pthread_mutex_unlock(&execPCBMutex);
+
+        cpu_adapter_enviar_pcb_a_cpu(pcb, kernelConfig, kernelLogger);
+        uint8_t respuesta_cpu = stream_recv_header(kernel_config_get_socket_dispatch_cpu(kernelConfig));
+        // TODO: PARAR DE CONTAR TIEMPO
+        pcb = list_remove(estado_get_list(estadoExec), 0);
+        switch (respuesta_cpu) {
+            case HEADER_proceso_desalojado:  // SALIDA INTERRUPCION
+                pcb = cpu_adapter_recibir_pcb_de_cpu(pcb, kernelConfig, kernelLogger);
+                pthread_mutex_lock(estado_get_mutex(estadoReady));
+                if (list_size(estado_get_list(estadoReady)) > kernel_config_get_grado_multiprogramacion(kernelConfig)) {
+                    estado_encolar_pcb(estadoReady, pcb);
+                    log_transition("EXEC", "READY", pcb_get_pid(pcb));
+                } else {
+                    estado_encolar_pcb(estadoSuspendedReady, pcb);
+                    log_transition("EXEC", "SUSPENDED READY", pcb_get_pid(pcb));
+                    sem_post(&gradoMultiprog);
+                }
+                pthread_mutex_unlock(estado_get_mutex(estadoReady));
+                break;
+            case HEADER_proceso_terminado:
+                pcb = cpu_adapter_recibir_pcb_de_cpu(pcb, kernelConfig, kernelLogger);
+                estado_encolar_pcb(estadoExit, pcb);
+                log_transition("EXEC", "EXIT", pcb_get_pid(pcb));
+                sem_post(&gradoMultiprog);
+                mem_adapter_finalizar_proceso(pcbAEjecutar, kernelConfig, kernelLogger);
+                pcb_responder_a_consola(pcbAEjecutar, HEADER_proceso_terminado);
+                // TODO: FINALIZAR Y DESTRUIR PCB - NECESARIO?
+                break;
+            case HEADER_proceso_bloqueado:
+                pcb = cpu_adapter_recibir_pcb_de_cpu(pcb, kernelConfig, kernelLogger);
+                estado_encolar_pcb(estadoBlocked, pcb);
+                log_transition("EXEC", "BLOCKED", pcb_get_pid(pcb));
+                break;
+            default:
+                log_error(kernelLogger, "Error al recibir mensaje de CPU");
+                break;
+        }
+        pthread_mutex_lock(&execPCBMutex);
+        pcbEnExec = NULL;
+        pthread_mutex_unlock(execPCBMutex);
+
+        sem_post(&pcbRecibido);
+    }
 }

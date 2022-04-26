@@ -19,6 +19,7 @@ void cpu_adapter_enviar_pcb_a_cpu(t_pcb* pcbAEnviar, t_kernel_config* kernelConf
     buffer_pack(bufferPcbAEjecutar, &tablaPagsAEnviar, sizeof(tablaPagsAEnviar));
 
     // TODO: ENVIAR LISTA DE INSTRUCCIONES
+    // TODO: Esta es la idea: stream_send_buffer(kernel_config_get_socket_dispatch_cpu(kernelConfig), HEADER_lista_instrucciones, pcb_get_lista_instrucciones(pcbAEnviar));
 
     stream_send_buffer(kernel_config_get_socket_dispatch_cpu(kernelConfig), HEADER_pcb_a_ejecutar, bufferPcbAEjecutar);
     buffer_destroy(bufferPcbAEjecutar);

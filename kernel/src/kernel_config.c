@@ -132,3 +132,11 @@ char* kernel_config_get_algoritmo(t_kernel_config* self) {
 int kernel_config_get_maximo_bloq(t_kernel_config* self) {
     return self->TIEMPO_MAXIMO_BLOQUEADO;
 }
+
+bool kernel_config_es_algoritmo_sjf(t_kernel_config* self) {
+    return strcmp(self->ALGORITMO_PLANIFICACION, "SJF") == 0;
+}
+
+bool kernel_config_es_algoritmo_fifo(t_kernel_config* self) {
+    return strcmp(self->ALGORITMO_PLANIFICACION, "FIFO") == 0;
+}
