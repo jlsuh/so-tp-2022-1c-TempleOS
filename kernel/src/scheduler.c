@@ -27,11 +27,7 @@ static pthread_mutex_t nextPidMutex;
 
 static sem_t gradoMultiprog;
 static sem_t hayPcbsParaAgregarAlSistema;
-static sem_t recibirPcb;
-static sem_t pcbRecibido;
-
-static t_pcb* pcbEnExec;
-static pthread_mutex_t execPCBMutex;
+static sem_t dispatchPermitido;
 
 static t_estado* estadoNew;
 static t_estado* estadoReady;
@@ -42,6 +38,7 @@ static t_estado* estadoSuspendedBlocked;
 static t_estado* estadoSuspendedReady;
 
 static noreturn void planificador_largo_plazo(void);
+static noreturn void planificador_corto_plazo(void);
 
 static uint32_t get_next_pid(void) {
     pthread_mutex_lock(&nextPidMutex);
@@ -65,8 +62,7 @@ void inicializar_estructuras(void) {
 
     sem_init(&hayPcbsParaAgregarAlSistema, 0, 0);
     sem_init(&gradoMultiprog, 0, valorInicialGradoMultiprog);
-    sem_init(&recibirPcb, 0, 0);
-    sem_init(&pcbRecibido, 0, 1);
+    sem_init(&dispatchPermitido, 0, 1);
     log_info(kernelLogger, "Se inicializa el grado multiprogramación en %d", valorInicialGradoMultiprog);
 
     estadoNew = estado_create(NEW);
@@ -81,13 +77,15 @@ void inicializar_estructuras(void) {
     pthread_create(&largoPlazoTh, NULL, (void*)planificador_largo_plazo, NULL);
     pthread_detach(largoPlazoTh);
 
-    /* pthread_t medianoPlazoTh;
-      pthread_create(&medianoPlazoTh, NULL, (void*)planificador_mediano_plazo, NULL);
-      pthread_detach(medianoPlazoTh);
+    pthread_t cortoPlazoTh;
+    pthread_create(&cortoPlazoTh, NULL, (void*)planificador_corto_plazo, NULL);
+    pthread_detach(cortoPlazoTh);
 
-      pthread_t cortoPlazoTh;
-      pthread_create(&cortoPlazoTh, NULL, (void*)planificador_corto_plazo, NULL);
-      pthread_detach(cortoPlazoTh); */
+    /*
+    pthread_t medianoPlazoTh;
+    pthread_create(&medianoPlazoTh, NULL, (void*)planificador_mediano_plazo, NULL);
+    pthread_detach(medianoPlazoTh);
+    */
 }
 
 void* encolar_en_new_a_nuevo_pcb_entrante(void* socket) {
@@ -220,8 +218,6 @@ static noreturn void planificador_mediano_plazo(void) {
         }
     }
 }
-}
-
 
 double srt(t_pcb* proceso){
     double alfa = kernel_config_get_alfa(kernelConfig);
@@ -234,7 +230,26 @@ double srt(t_pcb* proceso){
     return pcb_get_est_actual(proceso);
 }
 */
-t_pcb* elegir_segun_algoritmo(void){
+
+// TODO: Abstraerlo en un puntero a la función del pcb con la idea de: t_pcb* pcb = scheduler_elegir_segun_algoritmo(estadoReady)
+/*
+Declaración: t_pcb* (*scheduler_elegir_segun_algoritmo)(t_estado* estadoReady)
+
+En inicializar_estructuras se pondría un if leyendo si es SJF o FIFO:
+if(kernel_config_get_algoritmo_planificacion(kernelConfig) == SJF){
+    scheduler_elegir_segun_algoritmo = scheduler_elegir_segun_sjf;
+} else if(kernel_config_get_algoritmo_planificacion(kernelConfig) == FIFO){
+    scheduler_elegir_segun_algoritmo = scheduler_elegir_segun_fifo;
+} else {
+    log_error(kernelLogger, "Algoritmo de planificación no reconocido");
+    exit(-1);
+}
+
+Tanto scheduler_elegir_segun_sjf y scheduler_elegir_segun_fifo deben tener la misma declaración que scheduler_elejir_segun_algoritmo:
+t_pcb* (*scheduler_elegir_segun_algoritmo)(t_estado* estadoReady);
+t_pcb* (*scheduler_elegir_segun_sjf)(t_estado* estadoReady);
+*/
+t_pcb* elegir_segun_algoritmo(void) {
     /*void* t_planificar_srt(t_pcb* p1, t_pcb* p2){
         return (srt(p1) <= srt(p2)) ? p1 : p2;
     }
@@ -249,26 +264,26 @@ t_pcb* elegir_segun_algoritmo(void){
             seleccionado = list_get_minimum(estado_get_list(estadoReady),(void*)t_planificar_srt);
         return seleccionado;
     }*/
-    return list_get(estado_get_list(estadoReady),0); //FIFO
+    return list_get(estado_get_list(estadoReady), 0);  // FIFO
 }
 
 static void noreturn atender_pcb(void) {  // TEMPORALMENTE ACÁ, QUIZÁS SE MUEVA A OTRO ARCHIVO
-    for (;;) {  
-        sem_wait(&recibirPcb);
+    for (;;) {
+        sem_wait(estado_get_sem(estadoExec));
 
-        pthread_mutex_lock(&execPCBMutex);
-        t_pcb* pcb = pcbEnExec;
-        pthread_mutex_unlock(&execPCBMutex);
+        pthread_mutex_lock(estado_get_mutex(estadoExec));
+        t_pcb* pcb = list_get(estado_get_list(estadoExec), 0);
+        pthread_mutex_unlock(estado_get_mutex(estadoExec));
 
         cpu_adapter_enviar_pcb_a_cpu(pcb, kernelConfig, kernelLogger);
-        uint8_t respuesta_cpu = stream_recv_header(kernel_config_get_socket_dispatch_cpu(kernelConfig));
+        uint8_t cpuResponse = stream_recv_header(kernel_config_get_socket_dispatch_cpu(kernelConfig));
         // TODO: PARAR DE CONTAR TIEMPO
-        pcb = list_remove(estado_get_list(estadoExec), 0);
-        switch (respuesta_cpu) {
+        pcb = cpu_adapter_recibir_pcb_de_cpu(pcb, kernelConfig, kernelLogger);
+        list_remove(estado_get_list(estadoExec), 0);
+        switch (cpuResponse) {
             case HEADER_proceso_desalojado:  // SALIDA INTERRUPCION
-                pcb = cpu_adapter_recibir_pcb_de_cpu(pcb, kernelConfig, kernelLogger);
                 pthread_mutex_lock(estado_get_mutex(estadoReady));
-                if (list_size(estado_get_list(estadoReady)) > kernel_config_get_grado_multiprogramacion(kernelConfig)) {
+                if (list_size(estado_get_list(estadoReady)) < kernel_config_get_grado_multiprogramacion(kernelConfig)) {
                     estado_encolar_pcb(estadoReady, pcb);
                     log_transition("EXEC", "READY", pcb_get_pid(pcb));
                 } else {
@@ -279,7 +294,6 @@ static void noreturn atender_pcb(void) {  // TEMPORALMENTE ACÁ, QUIZÁS SE MUEV
                 pthread_mutex_unlock(estado_get_mutex(estadoReady));
                 break;
             case HEADER_proceso_terminado:
-                pcb = cpu_adapter_recibir_pcb_de_cpu(pcb, kernelConfig, kernelLogger);
                 estado_encolar_pcb(estadoExit, pcb);
                 log_transition("EXEC", "EXIT", pcb_get_pid(pcb));
                 sem_post(&gradoMultiprog);
@@ -288,7 +302,6 @@ static void noreturn atender_pcb(void) {  // TEMPORALMENTE ACÁ, QUIZÁS SE MUEV
                 sem_post(estado_get_sem(estadoExit));
                 break;
             case HEADER_proceso_bloqueado:
-                pcb = cpu_adapter_recibir_pcb_de_cpu(pcb, kernelConfig, kernelLogger);
                 estado_encolar_pcb(estadoBlocked, pcb);
                 log_transition("EXEC", "BLOCKED", pcb_get_pid(pcb));
                 // TODO: en otro hilo hacer el wait(tiempo_bloqueo) del pcb
@@ -297,11 +310,8 @@ static void noreturn atender_pcb(void) {  // TEMPORALMENTE ACÁ, QUIZÁS SE MUEV
                 log_error(kernelLogger, "Error al recibir mensaje de CPU");
                 break;
         }
-        pthread_mutex_lock(&execPCBMutex);
-        pcbEnExec = NULL;
-        pthread_mutex_unlock(&execPCBMutex);
 
-        sem_post(&pcbRecibido);
+        sem_post(&dispatchPermitido);
     }
 }
 
@@ -313,19 +323,22 @@ static noreturn void planificador_corto_plazo(void) {
     for (;;) {
         sem_wait(estado_get_sem(estadoReady));
 
-        pthread_mutex_lock(&execPCBMutex);
-        if (kernel_config_es_algoritmo_sjf(kernelConfig) && pcbEnExec != NULL) {
-            cpu_adapter_interrumpir_cpu(kernel_config_get_socket_interrupt_cpu(kernelConfig));
+        pthread_mutex_lock(estado_get_mutex(estadoExec));
+        if (kernel_config_es_algoritmo_sjf(kernelConfig) && list_size(estado_get_list(estadoExec)) > 0) {
+            cpu_adapter_interrumpir_cpu(kernelConfig, kernelLogger);
         }
-        pthread_mutex_unlock(&execPCBMutex);
+        pthread_mutex_unlock(estado_get_mutex(estadoExec));
 
-        sem_wait(&pcbRecibido); // Arranca en 1
+        sem_wait(&dispatchPermitido);  // Arranca en 1
 
         pthread_mutex_lock(estado_get_mutex(estadoReady));
         t_pcb* pcbToDispatch = elegir_segun_algoritmo();
         pthread_mutex_unlock(estado_get_mutex(estadoReady));
 
-        pcbEnExec = pcbToDispatch;
-        sem_post(&recibirPcb); // Arranca en 0
+        pthread_mutex_lock(estado_get_mutex(estadoExec));
+        estado_encolar_pcb(estadoExec, pcbToDispatch);
+        pthread_mutex_unlock(estado_get_mutex(estadoExec));
+
+        sem_post(estado_get_sem(estadoExec));
     }
 }
