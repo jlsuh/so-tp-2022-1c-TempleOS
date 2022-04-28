@@ -286,9 +286,11 @@ static void noreturn atender_pcb(void) {  // TEMPORALMENTE ACÁ, QUIZÁS SE MUEV
                 if (list_size(estado_get_list(estadoReady)) < kernel_config_get_grado_multiprogramacion(kernelConfig)) {
                     estado_encolar_pcb(estadoReady, pcb);
                     log_transition("EXEC", "READY", pcb_get_pid(pcb));
+                    sem_post(estado_get_sem(estadoReady));
                 } else {
                     estado_encolar_pcb(estadoSuspendedReady, pcb);
                     log_transition("EXEC", "SUSPENDED READY", pcb_get_pid(pcb));
+                    sem_post(estado_get_sem(estadoSuspendedReady));
                     sem_post(&gradoMultiprog);
                 }
                 pthread_mutex_unlock(estado_get_mutex(estadoReady));
@@ -329,7 +331,7 @@ static noreturn void planificador_corto_plazo(void) {
         }
         pthread_mutex_unlock(estado_get_mutex(estadoExec));
 
-        sem_wait(&dispatchPermitido);  // Arranca en 1
+        sem_wait(&dispatchPermitido);
 
         pthread_mutex_lock(estado_get_mutex(estadoReady));
         t_pcb* pcbToDispatch = elegir_segun_algoritmo();
