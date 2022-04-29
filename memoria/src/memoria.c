@@ -18,8 +18,120 @@
 #define MEMORIA_LOG_PATH "bin/memoria.log"
 #define MEMORIA_MODULE_NAME "Memoria"
 
+typedef struct
+{
+    int* nroTablaNivel2;
+} t_tabla_nivel_uno;
+
+typedef struct
+{
+    int indiceMarco;
+    bool bitPresencia;
+    bool bitUso;
+    bool bitModificado;
+} t_entrada_nivel_dos;
+typedef struct
+{
+    t_entrada_nivel_dos* entradaNivel2;
+} t_tabla_nivel_dos;
+
 t_log* memoriaLogger;
 t_memoria_config* memoriaConfig;
+void* memoriaPrincipal;
+t_tabla_nivel_uno* tablasNivel1;
+t_tabla_nivel_dos* tablasNivel2;
+bool* marcosEnUso;
+int cantTotalMarcos;
+int cantidadProcesosMax;
+int entradasPorTabla;
+int tamanioPagina;
+int marcosPorProceso;
+
+int main(int argc, char* argv[]);
+int obtener_marco_disponible();
+int obtener_tabla_primer_nivel_libre();
+int obtener_tabla_segundo_nivel_libre();
+int crear_tabla_segundo_nivel();
+uint32_t crear_nuevo_proceso(uint32_t tamanio);
+void* escuchar_peticiones_cpu(void);
+void* escuchar_peticiones_kernel(void);
+void asignar_marcos_a_proceso(int numeroTablaPrimerNivel, int indiceMarco);
+void crear_hilo_handler_peticiones_de_cpu(void);
+void crear_hilo_handler_peticiones_de_kernel(void);
+void crear_tablas_de_segundo_nivel(int numeroTablaPrimerNivel);
+void inicializar_array_de_tablas_de_primer_nivel();
+void inicializar_array_de_tablas_de_segundo_nivel();
+void iniciar_marcos();
+void recibir_conexion(int socketEscucha);
+
+void imprimir_tabla_nivel_uno() {
+    printf("\n");
+    for (int i = 0; i < cantidadProcesosMax; i++) {
+        printf("Tabla %d: [ ", i);
+        for (int j = 0; j < entradasPorTabla; j++) {
+            printf("%d ", tablasNivel1[i].nroTablaNivel2[j]);
+        }
+        printf("]\n");
+    }
+    printf("\n");
+}
+void imprimir_tabla_nivel_dos() {
+    printf("\n");
+    for (int i = 0; i < cantidadProcesosMax; i++) {
+        printf("Tabla %d\n", i);
+        for (int j = 0; j < entradasPorTabla; j++) {
+            printf("Tabla Nivel Dos %d\n", tablasNivel1[i].nroTablaNivel2[j]);
+            for (int r = 0; r < entradasPorTabla; r++) {
+                printf("[ %d, %d, %d, %d ]\n", tablasNivel2[j].entradaNivel2[r].indiceMarco, tablasNivel2[j].entradaNivel2[r].bitPresencia, tablasNivel2[j].entradaNivel2[r].bitUso, tablasNivel2[j].entradaNivel2[r].bitModificado);
+            }
+        }
+        printf("\n\n\n");
+    }
+    printf("\n");
+}
+
+void imprimir_frames() {
+    printf("\n");
+    for (int i = 0; i < cantTotalMarcos; i++) {
+        printf("Marco %d: %d\n", i, marcosEnUso[i]);
+    }
+    printf("\n");
+}
+
+int main(int argc, char* argv[]) {
+    memoriaLogger = log_create(MEMORIA_LOG_PATH, MEMORIA_MODULE_NAME, true, LOG_LEVEL_INFO);
+    memoriaConfig = memoria_config_create(MEMORIA_CONFIG_PATH, memoriaLogger);
+
+    int socketEscucha = iniciar_servidor(memoria_config_get_ip_escucha(memoriaConfig), memoria_config_get_puerto_escucha(memoriaConfig));
+    log_info(memoriaLogger, "Memoria(%s): A la escucha de Kernel y CPU en puerto %d", __FILE__, socketEscucha);
+
+    int tamanioMemoria = memoria_config_get_tamanio_memoria(memoriaConfig);
+    tamanioPagina = memoria_config_get_tamanio_pagina(memoriaConfig);
+    marcosPorProceso = memoria_config_get_marcos_por_proceso(memoriaConfig);
+    entradasPorTabla = memoria_config_get_entradas_por_tabla(memoriaConfig);
+    cantTotalMarcos = tamanioMemoria / tamanioPagina;
+
+    memoriaPrincipal = malloc(tamanioMemoria);
+    memset(memoriaPrincipal, 0, tamanioMemoria);
+    cantidadProcesosMax = tamanioMemoria / (marcosPorProceso * tamanioPagina);
+
+    inicializar_array_de_tablas_de_primer_nivel();
+    inicializar_array_de_tablas_de_segundo_nivel();
+    iniciar_marcos();
+
+    crear_nuevo_proceso(5);
+    crear_nuevo_proceso(20);
+    crear_nuevo_proceso(34);
+
+    imprimir_frames();
+    imprimir_tabla_nivel_uno();
+    imprimir_tabla_nivel_dos();
+
+    recibir_conexion(socketEscucha);
+    recibir_conexion(socketEscucha);
+
+    return 0;
+}
 
 void* escuchar_peticiones_kernel(void) {
     int socket = memoria_config_get_kernel_socket(memoriaConfig);
@@ -32,7 +144,7 @@ void* escuchar_peticiones_kernel(void) {
         buffer_unpack(buffer, &pid, sizeof(pid));
 
         switch (header) {
-            case HEADER_nuevo_proceso:
+            case HEADER_solicitud_tabla_paginas:
                 uint32_t tamanio;
                 buffer_unpack(buffer, &tamanio, sizeof(tamanio));
                 int procesoNuevo = crear_nuevo_proceso(tamanio);
@@ -137,232 +249,120 @@ void recibir_conexion(int socketEscucha) {
     }
 }
 
-// Estructuras
-void* memoriaPrincipal;
-t_entrada_tablas_de_primer_nivel* arrayTablasPrimerNivel;
-t_entrada_tablas_de_segundo_nivel* arrayTablasSegundoNivel;
-bool* arrayFrameDisponible;
-int cantTotalFrames;
-int cantidadProcesosMax;
-
-typedef struct
-{
-    t_tabla_primer_nivel* punteroTablaPrimerNivel;
-} t_entrada_tablas_de_primer_nivel;
-
-typedef struct
-{
-    int* arrayNumeroTablaSegundoNivel;
-} t_tabla_primer_nivel;
-
-typedef struct
-{
-    t_tabla_segundo_nivel* punteroTablaSegundoNivel;
-} t_entrada_tablas_de_segundo_nivel;
-
-typedef struct
-{
-    t_entrada_segundo_nivel* arrayEntradasSegundoNivel;
-} t_tabla_segundo_nivel;
-
-typedef struct
-{
-    int indiceMarco;
-    bool bitPresencia;
-    bool bitUso;
-    bool bitModificado;
-} t_entrada_segundo_nivel;
-
-void iniciar_frames(int cantTotalFrames) {
-    arrayFrameDisponible = malloc(cantTotalFrames * sizeof(bool));
-    for (int i = 0; i < cantTotalFrames; i++) {
-        arrayFrameDisponible[i] = true;
-    }
-}
-
 uint32_t crear_nuevo_proceso(uint32_t tamanio) {
-    int indiceFrame = indice_frame_disponible();
-    if (indiceFrame == -1) {
-        return indiceFrame;
+    int indiceMarco = obtener_marco_disponible();
+    int tamanioMaximo = entradasPorTabla * entradasPorTabla * tamanioPagina;
+    if (indiceMarco == -1) {
+        return -1;
+    } else if (tamanio >= tamanioMaximo) {
+        return -1;
     }
 
-    int numeroTablaPrimerNivel = crear_tabla_primer_nivel();
-    crear_tablas_de_segundo_nivel(numeroTablaPrimerNivel, indiceFrame, tamanio);  // TODO
+    int numeroTablaPrimerNivel = obtener_tabla_primer_nivel_libre();
+    crear_tablas_de_segundo_nivel(numeroTablaPrimerNivel);
+    asignar_marcos_a_proceso(numeroTablaPrimerNivel, indiceMarco);
+
+    // TODO crear estructura para swap
 
     return numeroTablaPrimerNivel;
 }
 
-int crear_tabla_primer_nivel() {
-    int tablasTotales = memoria_config_get_entradas_por_tabla(memoriaConfig);
-    for (int i = 0; i < cantidadProcesosMax; i++) {
-        if (arrayTablasPrimerNivel[i]->punteroTablaPrimerNivel == NULL) {
-            arrayTablasPrimerNivel[i]->punteroTablaPrimerNivel = malloc(sizeof(t_tabla_primer_nivel));
-            return i;
+void asignar_marcos_a_proceso(int numeroTablaPrimerNivel, int indiceMarco) {
+    int cantidadMarcosRestantes = marcosPorProceso;
+    int indiceMarcoActual = indiceMarco;
+    for (int i = 0; i < entradasPorTabla; i++) {
+        for (int j = 0; j < entradasPorTabla; j++) {
+            int nroTablaNivel2 = tablasNivel1[numeroTablaPrimerNivel].nroTablaNivel2[i];
+            tablasNivel2[nroTablaNivel2].entradaNivel2[j].indiceMarco = indiceMarcoActual;
+            tablasNivel2[nroTablaNivel2].entradaNivel2[j].bitPresencia = true;
+
+            cantidadMarcosRestantes--;
+            marcosEnUso[indiceMarcoActual++] = true;
+
+            if (cantidadMarcosRestantes == 0) {
+                return;
+            }
         }
     }
 }
 
-void crear_tablas_de_segundo_nivel(int numeroTablaPrimerNivel, int indiceFrame, uint32_t tamanio) {
-    int cantidadEntradasTotales = tamanio / memoria_config_get_tamanio_pagina(memoriaConfig);
-    int cantidadEntradasPorTabla = memoria_config_get_entradas_por_tabla(memoriaConfig);
-    int cantidadTablasDeSegundoNivel = cantidadEntradasTotales / cantidadEntradasPorTabla;
-    int cantidadMarcosPorProceso = memoria_config_get_marcos_por_proceso(memoriaConfig);
-
-    for (int i = 0; i < cantidadTablasDeSegundoNivel; i++) {
-        int indiceTablaSegundoNivel = obtener_indice_libre_tabla_segundo_nivel();
-        arrayTablasSegundoNivel[indiceTablaSegundoNivel].punteroTablaSegundoNivel = crear_tabla_segundo_nivel();
-        arrayTablasPrimerNivel[numeroTablaPrimerNivel]->arrayNumeroTablaSegundoNivel[i] = indiceTablaSegundoNivel;
+int obtener_tabla_primer_nivel_libre() {
+    int i;
+    for (i = 0; i < cantidadProcesosMax; i++) {
+        if (tablasNivel1[i].nroTablaNivel2[0] == -1) {
+            break;
+        }
     }
-    
-    // TODO asignar los marcos
+    return i;
 }
 
-t_tabla_segundo_nivel* crear_tabla_segundo_nivel() {
-    int cantidadEntradas = memoria_config_get_entradas_por_tabla(memoriaConfig);
-    t_tabla_segundo_nivel* punteroTablaSegundoNivel = malloc(sizeof(t_tabla_segundo_nivel));
-
-    for (int i = 0; i < cantidadEntradas; i++) {
-        punteroTablaSegundoNivel->arrayEntradasSegundoNivel[i] = malloc(sizeof(t_entrada_segundo_nivel));
-        punteroTablaSegundoNivel->arrayEntradasSegundoNivel[i].indiceMarco = -1;
-        punteroTablaSegundoNivel->arrayEntradasSegundoNivel[i].bitPresencia = false;
-        punteroTablaSegundoNivel->arrayEntradasSegundoNivel[i].bitUso = false;
-        punteroTablaSegundoNivel->arrayEntradasSegundoNivel[i].bitModificado = false;
+void crear_tablas_de_segundo_nivel(int numeroTablaPrimerNivel) {
+    for (int i = 0; i < entradasPorTabla; i++) {
+        int indiceTablaSegundoNivel = crear_tabla_segundo_nivel();
+        tablasNivel1[numeroTablaPrimerNivel].nroTablaNivel2[i] = indiceTablaSegundoNivel;
     }
-
-    return punteroTablaSegundoNivel;
 }
 
-int indice_frame_disponible() {
-    for (int i = 0; i < cantTotalFrames; i++) {
-        if (arrayFrameDisponible[i]) {
+int crear_tabla_segundo_nivel() {
+    int tablaSegundoNivelLibre = obtener_tabla_segundo_nivel_libre();
+    tablasNivel2[tablaSegundoNivelLibre].entradaNivel2 = malloc(entradasPorTabla * sizeof(t_entrada_nivel_dos));
+    for (int i = 0; i < entradasPorTabla; i++) {
+        tablasNivel2[tablaSegundoNivelLibre].entradaNivel2[i] =
+            (t_entrada_nivel_dos){.indiceMarco = -1, .bitPresencia = false, .bitUso = false, .bitModificado = false};
+    }
+
+    return tablaSegundoNivelLibre;
+}
+
+int obtener_tabla_segundo_nivel_libre() {
+    int i;
+    for (i = 0; i < cantidadProcesosMax * entradasPorTabla; i++) {
+        if (tablasNivel2[i].entradaNivel2 == NULL) {
+            break;
+        }
+    }
+    return i;
+}
+
+void inicializar_array_de_tablas_de_primer_nivel() {
+    tablasNivel1 = malloc(cantidadProcesosMax * sizeof(t_tabla_nivel_uno));
+
+    for (int i = 0; i < cantidadProcesosMax; i++) {
+        tablasNivel1[i].nroTablaNivel2 = malloc(entradasPorTabla * sizeof(int));
+        for (int j = 0; j < entradasPorTabla; j++) {
+            tablasNivel1[i].nroTablaNivel2[j] = -1;
+        }
+    }
+}
+
+void inicializar_array_de_tablas_de_segundo_nivel() {
+    tablasNivel2 = calloc(cantidadProcesosMax * entradasPorTabla, sizeof(t_tabla_nivel_dos));
+}
+
+void iniciar_marcos() {
+    marcosEnUso = calloc(cantTotalMarcos, sizeof(bool));
+}
+
+int obtener_marco_disponible() {
+    for (int i = 0; i < cantTotalMarcos; i++) {
+        if (!marcosEnUso[i]) {
             return i;
         }
     }
     return -1;
 }
 
-int main(int argc, char* argv[]) {
-    memoriaLogger = log_create(MEMORIA_LOG_PATH, MEMORIA_MODULE_NAME, true, LOG_LEVEL_INFO);
-    memoriaConfig = memoria_config_create(MEMORIA_CONFIG_PATH, memoriaLogger);
-
-    int socketEscucha = iniciar_servidor(memoria_config_get_ip_escucha(memoriaConfig), memoria_config_get_puerto_escucha(memoriaConfig));
-    log_info(memoriaLogger, "Memoria(%s): A la escucha de Kernel y CPU en puerto %d", __FILE__, socketEscucha);
-
-    int tamanioMemoria = memoria_config_get_tamanio_memoria(memoriaConfig);
-    int tamanioPagina = memoria_config_get_tamanio_pagina(memoriaConfig);
-    int marcosPorProceso = memoria_config_get_marcos_por_proceso(memoriaConfig);
-    int entradasPorTabla = memoria_config_get_entradas_por_tabla(memoriaConfig);
-    cantTotalFrames = tamanioMemoria / tamanioPagina;
-
-    memoriaPrincipal = malloc(tamanioMemoria);
-    memset(memoriaPrincipal, 0, tamanioMemoria);
-    cantidadProcesosMax = tamanioMemoria / (marcosPorProceso * tamanioPagina);
-    arrayTablasPrimerNivel = malloc(cantidadProcesosMax * sizeof(t_entrada_tablas_de_primer_nivel));
-    for (int i = 0; i < cantidadProcesosMax; i++) {
-        arrayTablasPrimerNivel[i].numeroTablaPrimerNivel = i;
-        arrayTablasPrimerNivel[i].punteroTablaPrimerNivel = NULL;
-    }
-    arrayTablasSegundoNivel = malloc(cantidadProcesosMax * entradasPorTabla * sizeof(t_entrada_tablas_de_segundo_nivel));
-    for (int i = 0; i < cantidadProcesosMax * entradasPorTabla; i++) {
-        arrayTablasSegundoNivel[i].punteroTablaSegundoNivel = NULL;
-    }
-
-    iniciar_frames(cantTotalFrames);
-
-    recibir_conexion(socketEscucha);
-    recibir_conexion(socketEscucha);
-
-    return 0;
-}
-
-// pthread_mutex_t MUTEX_MP;
-// pthread_mutex_t MUTEX_FRAME;
-// pthread_mutex_t MUTEX_TABLAS_DE_PAGINAS;
-// pthread_mutex_t MUTEX_TLB;
-
-// void iniciar_mutex() {
-//     pthread_mutex_init(&MUTEX_MP, NULL);
-//     pthread_mutex_init(&MUTEX_FRAME, NULL);
-//     pthread_mutex_init(&MUTEX_TLB, NULL);
-//     pthread_mutex_init(&MUTEX_TABLAS_DE_PAGINAS, NULL);
-// }
-
-// void finalizar_mutex() {
-//     pthread_mutex_destroy(&MUTEX_MP);
-//     pthread_mutex_destroy(&MUTEX_FRAME);
-//     pthread_mutex_destroy(&MUTEX_TLB);
-//     pthread_mutex_destroy(&MUTEX_TABLAS_DE_PAGINAS);
-// }
-
-// void memwrite_pagina_en_frame(uint32_t numeroFrame, uint32_t desplazamiento, void* data, uint32_t size) {
+// void memwrite_pagina_en_Marco(uint32_t numeroMarco, uint32_t desplazamiento, void* data, uint32_t size) {
 //     uint32_t tamanioPagina = memoria_config_get_tamanio_pagina(memoriaConfig);
-//     uint32_t offset = numeroFrame * tamanioPagina + desplazamiento;
+//     uint32_t offset = numeroMarco * tamanioPagina + desplazamiento;
 //     memcpy(memoriaPrincipal + offset, data, size);
 // }
 
-// void memread_pagina_en_frame(uint32_t numeroFrame, uint32_t desplazamiento, void* data, uint32_t size) {
+// void memread_pagina_en_Marco(uint32_t numeroMarco, uint32_t desplazamiento, void* data, uint32_t size) {
 //     uint32_t tamanioPagina = memoria_config_get_tamanio_pagina(memoriaConfig);
-//     uint32_t offset = numeroFrame * tamanioPagina + desplazamiento;
+//     uint32_t offset = numeroMarco * tamanioPagina + desplazamiento;
 //     memcpy(data, memoriaPrincipal + offset, size);
 // }
 
-// void memcpy_pagina_en_frame(uint32_t numeroFrameDestino, uint32_t numeroFrameOrigen) {
-// }
-
-// t_frame* encontrar_frame_vacio() {
-//     t_list* framesVacios = list_create();
-//     for (int i = 0; i < list_size(lista_de_frames); i++) {
-//         t_frame* aux = list_get(lista_de_frames, i);
-//         if (aux->estaLibre == 1) {
-//             list_add(framesVacios, aux);
-//         }
-//     }
-
-//     t_frame* frame = malloc(sizeof(t_frame));
-//     frame = list_get(framesVacios, 0);
-//     frame->estaLibre = 0;
-//     return frame;
-// }
-
-// void list_add_tabla_de_paginas(t_tabla_de_paginas* elem) {
-//     pthread_mutex_lock(&MUTEX_TABLAS_DE_PAGINAS);
-//     list_add(lista_de_tablas_de_paginas, (void*)elem);
-//     pthread_mutex_unlock(&MUTEX_TABLAS_DE_PAGINAS);
-// }
-
-// bool tabla_de_paginas_tiene_pid(void* x) {
-//     t_tabla_de_paginas* elem = x;
-//     return elem->pid == pid;
-// }
-
-// t_tabla_de_paginas* list_remove_by_pid(uint32_t pid) {
-//     pthread_mutex_lock(&MUTEX_TABLAS_DE_PAGINAS);
-//     static_pid = pid;
-//     t_tabla_de_paginas* elem = list_remove_by_condition(lista_de_tablas_de_paginas, &tabla_de_paginas_tiene_pid);
-//     pthread_mutex_unlock(&MUTEX_TABLAS_DE_PAGINAS);
-//     return elem;
-// }
-
-// void free_tabla_de_paginas(void* x) {
-//     if (x == NULL)
-//         return;
-//     t_tabla_de_paginas* elem = (t_tabla_de_paginas*)x;
-//     list_destroy_and_destroy_elements(elem->paginas, (void*)free);
-//     free(elem);
-// }
-
-// void finalizar_lista_de_tablas_de_paginas1() {
-//     pthread_mutex_lock(&MUTEX_TABLAS_DE_PAGINAS);
-//     list_destroy_and_destroy_elements(lista_de_tablas_de_paginas1, &free_tabla_de_paginas);
-//     pthread_mutex_unlock(&MUTEX_TABLAS_DE_PAGINAS);
-// }
-
-// void finalizar_lista_de_tablas_de_paginas2() {
-//     list_destroy_and_destroy_elements(lista_de_tablas_de_paginas2, &free_tabla_de_paginas);
-// }
-
-// void finalizar_lista_de_frames() {
-//     pthread_mutex_lock(&MUTEX_FRAME);
-//     list_destroy_and_destroy_elements(lista_de_frames, free);
-//     pthread_mutex_unlock(&MUTEX_FRAME);
+// void memcpy_pagina_en_Marco(uint32_t numeroMarcoDestino, uint32_t numeroMarcoOrigen) {
 // }
