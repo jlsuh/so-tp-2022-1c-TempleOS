@@ -111,10 +111,12 @@ void* encolar_en_new_a_nuevo_pcb_entrante(void* socket) {
 
         t_buffer* instructionsBuffer = buffer_create();
         stream_recv_buffer(*socketProceso, instructionsBuffer);
+        t_buffer* instructionsBufferCopy = buffer_create_copy(instructionsBuffer);
 
         uint32_t newPid = get_next_pid();
         t_pcb* newPcb = pcb_create(newPid, tamanio, kernel_config_get_est_inicial(kernelConfig));
         pcb_set_socket(newPcb, *socketProceso);
+        pcb_set_instruction_buffer(newPcb, instructionsBufferCopy);
 
         uint8_t instruction = -1;
         bool isExit = false;
@@ -152,8 +154,6 @@ void* encolar_en_new_a_nuevo_pcb_entrante(void* socket) {
         }
         estado_encolar_pcb(estadoNew, newPcb);
         sem_post(&hayPcbsParaAgregarAlSistema);
-        log_transition("NULL", "NEW", pcb_get_pid(newPcb));
-        pcb_set_instruction_buffer(newPcb, instructionsBuffer);
         buffer_destroy(instructionsBuffer);
     }
     return NULL;
@@ -176,6 +176,7 @@ static noreturn void planificador_largo_plazo(void) {
             pcbQuePasaAReady = list_remove(estado_get_list(estadoNew), 0);
             pthread_mutex_unlock(estado_get_mutex(estadoNew));
             uint32_t nuevaTablaPagina = mem_adapter_obtener_tabla_pagina(pcbQuePasaAReady, kernelConfig, kernelLogger);
+            // TODO: responder si no hay lugar en memoria
             pcb_set_tabla_pagina_primer_nivel(pcbQuePasaAReady, nuevaTablaPagina);
             prevStatus = string_from_format("NEW");
         }
@@ -249,6 +250,7 @@ Tanto scheduler_elegir_segun_sjf y scheduler_elegir_segun_fifo deben tener la mi
 t_pcb* (*scheduler_elegir_segun_algoritmo)(t_estado* estadoReady);
 t_pcb* (*scheduler_elegir_segun_sjf)(t_estado* estadoReady);
 */
+
 t_pcb* elegir_segun_algoritmo(void) {
     /*void* t_planificar_srt(t_pcb* p1, t_pcb* p2){
         return (srt(p1) <= srt(p2)) ? p1 : p2;
@@ -270,30 +272,20 @@ t_pcb* elegir_segun_algoritmo(void) {
 static void noreturn atender_pcb(void) {  // TEMPORALMENTE ACÁ, QUIZÁS SE MUEVA A OTRO ARCHIVO
     for (;;) {
         sem_wait(estado_get_sem(estadoExec));
-
         pthread_mutex_lock(estado_get_mutex(estadoExec));
         t_pcb* pcb = list_get(estado_get_list(estadoExec), 0);
         pthread_mutex_unlock(estado_get_mutex(estadoExec));
-
         cpu_adapter_enviar_pcb_a_cpu(pcb, kernelConfig, kernelLogger);
+
         uint8_t cpuResponse = stream_recv_header(kernel_config_get_socket_dispatch_cpu(kernelConfig));
         // TODO: PARAR DE CONTAR TIEMPO
         pcb = cpu_adapter_recibir_pcb_de_cpu(pcb, kernelConfig, kernelLogger);
         list_remove(estado_get_list(estadoExec), 0);
         switch (cpuResponse) {
             case HEADER_proceso_desalojado:  // SALIDA INTERRUPCION
-                pthread_mutex_lock(estado_get_mutex(estadoReady));
-                if (list_size(estado_get_list(estadoReady)) < kernel_config_get_grado_multiprogramacion(kernelConfig)) {
-                    estado_encolar_pcb(estadoReady, pcb);
-                    log_transition("EXEC", "READY", pcb_get_pid(pcb));
-                    sem_post(estado_get_sem(estadoReady));
-                } else {
-                    estado_encolar_pcb(estadoSuspendedReady, pcb);
-                    log_transition("EXEC", "SUSPENDED READY", pcb_get_pid(pcb));
-                    sem_post(estado_get_sem(estadoSuspendedReady));
-                    sem_post(&gradoMultiprog);
-                }
-                pthread_mutex_unlock(estado_get_mutex(estadoReady));
+                estado_encolar_pcb(estadoReady, pcb);
+                log_transition("EXEC", "READY", pcb_get_pid(pcb));
+                sem_post(estado_get_sem(estadoReady));
                 break;
             case HEADER_proceso_terminado:
                 estado_encolar_pcb(estadoExit, pcb);
@@ -317,7 +309,7 @@ static void noreturn atender_pcb(void) {  // TEMPORALMENTE ACÁ, QUIZÁS SE MUEV
     }
 }
 
-static noreturn void planificador_corto_plazo(void) {
+static void noreturn planificador_corto_plazo(void) {
     pthread_t atenderPCBThread;
     pthread_create(&atenderPCBThread, NULL, (void*)atender_pcb, NULL);
     pthread_detach(atenderPCBThread);
@@ -337,9 +329,7 @@ static noreturn void planificador_corto_plazo(void) {
         t_pcb* pcbToDispatch = elegir_segun_algoritmo();
         pthread_mutex_unlock(estado_get_mutex(estadoReady));
 
-        pthread_mutex_lock(estado_get_mutex(estadoExec));
         estado_encolar_pcb(estadoExec, pcbToDispatch);
-        pthread_mutex_unlock(estado_get_mutex(estadoExec));
 
         sem_post(estado_get_sem(estadoExec));
     }
