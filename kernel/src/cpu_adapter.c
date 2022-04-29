@@ -7,13 +7,11 @@
 
 void cpu_adapter_enviar_pcb_a_cpu(t_pcb* pcbAEnviar, t_kernel_config* kernelConfig, t_log* kernelLogger) {
     uint32_t pidAEnviar = pcb_get_pid(pcbAEnviar);
-    uint32_t tiempoDeBloqAEnviar = pcb_get_tiempo_de_bloq(pcbAEnviar);
-    uint32_t pcAEnviar = pcb_get_program_counter(pcbAEnviar);
+    uint64_t pcAEnviar = pcb_get_program_counter(pcbAEnviar);
     uint32_t tablaPagsAEnviar = pcb_get_tabla_pagina_primer_nivel(pcbAEnviar);
 
     t_buffer* bufferPcbAEjecutar = buffer_create();
     buffer_pack(bufferPcbAEjecutar, &pidAEnviar, sizeof(pidAEnviar));
-    buffer_pack(bufferPcbAEjecutar, &tiempoDeBloqAEnviar, sizeof(tiempoDeBloqAEnviar));
     buffer_pack(bufferPcbAEjecutar, &pcAEnviar, sizeof(pcAEnviar));
     buffer_pack(bufferPcbAEjecutar, &tablaPagsAEnviar, sizeof(tablaPagsAEnviar));
 
