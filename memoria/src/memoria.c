@@ -81,8 +81,9 @@ void imprimir_tabla_nivel_dos() {
         printf("Tabla %d\n", i);
         for (int j = 0; j < entradasPorTabla; j++) {
             printf("Tabla Nivel Dos %d\n", tablasNivel1[i].nroTablaNivel2[j]);
+            int numerosTablaNivelDos = tablasNivel1[i].nroTablaNivel2[j];
             for (int r = 0; r < entradasPorTabla; r++) {
-                printf("[ %d, %d, %d, %d ]\n", tablasNivel2[j].entradaNivel2[r].indiceMarco, tablasNivel2[j].entradaNivel2[r].bitPresencia, tablasNivel2[j].entradaNivel2[r].bitUso, tablasNivel2[j].entradaNivel2[r].bitModificado);
+                printf("[ %d, %d, %d, %d ]\n", tablasNivel2[numerosTablaNivelDos].entradaNivel2[r].indiceMarco, tablasNivel2[numerosTablaNivelDos].entradaNivel2[r].bitPresencia, tablasNivel2[numerosTablaNivelDos].entradaNivel2[r].bitUso, tablasNivel2[numerosTablaNivelDos].entradaNivel2[r].bitModificado);
             }
         }
         printf("\n\n\n");
