@@ -53,7 +53,6 @@ int main(int argc, char* argv[]) {
     kernelLogger = log_create(KERNEL_LOG_PATH, KERNEL_MODULE_NAME, true, LOG_LEVEL_INFO);
     kernelConfig = kernel_config_create(KERNEL_CONFIG_PATH, kernelLogger);
 
-    /*
     // Conexión con CPU en canal Dispatch
     const int socketCPUDispatch = conectar_a_servidor(kernel_config_get_ip_cpu(kernelConfig), kernel_config_get_puerto_cpu_dispatch(kernelConfig));
     if (socketCPUDispatch == -1) {
@@ -92,6 +91,7 @@ int main(int argc, char* argv[]) {
     }
     log_info(kernelLogger, "Conexión con CPU por canal Interrupt establecida");
 
+    /*
     // Conexión con Memoria
     const int socketMemoria = conectar_a_servidor(kernel_config_get_ip_memoria(kernelConfig), kernel_config_get_puerto_memoria(kernelConfig));
     if (socketCPUInterrupt == -1) {

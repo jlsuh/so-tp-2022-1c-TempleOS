@@ -80,9 +80,9 @@ void cpu_config_set_socket_memoria(t_cpu_config* self, int socketMemoria) {
 }
 
 void cpu_config_set_socket_dispatch(t_cpu_config* self, int socketDispatch) {
-    self->SOCKET_MEMORIA = socketDispatch;
+    self->SOCKET_DISPATCH = socketDispatch;
 }
 
 void cpu_config_set_socket_interrupt(t_cpu_config* self, int socketInterrupt) {
-    self->SOCKET_MEMORIA = socketInterrupt;
+    self->SOCKET_INTERRUPT = socketInterrupt;
 }

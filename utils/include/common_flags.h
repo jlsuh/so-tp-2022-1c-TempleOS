@@ -5,12 +5,14 @@ typedef enum {
     HEADER_lista_instrucciones,
     HEADER_nuevo_proceso,
     HEADER_proceso_terminado,
-    HEADER_proceso_suspendido,
+    HEADER_proceso_bloqueado,
+    HEADER_proceso_desalojado,
     HEADER_read,
     HEADER_write,
     HEADER_copy,
     HEADER_tabla_de_paginas,
     HEADER_solicitud_tabla_paginas,
+    HEADER_pcb_a_ejecutar,
 } t_header;
 
 typedef enum {

@@ -11,6 +11,7 @@
 
 #include "buffer.h"
 #include "common_flags.h"
+#include "cpu_adapter.h"
 #include "estados.h"
 #include "instruccion.h"
 #include "kernel_config.h"
@@ -27,6 +28,7 @@ static pthread_mutex_t nextPidMutex;
 
 static sem_t gradoMultiprog;
 static sem_t hayPcbsParaAgregarAlSistema;
+static sem_t dispatchPermitido;
 
 static t_estado* estadoNew;
 static t_estado* estadoReady;
@@ -37,6 +39,7 @@ static t_estado* estadoSuspendedBlocked;
 static t_estado* estadoSuspendedReady;
 
 static noreturn void planificador_largo_plazo(void);
+static noreturn void planificador_corto_plazo(void);
 
 static uint32_t get_next_pid(void) {
     pthread_mutex_lock(&nextPidMutex);
@@ -60,6 +63,7 @@ void inicializar_estructuras(void) {
 
     sem_init(&hayPcbsParaAgregarAlSistema, 0, 0);
     sem_init(&gradoMultiprog, 0, valorInicialGradoMultiprog);
+    sem_init(&dispatchPermitido, 0, 1);
     log_info(kernelLogger, "Se inicializa el grado multiprogramación en %d", valorInicialGradoMultiprog);
 
     estadoNew = estado_create(NEW);
@@ -74,13 +78,15 @@ void inicializar_estructuras(void) {
     pthread_create(&largoPlazoTh, NULL, (void*)planificador_largo_plazo, NULL);
     pthread_detach(largoPlazoTh);
 
-    /* pthread_t medianoPlazoTh;
-      pthread_create(&medianoPlazoTh, NULL, (void*)planificador_mediano_plazo, NULL);
-      pthread_detach(medianoPlazoTh);
+    pthread_t cortoPlazoTh;
+    pthread_create(&cortoPlazoTh, NULL, (void*)planificador_corto_plazo, NULL);
+    pthread_detach(cortoPlazoTh);
 
-      pthread_t cortoPlazoTh;
-      pthread_create(&cortoPlazoTh, NULL, (void*)planificador_corto_plazo, NULL);
-      pthread_detach(cortoPlazoTh); */
+    /*
+    pthread_t medianoPlazoTh;
+    pthread_create(&medianoPlazoTh, NULL, (void*)planificador_mediano_plazo, NULL);
+    pthread_detach(medianoPlazoTh);
+    */
 }
 
 void* encolar_en_new_a_nuevo_pcb_entrante(void* socket) {
@@ -106,9 +112,12 @@ void* encolar_en_new_a_nuevo_pcb_entrante(void* socket) {
 
         t_buffer* instructionsBuffer = buffer_create();
         stream_recv_buffer(*socketProceso, instructionsBuffer);
+        t_buffer* instructionsBufferCopy = buffer_create_copy(instructionsBuffer);
 
         uint32_t newPid = get_next_pid();
         t_pcb* newPcb = pcb_create(newPid, tamanio, kernel_config_get_est_inicial(kernelConfig));
+        pcb_set_socket(newPcb, *socketProceso);
+        pcb_set_instruction_buffer(newPcb, instructionsBufferCopy);
 
         uint8_t instruction = -1;
         bool isExit = false;
@@ -146,7 +155,6 @@ void* encolar_en_new_a_nuevo_pcb_entrante(void* socket) {
         }
         estado_encolar_pcb(estadoNew, newPcb);
         sem_post(&hayPcbsParaAgregarAlSistema);
-        log_transition("NULL", "NEW", pcb_get_pid(newPcb));
         buffer_destroy(instructionsBuffer);
     }
     return NULL;
@@ -183,7 +191,8 @@ static noreturn void planificador_largo_plazo(void) {
             pcbQuePasaAReady = list_remove(estado_get_list(estadoNew), 0);
             pthread_mutex_unlock(estado_get_mutex(estadoNew));
             uint32_t nuevaTablaPagina = mem_adapter_obtener_tabla_pagina(pcbQuePasaAReady, kernelConfig, kernelLogger);
-            pcb_set_tabla_paginas(pcbQuePasaAReady, nuevaTablaPagina);
+            // TODO: responder si no hay lugar en memoria
+            pcb_set_tabla_pagina_primer_nivel(pcbQuePasaAReady, nuevaTablaPagina);
             prevStatus = string_from_format("NEW");
         }
         estado_encolar_pcb(estadoReady, pcbQuePasaAReady);
@@ -208,35 +217,6 @@ void interrumpir_cpu(void) {
     log_info(kernelLogger, "CPU interrumpida");
 }
 
-double srt(t_pcb* proceso){
-        double alfa = kernel_config_get_alfa(kernelConfig);
-
-        if(pcb_get_ultima_ejecucion(proceso) == -1){
-                return pcb_get_est_actual(proceso);
-        }
-
-        pcb_set_est_actual(proceso,(alfa*pcb_get_ultima_ejecucion(proceso) + (1-alfa)*pcb_get_est_actual(proceso)));
-        return pcb_get_est_actual(proceso);
-}
-
-t_pcb* planificar(void){
-    void* t_planificar_srt(t_pcb* p1, t_pcb* p2){
-        return (srt(p1) <= srt(p2)) ? p1 : p2;
-    }
-    t_pcb* seleccionado = NULL;
-
-    if(strcmp(kernel_config_get_algoritmo(kernelConfig), "SRT") == 0){
-        if(list_size(estado_get_list(estadoReady)) == 1){
-            seleccionado = list_get(estado_get_list(estadoReady),0);
-                        srt(seleccionado);
-                        return seleccionado;
-                }
-            seleccionado = list_get_minimum(estado_get_list(estadoReady),(void*)t_planificar_srt);
-        return seleccionado;
-    }
-    return list_get(estado_get_list(estadoReady),0); //FIFO
-}
-
 static noreturn void planificador_mediano_plazo(void) {
     bool supera_limite_block(void* tcb_en_lista) {
                 return (pcb_get_tiempo_de_bloq((t_pcb*)tcb_en_lista) > kernel_config_get_maximo_bloq(kernelConfig)); // TODO: los dos gets de esta linea
@@ -255,21 +235,117 @@ static noreturn void planificador_mediano_plazo(void) {
     }
 }
 
-static noreturn void planificador_corto_plazo(void) {
-    t_pcb* pcbQuePasaAExec = NULL;
+double srt(t_pcb* proceso){
+    double alfa = kernel_config_get_alfa(kernelConfig);
+
+    if(pcb_get_ultima_ejecucion(proceso) == -1){
+            return pcb_get_est_actual(proceso);
+    }
+
+    pcb_set_est_actual(proceso,(alfa*pcb_get_ultima_ejecucion(proceso) + (1-alfa)*pcb_get_est_actual(proceso)));
+    return pcb_get_est_actual(proceso);
+}
+*/
+
+// TODO: Abstraerlo en un puntero a la función del pcb con la idea de: t_pcb* pcb = scheduler_elegir_segun_algoritmo(estadoReady)
+/*
+Declaración: t_pcb* (*scheduler_elegir_segun_algoritmo)(t_estado* estadoReady)
+
+En inicializar_estructuras se pondría un if leyendo si es SJF o FIFO:
+if(kernel_config_get_algoritmo_planificacion(kernelConfig) == SJF){
+    scheduler_elegir_segun_algoritmo = scheduler_elegir_segun_sjf;
+} else if(kernel_config_get_algoritmo_planificacion(kernelConfig) == FIFO){
+    scheduler_elegir_segun_algoritmo = scheduler_elegir_segun_fifo;
+} else {
+    log_error(kernelLogger, "Algoritmo de planificación no reconocido");
+    exit(-1);
+}
+
+Tanto scheduler_elegir_segun_sjf y scheduler_elegir_segun_fifo deben tener la misma declaración que scheduler_elejir_segun_algoritmo:
+t_pcb* (*scheduler_elegir_segun_algoritmo)(t_estado* estadoReady);
+t_pcb* (*scheduler_elegir_segun_sjf)(t_estado* estadoReady);
+*/
+
+t_pcb* elegir_segun_algoritmo(void) {
+    /*void* t_planificar_srt(t_pcb* p1, t_pcb* p2){
+        return (srt(p1) <= srt(p2)) ? p1 : p2;
+    }
+    t_pcb* seleccionado = NULL;
+
+    if(strcmp(kernel_config_get_algoritmo(kernelConfig), "SRT") == 0){
+        if(list_size(estado_get_list(estadoReady)) == 1){
+            seleccionado = list_get(estado_get_list(estadoReady),0);
+                        srt(seleccionado);
+                        return seleccionado;
+                }
+            seleccionado = list_get_minimum(estado_get_list(estadoReady),(void*)t_planificar_srt);
+        return seleccionado;
+    }*/
+    return list_get(estado_get_list(estadoReady), 0);  // FIFO
+}
+
+static void noreturn atender_pcb(void) {  // TEMPORALMENTE ACÁ, QUIZÁS SE MUEVA A OTRO ARCHIVO
     for (;;) {
-        sem_wait(estado_get_semaforo(estadoReady));
-        // if(hay_uno_planificando()){  // TODO: enviar interrupcion a CPU si ya hay uno planificando y es SRT
-            interrumpir_cpu();
-        // }
-        //MUTEX CPU DESOCUPADA (INTERRUPCION O SALIDA)
-        pcbQuePasaAExec = planificar();
-        //PASAR A EXEC
-        //MARCAR TIEMPO DE INICIO DE RAFAGA
-        //CREAR HILO DE ATENCION - POSTEAR SEMAFOROS EN SALIDA
+        sem_wait(estado_get_sem(estadoExec));
+        pthread_mutex_lock(estado_get_mutex(estadoExec));
+        t_pcb* pcb = list_get(estado_get_list(estadoExec), 0);
+        pthread_mutex_unlock(estado_get_mutex(estadoExec));
+        cpu_adapter_enviar_pcb_a_cpu(pcb, kernelConfig, kernelLogger);
+
+        uint8_t cpuResponse = stream_recv_header(kernel_config_get_socket_dispatch_cpu(kernelConfig));
+        // TODO: PARAR DE CONTAR TIEMPO
+        pcb = cpu_adapter_recibir_pcb_de_cpu(pcb, kernelConfig, kernelLogger);
+        list_remove(estado_get_list(estadoExec), 0);
+        switch (cpuResponse) {
+            case HEADER_proceso_desalojado:  // SALIDA INTERRUPCION
+                estado_encolar_pcb(estadoReady, pcb);
+                log_transition("EXEC", "READY", pcb_get_pid(pcb));
+                sem_post(estado_get_sem(estadoReady));
+                break;
+            case HEADER_proceso_terminado:
+                estado_encolar_pcb(estadoExit, pcb);
+                log_transition("EXEC", "EXIT", pcb_get_pid(pcb));
+                sem_post(&gradoMultiprog);
+                mem_adapter_finalizar_proceso(pcb, kernelConfig, kernelLogger);
+                pcb_responder_a_consola(pcb, HEADER_proceso_terminado);
+                sem_post(estado_get_sem(estadoExit));
+                break;
+            case HEADER_proceso_bloqueado:
+                estado_encolar_pcb(estadoBlocked, pcb);
+                log_transition("EXEC", "BLOCKED", pcb_get_pid(pcb));
+                // TODO: en otro hilo hacer el wait(tiempo_bloqueo) del pcb
+                break;
+            default:
+                log_error(kernelLogger, "Error al recibir mensaje de CPU");
+                break;
+        }
+
+        sem_post(&dispatchPermitido);
     }
 }
 
-//ENVIAR PCB A CPU (datos q necesite)
-//SWITCHEAR LOS RETORNOS
-*/
+static void noreturn planificador_corto_plazo(void) {
+    pthread_t atenderPCBThread;
+    pthread_create(&atenderPCBThread, NULL, (void*)atender_pcb, NULL);
+    pthread_detach(atenderPCBThread);
+
+    for (;;) {
+        sem_wait(estado_get_sem(estadoReady));
+
+        pthread_mutex_lock(estado_get_mutex(estadoExec));
+        if (kernel_config_es_algoritmo_sjf(kernelConfig) && list_size(estado_get_list(estadoExec)) > 0) {
+            cpu_adapter_interrumpir_cpu(kernelConfig, kernelLogger);
+        }
+        pthread_mutex_unlock(estado_get_mutex(estadoExec));
+
+        sem_wait(&dispatchPermitido);
+
+        pthread_mutex_lock(estado_get_mutex(estadoReady));
+        t_pcb* pcbToDispatch = elegir_segun_algoritmo();
+        pthread_mutex_unlock(estado_get_mutex(estadoReady));
+
+        estado_encolar_pcb(estadoExec, pcbToDispatch);
+
+        sem_post(estado_get_sem(estadoExec));
+    }
+}

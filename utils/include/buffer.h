@@ -14,6 +14,11 @@ typedef struct {
 t_buffer *buffer_create(void);
 
 /**
+ * @brief Genera una nueva copia de un t_buffer*
+ */
+t_buffer *buffer_create_copy(t_buffer *bufferToCopy);
+
+/**
  * @brief Destruye un t_buffer*
  */
 void buffer_destroy(t_buffer *buffer);

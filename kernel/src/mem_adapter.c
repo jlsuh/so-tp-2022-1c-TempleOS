@@ -1,5 +1,7 @@
 #include "mem_adapter.h"
 
+#include <stdlib.h>
+
 #include "buffer.h"
 #include "common_flags.h"
 #include "kernel_config.h"
@@ -39,4 +41,23 @@ uint32_t mem_adapter_obtener_tabla_pagina(t_pcb* pcbAIniciar, t_kernel_config* k
     */
 
     return 1;
+}
+
+void mem_adapter_finalizar_proceso(t_pcb* pcbAFinalizar, t_kernel_config* kernelConfig, t_log* kernelLogger) {
+    uint32_t pidATerminar = pcb_get_pid(pcbAFinalizar);
+
+    t_buffer* bufferPcbAFinalizar = buffer_create();
+    buffer_pack(bufferPcbAFinalizar, &pidATerminar, sizeof(pidATerminar));
+
+    stream_send_buffer(kernel_config_get_socket_memoria(kernelConfig),  HEADER_proceso_terminado, bufferPcbAFinalizar);
+    buffer_destroy(bufferPcbAFinalizar);
+
+    uint8_t memoriaResponse = stream_recv_header(kernel_config_get_socket_memoria(kernelConfig));
+    if(memoriaResponse == HEADER_proceso_terminado) { // TODO: Debería utilizar otro header para la rta? 
+        log_info(kernelLogger, "Proceso %d finalizado correctamente en Memoria", pcb_get_pid(pcbAFinalizar));
+    } else {
+        log_error(kernelLogger, "Error al finalizar proceso en Memoria");
+        exit(-1);
+    }
+    return;
 }
