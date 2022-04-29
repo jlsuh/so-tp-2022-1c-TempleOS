@@ -8,6 +8,7 @@
 #include "common_flags.h"
 #include "connections.h"
 #include "cpu_config.h"
+#include "cpu_kernel_server.h"
 #include "stream.h"
 
 #define CPU_CONFIG_PATH "cfg/cpu_config.cfg"
@@ -21,6 +22,7 @@ int main(int argc, char* argv[]) {
     cpuLogger = log_create(CPU_LOG_PATH, CPU_MODULE_NAME, true, LOG_LEVEL_INFO);
     cpuConfig = cpu_config_create(CPU_CONFIG_PATH, cpuLogger);
 
+    /*
     // Conexión con Memoria
     const int memoriaSocket = conectar_a_servidor(cpu_config_get_ip_memoria(cpuConfig), cpu_config_get_puerto_memoria(cpuConfig));
     if (memoriaSocket == -1) {
@@ -39,6 +41,7 @@ int main(int argc, char* argv[]) {
         return -1;
     }
     log_info(cpuLogger, "Conexión con Memoria establecida");
+    */
 
     // Servidor de Kernel
     int socketEscuchaDispatch = iniciar_servidor(cpu_config_get_ip_cpu(cpuConfig), cpu_config_get_puerto_dispatch(cpuConfig));
@@ -73,6 +76,7 @@ int main(int argc, char* argv[]) {
         log_destroy(cpuLogger);
         return -1;
     }
+    cpu_config_set_socket_interrupt(cpuConfig, kernelInterruptSocket);
 
     uint8_t kernelInterruptResponse = stream_recv_header(kernelInterruptSocket);
     stream_recv_empty_buffer(kernelInterruptSocket);
@@ -85,6 +89,7 @@ int main(int argc, char* argv[]) {
     log_info(cpuLogger, "Conexión con Kernel por canal Interrupt establecida");
 
     // Seguir aquí
+    atender_peticiones_de_kernel();
 
     return 0;
 }
