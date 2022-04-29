@@ -11,7 +11,7 @@ struct t_memoria_config {
     char* PUERTO_ESCUCHA;
     int TAM_MEMORIA;
     int TAM_PAGINA;
-    int PAGINAS_POR_TABLA;
+    int ENTRADAS_POR_TABLA;
     int RETARDO_MEMORIA;
     char* ALGORITMO_REEMPLAZO;
     int MARCOS_POR_PROCESO;
@@ -27,7 +27,7 @@ static void __memoria_config_initializer(void* moduleConfig, t_config* tempCfg) 
     memoriaConfig->PUERTO_ESCUCHA = strdup(config_get_string_value(tempCfg, "PUERTO_ESCUCHA"));
     memoriaConfig->TAM_MEMORIA = config_get_int_value(tempCfg, "TAM_MEMORIA");
     memoriaConfig->TAM_PAGINA = config_get_int_value(tempCfg, "TAM_PAGINA");
-    memoriaConfig->PAGINAS_POR_TABLA = config_get_int_value(tempCfg, "PAGINAS_POR_TABLA");
+    memoriaConfig->ENTRADAS_POR_TABLA = config_get_int_value(tempCfg, "ENTRADAS_POR_TABLA");
     memoriaConfig->RETARDO_MEMORIA = config_get_int_value(tempCfg, "RETARDO_MEMORIA");
     memoriaConfig->ALGORITMO_REEMPLAZO = strdup(config_get_string_value(tempCfg, "ALGORITMO_REEMPLAZO"));
     memoriaConfig->MARCOS_POR_PROCESO = config_get_int_value(tempCfg, "MARCOS_POR_PROCESO");
@@ -73,4 +73,20 @@ int memoria_config_get_kernel_socket(t_memoria_config* self) {
 
 int memoria_config_get_cpu_socket(t_memoria_config* self) {
     return self->CPU_SOCKET;
+}
+
+int memoria_config_get_tamanio_memoria(t_memoria_config* self){
+    return self->TAM_MEMORIA;
+}
+
+int memoria_config_get_tamanio_pagina(t_memoria_config* self){
+    return self->TAM_PAGINA;
+}
+
+int memoria_config_get_marcos_por_proceso(t_memoria_config* self){
+    return self->MARCOS_POR_PROCESO;
+}
+
+int memoria_config_get_entradas_por_tabla(t_memoria_config* self){
+    return self->ENTRADAS_POR_TABLA;
 }
