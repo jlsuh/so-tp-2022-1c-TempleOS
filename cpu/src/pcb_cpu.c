@@ -18,7 +18,7 @@ t_pcb_cpu* pcb_cpu_create(uint32_t pid, uint64_t programCounter, uint32_t tablaP
     self->programCounter = programCounter;
     self->tablaPaginaPrimerNivel = tablaPaginaPrimerNivel;
     self->tiempoDeBloqueo = 0;
-    self->instrucciones = list_create();
+    self->instrucciones = NULL;
     return self;
 }
 
@@ -52,4 +52,8 @@ void pcb_cpu_set_tiempo_de_bloq(t_pcb_cpu* self, uint32_t t) {
 
 t_list* pcb_cpu_get_instrucciones(t_pcb_cpu* self) {
     return self->instrucciones;
+}
+
+void pcb_cpu_set_instrucciones(t_pcb_cpu* self, t_list* instrucciones) {
+    self->instrucciones = instrucciones;
 }

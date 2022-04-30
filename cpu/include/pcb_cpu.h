@@ -20,5 +20,6 @@ uint32_t pcb_cpu_get_tiempo_de_bloq(t_pcb_cpu* self);
 void pcb_cpu_set_tiempo_de_bloq(t_pcb_cpu* self, uint32_t t);
 
 t_list* pcb_cpu_get_instrucciones(t_pcb_cpu* self);
+void pcb_cpu_set_instrucciones(t_pcb_cpu* self, t_list* instrucciones);
 
 #endif

@@ -75,6 +75,10 @@ int cpu_config_get_socket_interrupt(t_cpu_config* self) {
     return self->SOCKET_INTERRUPT;
 }
 
+int cpu_config_get_socket_memoria(t_cpu_config* self) {
+    return self->SOCKET_MEMORIA;
+}
+
 void cpu_config_set_socket_memoria(t_cpu_config* self, int socketMemoria) {
     self->SOCKET_MEMORIA = socketMemoria;
 }
