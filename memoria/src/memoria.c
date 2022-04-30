@@ -48,23 +48,22 @@ int tamanioPagina;
 int marcosPorProceso;
 
 int main(int argc, char* argv[]);
-int obtener_marco_disponible();
-int obtener_tabla_primer_nivel_libre();
-int obtener_tabla_segundo_nivel_libre();
-int crear_tabla_segundo_nivel();
+int obtener_marco_disponible(void);
+int obtener_tabla_primer_nivel_libre(void);
+int obtener_tabla_segundo_nivel_libre(void);
+int crear_tabla_segundo_nivel(void);
 uint32_t crear_nuevo_proceso(uint32_t tamanio);
 void* escuchar_peticiones_cpu(void);
 void* escuchar_peticiones_kernel(void);
 void asignar_marcos_a_proceso(int numeroTablaPrimerNivel, int indiceMarco);
-void crear_hilo_handler_peticiones_de_cpu(void);
-void crear_hilo_handler_peticiones_de_kernel(void);
 void crear_tablas_de_segundo_nivel(int numeroTablaPrimerNivel);
-void inicializar_array_de_tablas_de_primer_nivel();
-void inicializar_array_de_tablas_de_segundo_nivel();
-void iniciar_marcos();
-void recibir_conexion(int socketEscucha);
+void inicializar_array_de_tablas_de_primer_nivel(void);
+void inicializar_array_de_tablas_de_segundo_nivel(void);
+void iniciar_marcos(void);
+void* recibir_conexion(int socketEscucha, pthread_t* threadSuscripcion);
+void recibir_conexiones(int socketEscucha);
 
-void imprimir_tabla_nivel_uno() {
+void imprimir_tabla_nivel_uno(void) {
     printf("\n");
     for (int i = 0; i < cantidadProcesosMax; i++) {
         printf("Tabla %d: [ ", i);
@@ -75,7 +74,7 @@ void imprimir_tabla_nivel_uno() {
     }
     printf("\n");
 }
-void imprimir_tabla_nivel_dos() {
+void imprimir_tabla_nivel_dos(void) {
     printf("\n");
     for (int i = 0; i < cantidadProcesosMax; i++) {
         printf("Tabla %d\n", i);
@@ -91,7 +90,7 @@ void imprimir_tabla_nivel_dos() {
     printf("\n");
 }
 
-void imprimir_frames() {
+void imprimir_frames(void) {
     printf("\n");
     for (int i = 0; i < cantTotalMarcos; i++) {
         printf("Marco %d: %d\n", i, marcosEnUso[i]);
@@ -124,12 +123,11 @@ int main(int argc, char* argv[]) {
     crear_nuevo_proceso(20);
     crear_nuevo_proceso(34);
 
+    recibir_conexiones(socketEscucha);
+
     imprimir_frames();
     imprimir_tabla_nivel_uno();
     imprimir_tabla_nivel_dos();
-
-    recibir_conexion(socketEscucha);
-    recibir_conexion(socketEscucha);
 
     return 0;
 }
@@ -215,39 +213,44 @@ void* escuchar_peticiones_cpu(void) {
     return NULL;
 }
 
-void crear_hilo_handler_peticiones_de_kernel(void) {
-    pthread_t threadSuscripcion;
-    pthread_create(&threadSuscripcion, NULL, (void*)escuchar_peticiones_kernel, NULL);
-    pthread_detach(threadSuscripcion);
+void recibir_conexiones(int socketEscucha) {
+    pthread_t threadAtencion;
+    void* (*funcion_suscripcion)(void) = NULL;
+    funcion_suscripcion = recibir_conexion(socketEscucha, &threadAtencion);
+    pthread_create(&threadAtencion, NULL, (void*)funcion_suscripcion, NULL);
+    pthread_detach(threadAtencion);
+
+    funcion_suscripcion = recibir_conexion(socketEscucha, &threadAtencion);
+    pthread_create(&threadAtencion, NULL, (void*)funcion_suscripcion, NULL);
+    pthread_join(threadAtencion, NULL);
 }
 
-void crear_hilo_handler_peticiones_de_cpu(void) {
-    pthread_t threadSuscripcion;
-    pthread_create(&threadSuscripcion, NULL, (void*)escuchar_peticiones_cpu, NULL);
-    pthread_detach(threadSuscripcion);
-}
-
-void recibir_conexion(int socketEscucha) {
+void* recibir_conexion(int socketEscucha, pthread_t* threadSuscripcion) {
     struct sockaddr cliente = {0};
     socklen_t len = sizeof(cliente);
     int socket = accept(socketEscucha, &cliente, &len);
+
     if (socket == -1) {
         log_error(memoriaLogger, "Error al aceptar conexion de cliente: %s", strerror(errno));
         exit(-1);
     }
 
     uint8_t handshake = stream_recv_header(socket);
+    stream_recv_empty_buffer(socket);
+
+    void* (*funcion_suscripcion)(void) = NULL;
     if (handshake == HANDSHAKE_cpu) {
         log_info(memoriaLogger, "Se acepta conexión de CPU en socket %d", socket);
         stream_send_empty_buffer(socket, HANDSHAKE_ok_continue);
         memoria_config_set_cpu_socket(memoriaConfig, socket);
-        crear_hilo_handler_peticiones_de_cpu();
+        funcion_suscripcion = escuchar_peticiones_cpu;
     } else if (handshake == HANDSHAKE_kernel) {
         log_info(memoriaLogger, "Se acepta conexión de Kernel en socket %d", socket);
         stream_send_empty_buffer(socket, HANDSHAKE_ok_continue);
         memoria_config_set_kernel_socket(memoriaConfig, socket);
-        crear_hilo_handler_peticiones_de_kernel();
+        funcion_suscripcion = escuchar_peticiones_kernel;
     }
+    return funcion_suscripcion;
 }
 
 uint32_t crear_nuevo_proceso(uint32_t tamanio) {
