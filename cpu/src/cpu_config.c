@@ -86,3 +86,19 @@ void cpu_config_set_socket_dispatch(t_cpu_config* self, int socketDispatch) {
 void cpu_config_set_socket_interrupt(t_cpu_config* self, int socketInterrupt) {
     self->SOCKET_INTERRUPT = socketInterrupt;
 }
+
+void cpu_config_set_entradas_por_tabla(t_cpu_config* self, int cantEntradas) {
+    self->CANT_ENTRADAS_POR_TP = cantEntradas;
+}
+
+int cpu_config_get_entradas_por_tabla(t_cpu_config* self) {
+    return self->CANT_ENTRADAS_POR_TP;
+}
+
+void cpu_config_set_tamanio_pagina(t_cpu_config* self, int tamanioPagina) {
+    self->TAM_PAGINA = tamanioPagina;
+}
+
+int cpu_config_get_tamanio_pagina(t_cpu_config* self) {
+    return self->TAM_PAGINA;
+}
