@@ -61,7 +61,7 @@ int obtener_marco(uint32_t direccion, uint32_t nroDeTabla1) {
     buffer_destroy(bufferSolicitud);
 
     header = stream_recv_header(socket);
-    t_buffer *bufferRta = buffer_create();
+    bufferRta = buffer_create();
     uint32_t marco;
     if (header == HEADER_rta_marco) {
         stream_recv_buffer(socket, bufferRta);
