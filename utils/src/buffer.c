@@ -13,6 +13,14 @@ t_buffer* buffer_create(void) {
     return self;
 }
 
+t_buffer* buffer_create_copy(t_buffer* bufferToCopy) {
+    t_buffer* self = malloc(sizeof(*self));
+    self->size = bufferToCopy->size;
+    self->stream = malloc(self->size);
+    memcpy(self->stream, bufferToCopy->stream, self->size);
+    return self;
+}
+
 void buffer_destroy(t_buffer* self) {
     free(self->stream);
     free(self);

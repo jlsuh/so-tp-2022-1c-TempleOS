@@ -1,10 +1,10 @@
 #include "kernel_config.h"
 
-#include "module_config.h"
-
 #include <commons/config.h>
 #include <stdlib.h>
 #include <string.h>
+
+#include "module_config.h"
 
 struct t_kernel_config {
     char* IP_MEMORIA;
@@ -18,7 +18,7 @@ struct t_kernel_config {
     char* IP_ESCUCHA;
     char* PUERTO_ESCUCHA;
     char* ALGORITMO_PLANIFICACION;
-    int ESTIMACION_INICIAL;
+    double ESTIMACION_INICIAL;
     double ALFA;
     int GRADO_MULTIPROGRAMACION;
     int TIEMPO_MAXIMO_BLOQUEADO;
@@ -37,7 +37,7 @@ static void __kernel_config_initializer(void* moduleConfig, t_config* tempCfg) {
     kernelConfig->IP_ESCUCHA = strdup(config_get_string_value(tempCfg, "IP_ESCUCHA"));
     kernelConfig->PUERTO_ESCUCHA = strdup(config_get_string_value(tempCfg, "PUERTO_ESCUCHA"));
     kernelConfig->ALGORITMO_PLANIFICACION = strdup(config_get_string_value(tempCfg, "ALGORITMO_PLANIFICACION"));
-    kernelConfig->ESTIMACION_INICIAL = config_get_int_value(tempCfg, "ESTIMACION_INICIAL");
+    kernelConfig->ESTIMACION_INICIAL = config_get_double_value(tempCfg, "ESTIMACION_INICIAL");
     kernelConfig->ALFA = config_get_double_value(tempCfg, "ALFA");
     kernelConfig->GRADO_MULTIPROGRAMACION = config_get_int_value(tempCfg, "GRADO_MULTIPROGRAMACION");
     kernelConfig->TIEMPO_MAXIMO_BLOQUEADO = config_get_int_value(tempCfg, "TIEMPO_MAXIMO_BLOQUEADO");
@@ -61,10 +61,82 @@ void kernel_config_destroy(t_kernel_config* self) {
     free(self);
 }
 
+double kernel_config_get_est_inicial(t_kernel_config* self) {
+    return self->ESTIMACION_INICIAL / 1000;
+}
+
 char* kernel_config_get_ip_escucha(t_kernel_config* self) {
     return self->IP_ESCUCHA;
 }
 
 char* kernel_config_get_puerto_escucha(t_kernel_config* self) {
     return self->PUERTO_ESCUCHA;
+}
+
+char* kernel_config_get_ip_cpu(t_kernel_config* self) {
+    return self->IP_CPU;
+}
+
+char* kernel_config_get_puerto_cpu_dispatch(t_kernel_config* self) {
+    return self->PUERTO_CPU_DISPATCH;
+}
+
+char* kernel_config_get_puerto_cpu_interrupt(t_kernel_config* self) {
+    return self->PUERTO_CPU_INTERRUPT;
+}
+
+char* kernel_config_get_puerto_memoria(t_kernel_config* self) {
+    return self->PUERTO_MEMORIA;
+}
+
+char* kernel_config_get_ip_memoria(t_kernel_config* self) {
+    return self->IP_MEMORIA;
+}
+
+void kernel_config_set_socket_dispatch_cpu(t_kernel_config* self, int socket) {
+    self->SOCKET_DISPATCH_CPU = socket;
+}
+
+void kernel_config_set_socket_interrupt_cpu(t_kernel_config* self, int socket) {
+    self->SOCKET_INTERRUPT_CPU = socket;
+}
+
+void kernel_config_set_socket_memoria(t_kernel_config* self, int socketMemoria) {
+    self->SOCKET_MEMORIA = socketMemoria;
+}
+
+int kernel_config_get_socket_dispatch_cpu(t_kernel_config* self) {
+    return self->SOCKET_DISPATCH_CPU;
+}
+
+int kernel_config_get_socket_interrupt_cpu(t_kernel_config* self) {
+    return self->SOCKET_INTERRUPT_CPU;
+}
+
+int kernel_config_get_socket_memoria(t_kernel_config* self) {
+    return self->SOCKET_MEMORIA;
+}
+
+int kernel_config_get_grado_multiprogramacion(t_kernel_config* self) {
+    return self->GRADO_MULTIPROGRAMACION;
+}
+
+int kernel_config_get_alfa(t_kernel_config* self) {
+    return self->ALFA;
+}
+
+char* kernel_config_get_algoritmo(t_kernel_config* self) {
+    return self->ALGORITMO_PLANIFICACION;
+}
+
+int kernel_config_get_maximo_bloq(t_kernel_config* self) {
+    return self->TIEMPO_MAXIMO_BLOQUEADO;
+}
+
+bool kernel_config_es_algoritmo_sjf(t_kernel_config* self) {
+    return strcmp(self->ALGORITMO_PLANIFICACION, "SJF") == 0;
+}
+
+bool kernel_config_es_algoritmo_fifo(t_kernel_config* self) {
+    return strcmp(self->ALGORITMO_PLANIFICACION, "FIFO") == 0;
 }

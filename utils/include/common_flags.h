@@ -3,11 +3,26 @@
 
 typedef enum {
     HEADER_lista_instrucciones,
+    HEADER_nuevo_proceso,
+    HEADER_proceso_terminado,
+    HEADER_proceso_bloqueado,
+    HEADER_proceso_desalojado,
+    HEADER_proceso_suspendido,
+    HEADER_read,
+    HEADER_write,
+    HEADER_copy,
+    HEADER_tabla_de_paginas,
+    HEADER_solicitud_tabla_paginas,
+    HEADER_pcb_a_ejecutar,
 } t_header;
 
 typedef enum {
     HANDSHAKE_consola,
     HANDSHAKE_ok_continue,
+    HANDSHAKE_cpu,
+    HANDSHAKE_kernel,
+    HANDSHAKE_dispatch,
+    HANDSHAKE_interrupt,
 } t_handshake;
 
 typedef enum {
@@ -17,6 +32,11 @@ typedef enum {
     INSTRUCCION_copy,
     INSTRUCCION_write,
     INSTRUCCION_exit
-} t_instruccion;
+} t_tipo_instruccion;
+
+typedef enum {
+    INT_interrumpir_ejecucion,
+    INT_cpu_interrumpida,
+} t_interrupciones;
 
 #endif
