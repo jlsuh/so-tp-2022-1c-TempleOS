@@ -25,7 +25,7 @@ t_pcb* pcb_create(uint32_t pid, uint32_t tamanio, double estimacionInicial) {
     t_pcb* self = malloc(sizeof(*self));
     self->pid = pid;
     self->tamanio = tamanio;
-    self->instrucciones = list_create();
+    self->instrucciones = NULL;
     self->programCounter = 0;
     self->ultimaEstimacion = estimacionInicial;
     self->ultimaEjecucion = -1;
@@ -53,6 +53,10 @@ uint32_t pcb_get_tamanio(t_pcb* self) {
 
 t_list* pcb_get_instrucciones(t_pcb* self) {
     return self->instrucciones;
+}
+
+void pcb_set_instrucciones(t_pcb* self, t_list* instrucciones) {
+    self->instrucciones = instrucciones;
 }
 
 uint64_t pcb_get_program_counter(t_pcb* self) {

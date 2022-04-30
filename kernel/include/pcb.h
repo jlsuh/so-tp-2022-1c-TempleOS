@@ -11,7 +11,9 @@ typedef struct t_pcb t_pcb;
 
 uint32_t pcb_get_pid(t_pcb*);
 uint32_t pcb_get_tamanio(t_pcb*);
+
 t_list* pcb_get_instrucciones(t_pcb*);
+void pcb_set_instrucciones(t_pcb*, t_list* instrucciones);
 
 uint64_t pcb_get_program_counter(t_pcb*);
 void pcb_set_program_counter(t_pcb* self, uint64_t pc);
@@ -32,7 +34,7 @@ uint32_t pcb_get_tiempo_de_bloq(t_pcb* self);
 void pcb_set_tiempo_de_bloq(t_pcb* self, uint32_t);
 
 int pcb_get_socket(t_pcb* self);
-void pcb_set_socket(t_pcb* self, int); 
+void pcb_set_socket(t_pcb* self, int);
 
 t_buffer* pcb_get_instruction_buffer(t_pcb* self);
 void pcb_set_instruction_buffer(t_pcb* self, t_buffer*);
