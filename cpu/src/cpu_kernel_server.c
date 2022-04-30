@@ -36,43 +36,8 @@ static void noreturn dispatch_peticiones_de_kernel(void) {
                 bufferInstrucciones = buffer_create();
                 stream_recv_buffer(cpu_config_get_socket_dispatch(cpuConfig), bufferInstrucciones);
 
-                // Start duplicación de lógica
-                uint8_t instruction = -1;
-                bool isExit = false;
-                while (!isExit) {
-                    buffer_unpack(bufferInstrucciones, &instruction, sizeof(instruction));
-                    uint32_t op1 = -1;
-                    uint32_t op2 = -1;
-                    switch (instruction) {
-                        case INSTRUCCION_no_op:
-                            buffer_unpack(bufferInstrucciones, &op1, sizeof(op1));
-                            break;
-                        case INSTRUCCION_io:
-                            buffer_unpack(bufferInstrucciones, &op1, sizeof(op1));
-                            break;
-                        case INSTRUCCION_read:
-                            buffer_unpack(bufferInstrucciones, &op1, sizeof(op1));
-                            break;
-                        case INSTRUCCION_copy:
-                            buffer_unpack(bufferInstrucciones, &op1, sizeof(op1));
-                            buffer_unpack(bufferInstrucciones, &op2, sizeof(op2));
-                            break;
-                        case INSTRUCCION_write:
-                            buffer_unpack(bufferInstrucciones, &op1, sizeof(op1));
-                            buffer_unpack(bufferInstrucciones, &op2, sizeof(op2));
-                            break;
-                        case INSTRUCCION_exit:
-                            isExit = true;
-                            break;
-                        default:
-                            log_error(cpuLogger, "Error al intentar desempaquetar una instrucción");
-                            exit(-1);
-                    }
-                    t_instruccion* instruccionActual = instruccion_create(instruction, op1, op2);
-                    log_info(cpuLogger, "Se empaqueta instruccion: %d con operandos %d y %d", instruction, op1, op2);
-                    list_add(pcb_cpu_get_instrucciones(newPcb), instruccionActual);
-                }
-                // End duplicación de lógica
+                t_list* listaInstrucciones = instruccion_list_create_from_buffer(bufferInstrucciones, cpuLogger);
+                pcb_cpu_set_instrucciones(newPcb, listaInstrucciones);
             }
         } else {
             log_error(cpuLogger, "Error al intentar recibir el PCB de Kernel");

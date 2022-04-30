@@ -119,40 +119,9 @@ void* encolar_en_new_a_nuevo_pcb_entrante(void* socket) {
         pcb_set_socket(newPcb, *socketProceso);
         pcb_set_instruction_buffer(newPcb, instructionsBufferCopy);
 
-        uint8_t instruction = -1;
-        bool isExit = false;
-        while (!isExit) {
-            buffer_unpack(instructionsBuffer, &instruction, sizeof(instruction));
-            uint32_t op1 = -1;
-            uint32_t op2 = -1;
-            switch (instruction) {
-                case INSTRUCCION_no_op:
-                    buffer_unpack(instructionsBuffer, &op1, sizeof(op1));
-                    break;
-                case INSTRUCCION_io:
-                    buffer_unpack(instructionsBuffer, &op1, sizeof(op1));
-                    break;
-                case INSTRUCCION_read:
-                    buffer_unpack(instructionsBuffer, &op1, sizeof(op1));
-                    break;
-                case INSTRUCCION_copy:
-                    buffer_unpack(instructionsBuffer, &op1, sizeof(op1));
-                    buffer_unpack(instructionsBuffer, &op2, sizeof(op2));
-                    break;
-                case INSTRUCCION_write:
-                    buffer_unpack(instructionsBuffer, &op1, sizeof(op1));
-                    buffer_unpack(instructionsBuffer, &op2, sizeof(op2));
-                    break;
-                case INSTRUCCION_exit:
-                    isExit = true;
-                    break;
-                default:
-                    log_error(kernelLogger, "Se recibe instrucción desconocida de PCB <ID %d>", pcb_get_pid(newPcb));
-                    return NULL;
-            }
-            t_instruccion* instruccionActual = instruccion_create(instruction, op1, op2);
-            list_add(pcb_get_instrucciones(newPcb), instruccionActual);
-        }
+        t_list* listaInstrucciones = instruccion_list_create_from_buffer(instructionsBuffer, kernelLogger);
+        pcb_set_instrucciones(newPcb, listaInstrucciones);
+
         estado_encolar_pcb(estadoNew, newPcb);
         sem_post(&hayPcbsParaAgregarAlSistema);
         buffer_destroy(instructionsBuffer);
