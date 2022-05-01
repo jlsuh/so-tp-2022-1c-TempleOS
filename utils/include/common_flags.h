@@ -19,6 +19,7 @@ typedef enum {
     HEADER_rta_tabla_segundo_nivel,
     HEADER_solicitud_marco,
     HEADER_rta_marco,
+    HEADER_memoria_insuficiente
 } t_header;
 
 typedef enum {

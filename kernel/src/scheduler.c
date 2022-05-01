@@ -139,6 +139,13 @@ static noreturn void liberar_pcbs_en_exit(void) {
     }
 }
 
+void responer_no_hay_lugar_en_memoria(t_pcb* pcb){
+    estado_encolar_pcb(estadoExit, pcb);
+    log_transition(prevStatus, "EXIT", pcb_get_pid(pcb));
+    log_error(kernelLogger, "Memoria insuficiente para alojar el proceso %d", pcb_get_pid(pcb));
+    pcb_responder_a_consola(pcb, HEADER_memoria_insuficiente);
+}
+
 static noreturn void planificador_largo_plazo(void) {
     pthread_t liberarPcbsEnExitTh;
     pthread_create(&liberarPcbsEnExitTh, NULL, (void*)liberar_pcbs_en_exit, NULL);
@@ -160,13 +167,16 @@ static noreturn void planificador_largo_plazo(void) {
             pcbQuePasaAReady = list_remove(estado_get_list(estadoNew), 0);
             pthread_mutex_unlock(estado_get_mutex(estadoNew));
             uint32_t nuevaTablaPagina = mem_adapter_obtener_tabla_pagina(pcbQuePasaAReady, kernelConfig, kernelLogger);
-            // TODO: responder si no hay lugar en memoria
             pcb_set_tabla_pagina_primer_nivel(pcbQuePasaAReady, nuevaTablaPagina);
             prevStatus = string_from_format("NEW");
         }
-        estado_encolar_pcb(estadoReady, pcbQuePasaAReady);
-        sem_post(estado_get_sem(estadoReady));
-        log_transition(prevStatus, "READY", pcb_get_pid(pcbQuePasaAReady));
+        if(nuevaTablaPagina == -1){
+            responer_no_hay_lugar_en_memoria();
+        }else{
+            estado_encolar_pcb(estadoReady, pcbQuePasaAReady);
+            sem_post(estado_get_sem(estadoReady));
+            log_transition(prevStatus, "READY", pcb_get_pid(pcbQuePasaAReady));
+        }
         free(prevStatus);
         prevStatus = NULL;
         pcbQuePasaAReady = NULL;

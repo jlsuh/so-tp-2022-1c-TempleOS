@@ -8,7 +8,6 @@
 #include "stream.h"
 
 uint32_t mem_adapter_obtener_tabla_pagina(t_pcb* pcbAIniciar, t_kernel_config* kernelConfig, t_log* kernelLogger) {
-    /*
     // Enviar PID + tamaño
     uint32_t newPid = pcb_get_pid(pcbAIniciar);
     uint32_t newTamanio = pcb_get_tamanio(pcbAIniciar);
@@ -32,13 +31,14 @@ uint32_t mem_adapter_obtener_tabla_pagina(t_pcb* pcbAIniciar, t_kernel_config* k
         buffer_destroy(bufferTabla);
 
         log_info(kernelLogger, "Proceso: %d - Tabla de página de primer nivel: %d", pcb_get_pid(pcbAIniciar), nroTabla);
+    } else if (memoriaResponse == HEADER_memoria_insuficiente){
+        return -1;
     } else {
         log_error(kernelLogger, "Error al recibir buffer tabla de páginas");
         exit(-1);
     }
 
     return nroTabla;
-    */
 
     return 1;
 }
