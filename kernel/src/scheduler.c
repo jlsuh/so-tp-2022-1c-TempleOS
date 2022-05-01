@@ -8,6 +8,7 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <stdnoreturn.h>
+#include<commons/temporal.h>
 
 #include "buffer.h"
 #include "common_flags.h"
@@ -24,6 +25,7 @@ extern t_kernel_config* kernelConfig;
 extern t_log* kernelLogger;
 
 static uint32_t nextPid;
+static uint32_t tiempoInicioExec;
 static pthread_mutex_t nextPidMutex;
 
 static sem_t gradoMultiprog;
@@ -263,6 +265,13 @@ t_pcb* elegir_segun_algoritmo(void) {
     return list_get(estado_get_list(estadoReady), 0);  // FIFO
 }
 
+double timestamp(){ // TODO: del cuatri pasado, revisar segun video
+	time_t tiempo;
+	time(&tiempo);
+	struct tm *tiempoActual = localtime(&tiempo);
+	return (tiempoActual->tm_sec + tiempoActual->tm_min * 60 + tiempoActual->tm_hour * 3600);
+}
+
 static void noreturn atender_pcb(void) {  // TEMPORALMENTE ACÁ, QUIZÁS SE MUEVA A OTRO ARCHIVO
     for (;;) {
         sem_wait(estado_get_sem(estadoExec));
@@ -272,9 +281,10 @@ static void noreturn atender_pcb(void) {  // TEMPORALMENTE ACÁ, QUIZÁS SE MUEV
         cpu_adapter_enviar_pcb_a_cpu(pcb, kernelConfig, kernelLogger);
 
         uint8_t cpuResponse = stream_recv_header(kernel_config_get_socket_dispatch_cpu(kernelConfig));
-        // TODO: PARAR DE CONTAR TIEMPO
         pcb = cpu_adapter_recibir_pcb_de_cpu(pcb, kernelConfig, kernelLogger);
         list_remove(estado_get_list(estadoExec), 0);
+        pcb_set_est_actual(pcb, timestamp() - tiempoInicioExec); 
+
         switch (cpuResponse) {
             case HEADER_proceso_desalojado:  // SALIDA INTERRUPCION
                 estado_encolar_pcb(estadoReady, pcb);
@@ -324,6 +334,7 @@ static void noreturn planificador_corto_plazo(void) {
         pthread_mutex_unlock(estado_get_mutex(estadoReady));
 
         estado_encolar_pcb(estadoExec, pcbToDispatch);
+        tiempoInicioExec = timestamp();
 
         sem_post(estado_get_sem(estadoExec));
     }
