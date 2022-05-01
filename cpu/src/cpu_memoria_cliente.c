@@ -7,14 +7,10 @@
 
 extern t_cpu_config *cpuConfig;
 int socket;
-int obtener_marco(uint32_t direccion, uint32_t nroDeTabla1);
+uint32_t obtener_marco(uint32_t direccion, uint32_t nroDeTabla1);
 
 void escribir_en_memoria(uint32_t direccion, uint32_t nroDeTabla1, uint32_t valor) {
     int marco = obtener_marco(direccion, nroDeTabla1);
-    if (marco == -1) {  // TODO
-        printf("No se pudo escribir en memoria\n");
-        return;
-    }
 
     t_buffer *buffer = buffer_create();
     uint32_t marcoSend = marco;
@@ -26,10 +22,6 @@ void escribir_en_memoria(uint32_t direccion, uint32_t nroDeTabla1, uint32_t valo
 
 uint32_t leer_en_memoria(uint32_t direccion, uint32_t nroDeTabla1) {
     int marco = obtener_marco(direccion, nroDeTabla1);
-    if (marco == -1) {  // TODO
-        printf("No se pudo escribir en memoria\n");
-        return;
-    }
 
     t_buffer *buffer = buffer_create();
     uint32_t marcoSend = marco;
@@ -52,10 +44,6 @@ uint32_t leer_en_memoria(uint32_t direccion, uint32_t nroDeTabla1) {
 void copiar_en_memoria(uint32_t direccionDestino, uint32_t direccionOrigen, uint32_t nroDeTabla1) {
     int marcoDestino = obtener_marco(direccionDestino, nroDeTabla1);
     int marcoOrigen = obtener_marco(direccionOrigen, nroDeTabla1);
-    if (marcoDestino == -1 || marcoOrigen == -1) {  // TODO
-        printf("No se pudo copiar a memoria\n");
-        return;
-    }
 
     t_buffer *buffer = buffer_create();
     uint32_t marcoDestSend = marcoDestino;
@@ -66,11 +54,10 @@ void copiar_en_memoria(uint32_t direccionDestino, uint32_t direccionOrigen, uint
     buffer_destroy(buffer);
 }
 
-int obtener_marco(uint32_t direccion, uint32_t nroDeTabla1) {
+uint32_t obtener_marco(uint32_t direccion, uint32_t nroDeTabla1) {
     socket = cpu_config_get_socket_memoria(cpuConfig);
     int tamPagina = cpu_config_get_tamanio_pagina(cpuConfig);
     int entradasPorTabla = cpu_config_get_entradas_por_tabla(cpuConfig);
-    int marcoFinal = -1;
     uint32_t header;
 
     uint32_t nroPag = direccion / tamPagina;
@@ -91,9 +78,6 @@ int obtener_marco(uint32_t direccion, uint32_t nroDeTabla1) {
         stream_recv_buffer(socket, bufferRta);
         buffer_unpack(bufferRta, &nroDeTabla2, sizeof(nroDeTabla2));
         buffer_destroy(bufferRta);
-    } else {
-        buffer_destroy(bufferRta);
-        return -1;
     }
 
     bufferSolicitud = buffer_create();
@@ -109,9 +93,6 @@ int obtener_marco(uint32_t direccion, uint32_t nroDeTabla1) {
         stream_recv_buffer(socket, bufferRta);
         buffer_unpack(bufferRta, &marco, sizeof(marco));
         buffer_destroy(bufferRta);
-    } else {
-        buffer_destroy(bufferRta);
-        return -1;
     }
 
     return marco + offset;

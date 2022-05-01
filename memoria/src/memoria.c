@@ -96,7 +96,7 @@ void imprimir_frames(void) {
     printf("\n");
 }
 
-int obtener_marco(nroDeTabla1, nroDeTabla2, entradaDeTabla2) {
+int obtener_marco(uint32_t nroDeTabla1, uint32_t nroDeTabla2, uint32_t entradaDeTabla2) {
     int marco = tablasNivel2[nroDeTabla2].entradaNivel2[entradaDeTabla2].indiceMarco;
     if (marco != -1) {
         return marco;
@@ -125,14 +125,10 @@ void dar_marco_cpu(int socket, t_buffer* buffer) {
         buffer_unpack(buffer, &nroDeTabla2, sizeof(nroDeTabla2));
         buffer_unpack(buffer, &entradaDeTabla2, sizeof(entradaDeTabla2));
         buffer_destroy(buffer);
-    } else {
-        buffer_destroy(buffer);
-        return -1;
-    }
-
+    } 
     int indiceMarco = obtener_marco(nroDeTabla1, nroDeTabla2, entradaDeTabla2);
-    uint32_t marco = marco * tamanioPagina;
-    bufferpack(buffer_rta, &marco, sizeof(marco));
+    uint32_t marco = indiceMarco * tamanioPagina;
+    buffer_pack(buffer_rta, &marco, sizeof(marco));
     stream_send_buffer(socket, HEADER_rta_marco, buffer_rta);
     buffer_destroy(buffer_rta);
 }
