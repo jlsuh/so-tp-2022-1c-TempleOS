@@ -105,20 +105,12 @@ int obtener_marco(nroDeTabla1, nroDeTabla2, entradaDeTabla2) {
     // TODO swap con algoritmo
     return -1;
 }
-void dar_marco_cpu(int socket) {
-    t_buffer* buffer = buffer_create();
-    uint32_t header = stream_recv_header(socket);
-    stream_recv_buffer(socket, buffer);
-
+void dar_marco_cpu(int socket, t_buffer* buffer) {
     uint32_t nroDeTabla1, entradaDeTabla1;
-    if (header == HEADER_solicitud_tabla_segundo_nivel) {
-        buffer_unpack(buffer, &nroDeTabla1, sizeof(nroDeTabla1));
-        buffer_unpack(buffer, &entradaDeTabla1, sizeof(entradaDeTabla1));
-        buffer_destroy(buffer);
-    } else {
-        buffer_destroy(buffer);
-        return -1;
-    }
+
+    buffer_unpack(buffer, &nroDeTabla1, sizeof(nroDeTabla1));
+    buffer_unpack(buffer, &entradaDeTabla1, sizeof(entradaDeTabla1));
+    buffer_destroy(buffer);
 
     uint32_t nroDeTabla2 = tablasNivel1[nroDeTabla1].nroTablaNivel2[entradaDeTabla1];
     t_buffer* buffer_rta = buffer_create();
@@ -126,7 +118,7 @@ void dar_marco_cpu(int socket) {
     stream_send_buffer(socket, HEADER_rta_tabla_segundo_nivel, buffer_rta);
     buffer_destroy(buffer_rta);
 
-    header = stream_recv_header(socket);
+    uint32_t header = stream_recv_header(socket);
     stream_recv_buffer(socket, buffer);
     uint32_t entradaDeTabla2;
     if (header == HEADER_solicitud_marco) {
@@ -142,6 +134,7 @@ void dar_marco_cpu(int socket) {
     uint32_t marco = marco * tamanioPagina;
     bufferpack(buffer_rta, &marco, sizeof(marco));
     stream_send_buffer(socket, HEADER_rta_marco, buffer_rta);
+    buffer_destroy(buffer_rta);
 }
 
 int main(int argc, char* argv[]) {
@@ -223,35 +216,40 @@ void* escuchar_peticiones_kernel(void) {
 
 void* escuchar_peticiones_cpu(void) {
     int socket = memoria_config_get_cpu_socket(memoriaConfig);
-    uint32_t header;
-
+    uint32_t header, marco, valor;
+    t_buffer* buffer;
     for (;;) {
-        dar_marco_cpu(socket);
         header = stream_recv_header(socket);
-
+        buffer = buffer_create();
+        stream_recv_buffer(socket, buffer);
         switch (header) {
             case HEADER_read:
-                // Devolver el valor que hay en la dirección logica
+                buffer_unpack(buffer, &marco, sizeof(marco));
+                memcpy(&valor, memoriaPrincipal + marco, sizeof(valor));
+                t_buffer* buffer_rta = buffer_create();
+                buffer_pack(buffer_rta, &valor, sizeof(valor));
+                stream_send_buffer(socket, HEADER_read, buffer_rta);
+                buffer_destroy(buffer_rta);
                 break;
             case HEADER_write:
-                uint32_t valor;
+                buffer_unpack(buffer, &marco, sizeof(marco));
                 buffer_unpack(buffer, &valor, sizeof(valor));
-                // Leer el la direccion, traducirla
-                // Y mandar a memoria la direccion traducida y los datos a guardar
-                stream_send_empty_buffer(socket, HANDSHAKE_ok_continue);
+                memcpy(memoriaPrincipal + marco, &valor, sizeof(valor));
                 break;
+
             case HEADER_copy:
-                uint32_t direccion_logica_destino;
-                buffer_unpack(buffer, &direccion_logica_destino, sizeof(direccion_logica_destino));
-                /*Se deberá escribir en memoria el valor ubicado en la dirección lógica pasada
-                como segundo parámetro, en la dirección lógica pasada como primer parámetro.
-                A efectos de esta etapa, el accionar es similar a la instrucción WRITE ya que el valor
-                a escribir ya se debería haber obtenido en la etapa anterior*/
-                stream_send_empty_buffer(socket, HANDSHAKE_ok_continue);
+                buffer_unpack(buffer, &marco, sizeof(marco));
+                uint32_t marcoOrigen;
+                buffer_unpack(buffer, &marcoOrigen, sizeof(marcoOrigen));
+                memcpy(memoriaPrincipal + marco, memoriaPrincipal + marcoOrigen, sizeof(uint32_t));
+                break;
+            case HEADER_solicitud_tabla_segundo_nivel:
+                dar_marco_cpu(socket, buffer);
                 break;
             default:
                 break;
         }
+        buffer_destroy(buffer);
     }
 
     return NULL;
@@ -399,18 +397,3 @@ int obtener_marco_disponible(void) {
     }
     return -1;
 }
-
-// void memwrite_pagina_en_Marco(uint32_t numeroMarco, uint32_t desplazamiento, void* data, uint32_t size) {
-//     uint32_t tamanioPagina = memoria_config_get_tamanio_pagina(memoriaConfig);
-//     uint32_t offset = numeroMarco * tamanioPagina + desplazamiento;
-//     memcpy(memoriaPrincipal + offset, data, size);
-// }
-
-// void memread_pagina_en_Marco(uint32_t numeroMarco, uint32_t desplazamiento, void* data, uint32_t size) {
-//     uint32_t tamanioPagina = memoria_config_get_tamanio_pagina(memoriaConfig);
-//     uint32_t offset = numeroMarco * tamanioPagina + desplazamiento;
-//     memcpy(data, memoriaPrincipal + offset, size);
-// }
-
-// void memcpy_pagina_en_Marco(uint32_t numeroMarcoDestino, uint32_t numeroMarcoOrigen) {
-// }
