@@ -31,7 +31,7 @@ uint32_t leer_en_memoria(uint32_t direccion, uint32_t nroDeTabla1) {
 
     uint32_t header = stream_recv_header(socket);
     if (header != HEADER_read) {
-        printf("Error al leer en memoria\n");
+        printf("Error al leer en memoria\n"); // TODO que hacer?
         return -1;
     }
     t_buffer *bufferRecv = buffer_create();
@@ -54,6 +54,25 @@ void copiar_en_memoria(uint32_t direccionDestino, uint32_t direccionOrigen, uint
     buffer_destroy(buffer);
 }
 
+uint32_t solicitar(uint32_t nroDeTabla, uint32_t entradaDeTabla, t_header header){
+    t_buffer *bufferSolicitud = buffer_create();
+    buffer_pack(bufferSolicitud, &nroDeTabla, sizeof(nroDeTabla));
+    buffer_pack(bufferSolicitud, &entradaDeTabla, sizeof(entradaDeTabla));
+    stream_send_buffer(socket, header, bufferSolicitud);
+    buffer_destroy(bufferSolicitud);
+
+    uint32_t headerRta = stream_recv_header(socket);
+    t_buffer *bufferRta = buffer_create();
+    stream_recv_buffer(socket, bufferRta);
+    uint32_t rta;
+    if (headerRta != header) {
+        return -1; // TODO: que hacer?
+    }
+    buffer_unpack(bufferRta, &rta, sizeof(rta));
+    buffer_destroy(bufferRta);
+    return rta;
+}
+
 uint32_t obtener_marco(uint32_t direccion, uint32_t nroDeTabla1) {
     socket = cpu_config_get_socket_memoria(cpuConfig);
     int tamPagina = cpu_config_get_tamanio_pagina(cpuConfig);
@@ -65,35 +84,8 @@ uint32_t obtener_marco(uint32_t direccion, uint32_t nroDeTabla1) {
     uint32_t entradaTablaNivel2 = nroPag % entradasPorTabla;
     uint32_t offset = direccion - nroPag * tamPagina;
 
-    t_buffer *bufferSolicitud = buffer_create();
-    buffer_pack(bufferSolicitud, &nroDeTabla1, sizeof(nroDeTabla1));
-    buffer_pack(bufferSolicitud, &entradaTablaNivel1, sizeof(entradaTablaNivel1));
-    stream_send_buffer(socket, HEADER_solicitud_tabla_segundo_nivel, bufferSolicitud);
-    buffer_destroy(bufferSolicitud);
-
-    header = stream_recv_header(socket);
-    t_buffer *bufferRta = buffer_create();
-    uint32_t nroDeTabla2;
-    if (header == HEADER_rta_tabla_segundo_nivel) {
-        stream_recv_buffer(socket, bufferRta);
-        buffer_unpack(bufferRta, &nroDeTabla2, sizeof(nroDeTabla2));
-        buffer_destroy(bufferRta);
-    }
-
-    bufferSolicitud = buffer_create();
-    buffer_pack(bufferSolicitud, &nroDeTabla2, sizeof(nroDeTabla2));
-    buffer_pack(bufferSolicitud, &entradaTablaNivel2, sizeof(entradaTablaNivel2));
-    stream_send_buffer(socket, HEADER_solicitud_marco, bufferSolicitud);
-    buffer_destroy(bufferSolicitud);
-
-    header = stream_recv_header(socket);
-    bufferRta = buffer_create();
-    uint32_t marco;
-    if (header == HEADER_rta_marco) {
-        stream_recv_buffer(socket, bufferRta);
-        buffer_unpack(bufferRta, &marco, sizeof(marco));
-        buffer_destroy(bufferRta);
-    }
+    uint32_t nroDeTabla2 = solicitar(nroDeTabla1, entradaTablaNivel1, HEADER_tabla_nivel_2);
+    uint32_t marco = solicitar(nroDeTabla2, entradaTablaNivel2, HEADER_marco);
 
     return marco + offset;
 }
