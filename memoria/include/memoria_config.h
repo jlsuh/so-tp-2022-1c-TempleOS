@@ -15,6 +15,8 @@ int memoria_config_get_tamanio_memoria(t_memoria_config* self);
 int memoria_config_get_tamanio_pagina(t_memoria_config* self);
 int memoria_config_set_cpu_socket(t_memoria_config* self, int socket);
 int memoria_config_set_kernel_socket(t_memoria_config* self, int socket);
+char* memoria_config_get_path_swap(t_memoria_config* self);
 t_memoria_config* memoria_config_create(char* memoriaConfigPath, t_log* memoriaLogger);
+int memoria_config_get_retardo_swap(t_memoria_config* self);
 
 #endif

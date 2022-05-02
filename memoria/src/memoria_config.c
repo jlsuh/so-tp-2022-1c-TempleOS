@@ -90,3 +90,11 @@ int memoria_config_get_marcos_por_proceso(t_memoria_config* self){
 int memoria_config_get_entradas_por_tabla(t_memoria_config* self){
     return self->ENTRADAS_POR_TABLA;
 }
+
+char* memoria_config_get_path_swap(t_memoria_config* self){
+    return self->PATH_SWAP;
+}
+
+int memoria_config_get_retardo_swap(t_memoria_config* self){
+    return self->RETARDO_SWAP;
+}

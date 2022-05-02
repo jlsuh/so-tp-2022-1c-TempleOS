@@ -1,12 +1,16 @@
 #include <commons/collections/list.h>
 #include <commons/log.h>
+#include <commons/string.h>
 #include <errno.h>
+#include <fcntl.h>
 #include <pthread.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/mman.h>
 #include <sys/socket.h>
+#include <sys/stat.h>
 #include <unistd.h>
 
 #include "common_flags.h"
@@ -20,6 +24,7 @@
 
 typedef struct
 {
+    uint32_t tamanio;
     int* nroTablaNivel2;
 } t_tabla_nivel_uno;
 typedef struct
@@ -37,6 +42,8 @@ typedef struct
 t_log* memoriaLogger;
 t_memoria_config* memoriaConfig;
 void* memoriaPrincipal;
+void* inicio_archivo;
+int archivo_swap;
 t_tabla_nivel_uno* tablasDeNivel1;
 t_tabla_nivel_dos* tablasDeNivel2;
 bool* marcosEnUso;
@@ -67,8 +74,9 @@ void inicializar_tablas_de_nivel_1(void);
 void inicializar_tablas_de_nivel_2(void);
 void recibir_conexiones(int socketEscucha);
 void imprimir_memoria(void);
-
-
+void crear_archivo_de_proceso(int nroTablaNivel1);
+void abrir_archivo(int nroTablaNivel1);
+void cerrar_archivo(void);
 
 int main(int argc, char* argv[]) {
     memoriaLogger = log_create(MEMORIA_LOG_PATH, MEMORIA_MODULE_NAME, true, LOG_LEVEL_INFO);
@@ -220,14 +228,42 @@ void* recibir_conexion(int socketEscucha, pthread_t* threadSuscripcion) {
     return funcion_suscripcion;
 }
 
+int swap_marco(uint32_t nroDeTabla1, int nroDeTabla2ToSwap, int entradaDeTabla2ToSwap, uint32_t nroDeTabla2, uint32_t entradaDeTabla2) {
+    abrir_archivo(nroDeTabla1);
+    int marco = tablasDeNivel2[nroDeTabla2ToSwap].entradaNivel2[entradaDeTabla2ToSwap].indiceMarco;
+    tablasDeNivel2[nroDeTabla2ToSwap].entradaNivel2[entradaDeTabla2ToSwap].bitPresencia = 0;
+
+    int paginaToSwap = nroDeTabla2ToSwap * entradasPorTabla + entradaDeTabla2ToSwap;
+    int pagina = nroDeTabla2 * entradasPorTabla + entradaDeTabla2;
+    int tiempoDeEspera = memoria_config_get_retardo_swap(memoriaConfig);
+
+    // Escribir en archivo
+    sleep(tiempoDeEspera);
+    memcpy(inicio_archivo + sizeof(uint32_t) * paginaToSwap, memoriaPrincipal + marco * tamanioPagina, sizeof(uint32_t));
+    // Leer de archivo
+    sleep(tiempoDeEspera);
+    memcpy(memoriaPrincipal + marco * tamanioPagina, inicio_archivo + sizeof(uint32_t) * pagina, sizeof(uint32_t));
+
+    tablasDeNivel2[nroDeTabla2].entradaNivel2[entradaDeTabla2].indiceMarco = marco;
+    tablasDeNivel2[nroDeTabla2].entradaNivel2[entradaDeTabla2].bitPresencia = 1;
+    // TODO se necesita hacer algo con los bits del algoritmo?
+
+    cerrar_archivo();
+    return marco;
+}
+
 int obtener_marco(uint32_t nroDeTabla1, uint32_t nroDeTabla2, uint32_t entradaDeTabla2) {
     int marco = tablasDeNivel2[nroDeTabla2].entradaNivel2[entradaDeTabla2].indiceMarco;
     if (marco != -1) {
         return marco;
     }
 
-    // TODO swap con algoritmo
-    return -1;
+    // int nroDeTabla2ToSwap;
+    // int entradaDeTabla2ToSwap = seleccionar_marco_a_reemplazar(nroDeTabla1, &nroDeTabla2ToSwap); // TODO
+    int nroDeTabla2ToSwap = 0, entradaDeTabla2ToSwap = 0; // TODO Borrar, solo para que no tire error el compilador
+    marco = swap_marco(nroDeTabla1, nroDeTabla2ToSwap, entradaDeTabla2ToSwap, nroDeTabla2, entradaDeTabla2);
+
+    return marco;
 }
 
 void dar_marco_cpu(int socket, t_buffer* buffer) {
@@ -270,10 +306,11 @@ uint32_t crear_nuevo_proceso(uint32_t tamanio) {
     int nroTablaNivel1 = obtener_tabla_libre_de_nivel_1();
     crear_tablas_de_nivel_2(nroTablaNivel1);
     asignar_marcos_a_proceso(nroTablaNivel1, indiceMarco);
+    tablasDeNivel1[nroTablaNivel1].tamanio = tamanio;
 
-    // TODO crear estructura para swap
+    crear_archivo_de_proceso(nroTablaNivel1);
 
-    return nroTablaNivel1;
+    return (uint32_t)nroTablaNivel1;
 }
 
 void asignar_marcos_a_proceso(int nroTablaNivel1, int indiceMarco) {
@@ -347,6 +384,7 @@ void inicializar_tablas_de_nivel_1(void) {
 
     for (int i = 0; i < cantidadProcesosMax; i++) {
         tablasDeNivel1[i].nroTablaNivel2 = malloc(entradasPorTabla * sizeof(int));
+        tablasDeNivel1[i].tamanio = 0;
         for (int j = 0; j < entradasPorTabla; j++) {
             tablasDeNivel1[i].nroTablaNivel2[j] = -1;
         }
@@ -359,6 +397,34 @@ void inicializar_tablas_de_nivel_2(void) {
 
 void inicializar_marcos(void) {
     marcosEnUso = calloc(cantTotalMarcos, sizeof(bool));
+}
+
+//Funciones archivo
+
+void abrir_archivo(int nroTablaNivel1) {
+    uint32_t tamanio = tablasDeNivel1[nroTablaNivel1].tamanio;
+    char* pathArchivo = string_from_format("%s/%d.swap", memoria_config_get_path_swap(memoriaConfig), nroTablaNivel1);
+    archivo_swap = open(pathArchivo, O_RDWR | O_CREAT, S_IRUSR | S_IWUSR);
+    free(pathArchivo);
+
+    ftruncate(archivo_swap, tamanio);
+
+    inicio_archivo = mmap(NULL, tamanio, PROT_READ | PROT_WRITE, MAP_SHARED, archivo_swap, 0);
+    if (inicio_archivo == MAP_FAILED) {
+        puts("error en mmap");
+    }
+}
+
+void crear_archivo_de_proceso(int nroTablaNivel1) {
+    uint32_t tamanio = tablasDeNivel1[nroTablaNivel1].tamanio;
+    abrir_archivo(nroTablaNivel1);
+    memset(inicio_archivo, '\0', tamanio);
+    cerrar_archivo();
+}
+
+void cerrar_archivo() {
+    free(inicio_archivo);
+    close(archivo_swap);
 }
 
 // Funciones de trackeo
@@ -399,7 +465,7 @@ void imprimir_frames(void) {
     printf("\n");
 }
 
-void imprimir_memoria(void){
+void imprimir_memoria(void) {
     uint32_t valor = 2561;
     uint32_t valor2 = 423;
     uint32_t valor3 = 543;
@@ -413,7 +479,10 @@ void imprimir_memoria(void){
 
     printf("\n");
     for (int i = 0; i < cantTotalMarcos; i++) {
-        printf("Marco %d: con valor %d\n", i, *((uint32_t *)(memoriaPrincipal + i * tamanioPagina)));
+        printf("Marco %d: con valor %d\n", i, *((uint32_t*)(memoriaPrincipal + i * tamanioPagina)));
     }
     printf("\n");
 }
+
+
+
