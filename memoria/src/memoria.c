@@ -55,7 +55,7 @@ int tamanioPagina;
 
 int crear_tabla_de_nivel_2(void);
 int main(int argc, char* argv[]);
-int obtener_marco(uint32_t nroDeTabla1, uint32_t nroDeTabla2, uint32_t entradaDeTabla2);
+int obtener_marco(uint32_t nroDeTabla2, uint32_t entradaDeTabla2);
 int obtener_marco_libre(void);
 int obtener_tabla_libre_de_nivel_1(void);
 int obtener_tabla_libre_de_nivel_2(void);
@@ -121,7 +121,7 @@ void* escuchar_peticiones_kernel(void) {
 
                 if (procesoNuevo == -1) {
                     log_error(memoriaLogger, "No se pudo crear el proceso");
-                    stream_send_empty_buffer(socket, HEADER_error_proceso_no_creado);
+                    stream_send_empty_buffer(socket, HEADER_error);
                 } else {
                     uint32_t nroTablaNivel1 = procesoNuevo;
                     t_buffer* buffer_rta = buffer_create();
@@ -163,11 +163,13 @@ void* escuchar_peticiones_cpu(void) {
                 buffer_pack(buffer_rta, &valor, sizeof(valor));
                 stream_send_buffer(socket, HEADER_read, buffer_rta);
                 buffer_destroy(buffer_rta);
+
                 break;
             case HEADER_write:
                 buffer_unpack(buffer, &marco, sizeof(marco));
                 buffer_unpack(buffer, &valor, sizeof(valor));
                 memcpy(memoriaPrincipal + marco, &valor, sizeof(valor));
+
                 break;
 
             case HEADER_copy:
@@ -175,10 +177,35 @@ void* escuchar_peticiones_cpu(void) {
                 uint32_t marcoOrigen;
                 buffer_unpack(buffer, &marcoOrigen, sizeof(marcoOrigen));
                 memcpy(memoriaPrincipal + marco, memoriaPrincipal + marcoOrigen, sizeof(uint32_t));
+
                 break;
-            case HEADER_solicitud_tabla_segundo_nivel:
-                dar_marco_cpu(socket, buffer);
+            case HEADER_tabla_nivel_2: {
+                uint32_t nroDeTabla1, entradaDeTabla1;
+                buffer_unpack(buffer, &nroDeTabla1, sizeof(nroDeTabla1));
+                buffer_unpack(buffer, &entradaDeTabla1, sizeof(entradaDeTabla1));
+
+                uint32_t nroDeTabla2 = tablasDeNivel1[nroDeTabla1].nroTablaNivel2[entradaDeTabla1];
+                t_buffer* buffer_rta = buffer_create();
+                buffer_pack(buffer_rta, &nroDeTabla2, sizeof(nroDeTabla2));
+                stream_send_buffer(socket, HEADER_tabla_nivel_2, buffer_rta);
+                buffer_destroy(buffer_rta);
+
                 break;
+            }
+            case HEADER_marco: {
+                uint32_t nroDeTabla2, entradaDeTabla2;
+                buffer_unpack(buffer, &nroDeTabla2, sizeof(nroDeTabla2));
+                buffer_unpack(buffer, &entradaDeTabla2, sizeof(entradaDeTabla2));
+
+                int indiceMarco = obtener_marco(nroDeTabla2, entradaDeTabla2);
+                marco = indiceMarco * tamanioPagina;
+                t_buffer* buffer_rta = buffer_create();
+                buffer_pack(buffer_rta, &marco, sizeof(marco));
+                stream_send_buffer(socket, HEADER_marco, buffer_rta);
+                buffer_destroy(buffer_rta);
+
+                break;
+            }
             default:
                 break;
         }
@@ -228,7 +255,18 @@ void* recibir_conexion(int socketEscucha, pthread_t* threadSuscripcion) {
     return funcion_suscripcion;
 }
 
-int swap_marco(uint32_t nroDeTabla1, int nroDeTabla2ToSwap, int entradaDeTabla2ToSwap, uint32_t nroDeTabla2, uint32_t entradaDeTabla2) {
+uint32_t obtener_nro_de_tabla_1(uint32_t nroDeTabla2){
+    for(int i = 0; i < cantidadProcesosMax; i++){
+        for(int j = 0; j < entradasPorTabla; j++){
+            if(tablasDeNivel1[i].nroTablaNivel2[j] == nroDeTabla2){
+                return i;
+            }
+        }
+    }
+}
+
+int swap_marco(int nroDeTabla2ToSwap, int entradaDeTabla2ToSwap, uint32_t nroDeTabla2, uint32_t entradaDeTabla2) {
+    uint32_t nroDeTabla1 = obtener_nro_de_tabla_1(nroDeTabla2);
     abrir_archivo(nroDeTabla1);
     int marco = tablasDeNivel2[nroDeTabla2ToSwap].entradaNivel2[entradaDeTabla2ToSwap].indiceMarco;
     tablasDeNivel2[nroDeTabla2ToSwap].entradaNivel2[entradaDeTabla2ToSwap].bitPresencia = 0;
@@ -252,7 +290,7 @@ int swap_marco(uint32_t nroDeTabla1, int nroDeTabla2ToSwap, int entradaDeTabla2T
     return marco;
 }
 
-int obtener_marco(uint32_t nroDeTabla1, uint32_t nroDeTabla2, uint32_t entradaDeTabla2) {
+int obtener_marco(uint32_t nroDeTabla2, uint32_t entradaDeTabla2) {
     int marco = tablasDeNivel2[nroDeTabla2].entradaNivel2[entradaDeTabla2].indiceMarco;
     if (marco != -1) {
         return marco;
@@ -260,38 +298,10 @@ int obtener_marco(uint32_t nroDeTabla1, uint32_t nroDeTabla2, uint32_t entradaDe
 
     // int nroDeTabla2ToSwap;
     // int entradaDeTabla2ToSwap = seleccionar_marco_a_reemplazar(nroDeTabla1, &nroDeTabla2ToSwap); // TODO
-    int nroDeTabla2ToSwap = 0, entradaDeTabla2ToSwap = 0; // TODO Borrar, solo para que no tire error el compilador
-    marco = swap_marco(nroDeTabla1, nroDeTabla2ToSwap, entradaDeTabla2ToSwap, nroDeTabla2, entradaDeTabla2);
+    int nroDeTabla2ToSwap = 0, entradaDeTabla2ToSwap = 0;  // TODO Borrar, solo para que no tire error el compilador
+    marco = swap_marco(nroDeTabla2ToSwap, entradaDeTabla2ToSwap, nroDeTabla2, entradaDeTabla2);
 
     return marco;
-}
-
-void dar_marco_cpu(int socket, t_buffer* buffer) {
-    uint32_t nroDeTabla1, entradaDeTabla1;
-
-    buffer_unpack(buffer, &nroDeTabla1, sizeof(nroDeTabla1));
-    buffer_unpack(buffer, &entradaDeTabla1, sizeof(entradaDeTabla1));
-    buffer_destroy(buffer);
-
-    uint32_t nroDeTabla2 = tablasDeNivel1[nroDeTabla1].nroTablaNivel2[entradaDeTabla1];
-    t_buffer* buffer_rta = buffer_create();
-    buffer_pack(buffer_rta, &nroDeTabla2, sizeof(nroDeTabla2));
-    stream_send_buffer(socket, HEADER_rta_tabla_segundo_nivel, buffer_rta);
-    buffer_destroy(buffer_rta);
-
-    uint32_t header = stream_recv_header(socket);
-    stream_recv_buffer(socket, buffer);
-    uint32_t entradaDeTabla2;
-    if (header == HEADER_solicitud_marco) {
-        buffer_unpack(buffer, &nroDeTabla2, sizeof(nroDeTabla2));
-        buffer_unpack(buffer, &entradaDeTabla2, sizeof(entradaDeTabla2));
-        buffer_destroy(buffer);
-    }
-    int indiceMarco = obtener_marco(nroDeTabla1, nroDeTabla2, entradaDeTabla2);
-    uint32_t marco = indiceMarco * tamanioPagina;
-    buffer_pack(buffer_rta, &marco, sizeof(marco));
-    stream_send_buffer(socket, HEADER_rta_marco, buffer_rta);
-    buffer_destroy(buffer_rta);
 }
 
 uint32_t crear_nuevo_proceso(uint32_t tamanio) {
@@ -399,7 +409,7 @@ void inicializar_marcos(void) {
     marcosEnUso = calloc(cantTotalMarcos, sizeof(bool));
 }
 
-//Funciones archivo
+// Funciones archivo
 
 void abrir_archivo(int nroTablaNivel1) {
     uint32_t tamanio = tablasDeNivel1[nroTablaNivel1].tamanio;
@@ -483,6 +493,3 @@ void imprimir_memoria(void) {
     }
     printf("\n");
 }
-
-
-
