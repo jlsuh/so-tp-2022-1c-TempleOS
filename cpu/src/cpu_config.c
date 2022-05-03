@@ -2,7 +2,6 @@
 
 #include <commons/config.h>
 #include <commons/log.h>
-#include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -105,4 +104,8 @@ void cpu_config_set_tamanio_pagina(t_cpu_config* self, int tamanioPagina) {
 
 int cpu_config_get_tamanio_pagina(t_cpu_config* self) {
     return self->TAM_PAGINA;
+}
+
+uint32_t cpu_config_get_retardo_no_op(t_cpu_config* self) {
+    return self->RETARDO_NOOP;
 }
