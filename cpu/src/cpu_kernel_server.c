@@ -66,7 +66,7 @@ static bool cpu_exec_instruction(t_pcb_cpu* pcb, t_tipo_instruccion tipoInstrucc
         buffer_pack(bufferIO, &pid, sizeof(pid));
         buffer_pack(bufferIO, &programCounterActualizado, sizeof(programCounterActualizado));
         buffer_pack(bufferIO, &tablaPaginaPrimerNivelActualizado, sizeof(tablaPaginaPrimerNivelActualizado));
-        buffer_pack(bufferIO, &tiempoDeBloqueo, sizeof(tiempoDeBloqueo));  // Hace falta que en el struct tengamos tiempoBloqueo como miembro?
+        buffer_pack(bufferIO, &tiempoDeBloqueo, sizeof(tiempoDeBloqueo));
         stream_send_buffer(cpu_config_get_socket_dispatch(cpuConfig), HEADER_proceso_bloqueado, bufferIO);
         buffer_destroy(bufferIO);
 
@@ -76,7 +76,6 @@ static bool cpu_exec_instruction(t_pcb_cpu* pcb, t_tipo_instruccion tipoInstrucc
     } else if (tipoInstruccion == INSTRUCCION_read) {
         // uint32_t readValue = leer_en_memoria(operando1, pcb_cpu_get_tabla_pagina_primer_nivel(pcb)); Se abstrae de memoria por ahora
         uint32_t readValue = 3;
-        // TODO: Esto debe ser loggeado en consola también o solamente en CPU?
         log_info(cpuLogger, "INSTRUCCION_read: Se lee %d de la dirección lógica %d", readValue, operando1);
     } else if (tipoInstruccion == INSTRUCCION_write) {
         shouldWrite = true;
@@ -194,7 +193,7 @@ static void noreturn dispatch_peticiones_de_kernel(void) {
                 // Hacer ciclo instruccion
                 stopExec = cpu_ejecutar_ciclos_de_instruccion(newPcb);
 
-                if(!stopExec) {
+                if (!stopExec) {
                     // TODO: Chequear si hay interrupcion
                     stopExec = cpu_hay_interrupcion(newPcb);
                 }
@@ -209,7 +208,7 @@ static void noreturn dispatch_peticiones_de_kernel(void) {
 static void noreturn interrupt_peticiones_de_kernel(void) {
     for (;;) {
         uint8_t nuevaInterrupcion = stream_recv_header(cpu_config_get_socket_interrupt(cpuConfig));
-        if(nuevaInterrupcion == INT_interrumpir_ejecucion) {
+        if (nuevaInterrupcion == INT_interrumpir_ejecucion) {
             pthread_mutex_lock(&mutexInterrupcion);
             hayInterrupcion = true;
             pthread_mutex_unlock(&mutexInterrupcion);
