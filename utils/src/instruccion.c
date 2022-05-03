@@ -65,3 +65,15 @@ t_list* instruccion_list_create_from_buffer(t_buffer* bufferConInstrucciones, t_
     }
     return instrucciones;
 }
+
+t_tipo_instruccion instruccion_get_tipo_instruccion(t_instruccion* instruccion) {
+    return instruccion->tipoInstruccion;
+}
+
+uint32_t instruccion_get_operando1(t_instruccion* instruccion) {
+    return instruccion->operando1;
+}
+
+uint32_t instruccion_get_operando2(t_instruccion* instruccion) {
+    return instruccion->operando2;
+}

@@ -178,7 +178,7 @@ void interrumpir_cpu(void) {
     stream_send_empty_buffer(kernel_config_get_socket_interrupt_cpu(kernelConfig), INT_interrumpir_ejecucion);
     uint8_t cpuInterruptResponse = stream_recv_header(kernel_config_get_socket_interrupt_cpu(kernelConfig));
     stream_recv_empty_buffer(kernel_config_get_socket_interrupt_cpu(kernelConfig));
-    if (cpuInterruptResponse != INT_cpu_interrumpida) {
+    if (cpuInterruptResponse != INT_interrupcion_recibida) {
         log_error(kernelLogger, "Error al intentar interrumpir CPU");
         // TODO: Manejar este caso
         exit(-1);
@@ -250,7 +250,7 @@ t_pcb* elegir_segun_algoritmo(void) {
             seleccionado = list_get_minimum(estado_get_list(estadoReady),(void*)t_planificar_srt);
         return seleccionado;
     }*/
-    return list_get(estado_get_list(estadoReady), 0);  // FIFO
+    return list_remove(estado_get_list(estadoReady), 0);  // FIFO
 }
 
 static void noreturn atender_pcb(void) {  // TEMPORALMENTE ACÁ, QUIZÁS SE MUEVA A OTRO ARCHIVO
@@ -263,24 +263,31 @@ static void noreturn atender_pcb(void) {  // TEMPORALMENTE ACÁ, QUIZÁS SE MUEV
 
         uint8_t cpuResponse = stream_recv_header(kernel_config_get_socket_dispatch_cpu(kernelConfig));
         // TODO: PARAR DE CONTAR TIEMPO
-        pcb = cpu_adapter_recibir_pcb_de_cpu(pcb, kernelConfig, kernelLogger);
+        pcb = cpu_adapter_recibir_pcb_actualizado_de_cpu(pcb, cpuResponse, kernelConfig, kernelLogger);
+
+        pthread_mutex_lock(estado_get_mutex(estadoExec));
         list_remove(estado_get_list(estadoExec), 0);
+        pthread_mutex_unlock(estado_get_mutex(estadoExec));
+
         switch (cpuResponse) {
             case HEADER_proceso_desalojado:  // SALIDA INTERRUPCION
                 estado_encolar_pcb(estadoReady, pcb);
+                pcb_set_estado_actual(pcb, READY);
                 log_transition("EXEC", "READY", pcb_get_pid(pcb));
                 sem_post(estado_get_sem(estadoReady));
                 break;
             case HEADER_proceso_terminado:
                 estado_encolar_pcb(estadoExit, pcb);
+                pcb_set_estado_actual(pcb, EXIT);
                 log_transition("EXEC", "EXIT", pcb_get_pid(pcb));
                 sem_post(&gradoMultiprog);
-                mem_adapter_finalizar_proceso(pcb, kernelConfig, kernelLogger);
+                // mem_adapter_finalizar_proceso(pcb, kernelConfig, kernelLogger);
                 pcb_responder_a_consola(pcb, HEADER_proceso_terminado);
                 sem_post(estado_get_sem(estadoExit));
                 break;
             case HEADER_proceso_bloqueado:
                 estado_encolar_pcb(estadoBlocked, pcb);
+                pcb_set_estado_actual(pcb, BLOCKED);
                 log_transition("EXEC", "BLOCKED", pcb_get_pid(pcb));
                 // TODO: en otro hilo hacer el wait(tiempo_bloqueo) del pcb
                 break;
@@ -314,6 +321,7 @@ static void noreturn planificador_corto_plazo(void) {
         pthread_mutex_unlock(estado_get_mutex(estadoReady));
 
         estado_encolar_pcb(estadoExec, pcbToDispatch);
+        log_transition("READY", "EXEC", pcb_get_pid(pcbToDispatch));
 
         sem_post(estado_get_sem(estadoExec));
     }

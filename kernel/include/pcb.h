@@ -30,8 +30,8 @@ void pcb_set_ultima_ejecucion(t_pcb*, double);
 uint32_t pcb_get_tabla_pagina_primer_nivel(t_pcb*);
 void pcb_set_tabla_pagina_primer_nivel(t_pcb* self, uint32_t);
 
-uint32_t pcb_get_tiempo_de_bloq(t_pcb* self);
-void pcb_set_tiempo_de_bloq(t_pcb* self, uint32_t);
+uint32_t pcb_get_tiempo_de_bloqueo(t_pcb* self);
+void pcb_set_tiempo_de_bloqueo(t_pcb* self, uint32_t);
 
 int pcb_get_socket(t_pcb* self);
 void pcb_set_socket(t_pcb* self, int);
