@@ -7,6 +7,11 @@
 
 #include "module_config.h"
 
+/* Se mueven acá las declaraciones pues de lo contrario es una referencia
+   sin definir en la carpeta de tests (excluye al archivo con main) */
+t_log* cpuLogger;
+t_cpu_config* cpuConfig;
+
 struct t_cpu_config {
     char* IP;
     uint32_t ENTRADAS_TLB;
