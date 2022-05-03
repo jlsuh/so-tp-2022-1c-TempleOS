@@ -250,7 +250,7 @@ t_pcb* elegir_segun_algoritmo(void) {
             seleccionado = list_get_minimum(estado_get_list(estadoReady),(void*)t_planificar_srt);
         return seleccionado;
     }*/
-    return list_get(estado_get_list(estadoReady), 0);  // FIFO
+    return list_remove(estado_get_list(estadoReady), 0);  // FIFO
 }
 
 static void noreturn atender_pcb(void) {  // TEMPORALMENTE ACÁ, QUIZÁS SE MUEVA A OTRO ARCHIVO
@@ -260,7 +260,6 @@ static void noreturn atender_pcb(void) {  // TEMPORALMENTE ACÁ, QUIZÁS SE MUEV
         t_pcb* pcb = list_get(estado_get_list(estadoExec), 0);
         pthread_mutex_unlock(estado_get_mutex(estadoExec));
         cpu_adapter_enviar_pcb_a_cpu(pcb, kernelConfig, kernelLogger);
-        log_transition("READY", "EXEC", pcb_get_pid(pcb));
 
         uint8_t cpuResponse = stream_recv_header(kernel_config_get_socket_dispatch_cpu(kernelConfig));
         // TODO: PARAR DE CONTAR TIEMPO
@@ -322,6 +321,7 @@ static void noreturn planificador_corto_plazo(void) {
         pthread_mutex_unlock(estado_get_mutex(estadoReady));
 
         estado_encolar_pcb(estadoExec, pcbToDispatch);
+        log_transition("READY", "EXEC", pcb_get_pid(pcbToDispatch));
 
         sem_post(estado_get_sem(estadoExec));
     }
