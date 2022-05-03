@@ -19,8 +19,8 @@
 #define KERNEL_LOG_PATH "bin/kernel.log"
 #define KERNEL_MODULE_NAME "Kernel"
 
-t_log* kernelLogger;
-t_kernel_config* kernelConfig;
+extern t_log* kernelLogger;
+extern t_kernel_config* kernelConfig;
 
 static void __crear_hilo_handler_conexion_entrante(int* socket) {
     pthread_t threadSuscripcion;
