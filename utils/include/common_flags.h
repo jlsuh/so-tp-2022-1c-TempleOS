@@ -39,7 +39,7 @@ typedef enum {
 
 typedef enum {
     INT_interrumpir_ejecucion,
-    INT_cpu_interrumpida,
+    INT_interrupcion_recibida,
 } t_interrupciones;
 
 #endif
