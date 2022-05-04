@@ -8,7 +8,7 @@
 #include "pcb.h"
 
 void cpu_adapter_enviar_pcb_a_cpu(t_pcb* pcbAEnviar, t_kernel_config*, t_log*);
-t_pcb* cpu_adapter_recibir_pcb_de_cpu(t_pcb* pcbARecibir, t_kernel_config*, t_log*);
+t_pcb* cpu_adapter_recibir_pcb_actualizado_de_cpu(t_pcb* pcbARecibir, uint8_t cpuResponse, t_kernel_config*, t_log*);
 void cpu_adapter_interrumpir_cpu(t_kernel_config*, t_log*);
 
 #endif

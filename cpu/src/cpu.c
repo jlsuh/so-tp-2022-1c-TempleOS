@@ -15,8 +15,8 @@
 #define CPU_LOG_PATH "bin/cpu.log"
 #define CPU_MODULE_NAME "CPU"
 
-t_log* cpuLogger;
-t_cpu_config* cpuConfig;
+extern t_log* cpuLogger;
+extern t_cpu_config* cpuConfig;
 
 int main(int argc, char* argv[]) {
     cpuLogger = log_create(CPU_LOG_PATH, CPU_MODULE_NAME, true, LOG_LEVEL_INFO);

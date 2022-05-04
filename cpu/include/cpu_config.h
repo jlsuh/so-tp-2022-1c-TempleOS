@@ -2,6 +2,7 @@
 #define CPU_CONFIG_H_INCLUDED
 
 #include <commons/log.h>
+#include <stdint.h>
 
 typedef struct t_cpu_config t_cpu_config;
 
@@ -21,5 +22,6 @@ int cpu_config_get_entradas_por_tabla(t_cpu_config* self);
 void cpu_config_set_tamanio_pagina(t_cpu_config* self, int tamanioPagina);
 int cpu_config_get_tamanio_pagina(t_cpu_config* self);
 int cpu_config_get_socket_memoria(t_cpu_config* self);
+uint32_t cpu_config_get_retardo_no_op(t_cpu_config* self);
 
 #endif

@@ -14,12 +14,10 @@ typedef enum {
     HEADER_tabla_de_paginas,
     HEADER_solicitud_tabla_paginas,
     HEADER_pcb_a_ejecutar,
-    HEADER_error_proceso_no_creado,
-    HEADER_solicitud_tabla_segundo_nivel,
-    HEADER_rta_tabla_segundo_nivel,
-    HEADER_solicitud_marco,
-    HEADER_rta_marco,
-    HEADER_memoria_insuficiente
+    HEADER_memoria_insuficiente,
+    HEADER_error,
+    HEADER_tabla_nivel_2,
+    HEADER_marco,
 } t_header;
 
 typedef enum {
@@ -42,7 +40,7 @@ typedef enum {
 
 typedef enum {
     INT_interrumpir_ejecucion,
-    INT_cpu_interrumpida,
+    INT_interrupcion_recibida,
 } t_interrupciones;
 
 #endif
