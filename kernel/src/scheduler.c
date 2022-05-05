@@ -215,17 +215,6 @@ static noreturn void planificador_mediano_plazo(void) {
         }
     }
 }
-
-double srt(t_pcb* proceso){
-    double alfa = kernel_config_get_alfa(kernelConfig);
-
-    if(pcb_get_ultima_ejecucion(proceso) == -1){
-            return pcb_get_est_actual(proceso);
-    }
-
-    pcb_set_est_actual(proceso,(alfa*pcb_get_ultima_ejecucion(proceso) + (1-alfa)*pcb_get_est_actual(proceso)));
-    return pcb_get_est_actual(proceso);
-}
 */
 
 // TODO: Abstraerlo en un puntero a la función del pcb con la idea de: t_pcb* pcb = scheduler_elegir_segun_algoritmo(estadoReady)
@@ -248,20 +237,20 @@ t_pcb* (*scheduler_elegir_segun_sjf)(t_estado* estadoReady);
 */
 
 t_pcb* elegir_segun_algoritmo(void) {
-    /*void* t_planificar_srt(t_pcb* p1, t_pcb* p2){
-        return (srt(p1) <= srt(p2)) ? p1 : p2;
+    void* t_planificar_srt(t_pcb* p1, t_pcb* p2){
+        return (pcb_estimar_srt(p1) <= pcb_estimar_srt(p2)) ? p1 : p2;
     }
     t_pcb* seleccionado = NULL;
 
     if(strcmp(kernel_config_get_algoritmo(kernelConfig), "SRT") == 0){
         if(list_size(estado_get_list(estadoReady)) == 1){
-            seleccionado = list_get(estado_get_list(estadoReady),0);
-                        srt(seleccionado);
-                        return seleccionado;
-                }
-            seleccionado = list_get_minimum(estado_get_list(estadoReady),(void*)t_planificar_srt);
-        return seleccionado;
-    }*/
+            seleccionado = list_remove(estado_get_list(estadoReady),0);
+            pcb_estimar_srt(seleccionado);
+            return seleccionado;
+        }
+        seleccionado = list_get_minimum(estado_get_list(estadoReady),(void*)t_planificar_srt);
+        return list_remove(estado_get_list(estadoReady),seleccionado->head->index);
+    }
     return list_remove(estado_get_list(estadoReady), 0);  // FIFO
 }
 
@@ -287,7 +276,7 @@ static void noreturn atender_pcb(void) {  // TEMPORALMENTE ACÁ, QUIZÁS SE MUEV
         list_remove(estado_get_list(estadoExec), 0);
         pthread_mutex_unlock(estado_get_mutex(estadoExec));
 
-        pcb_set_est_actual(pcb, timestamp() - tiempoInicioExec);
+        pcb_set_ultima_ejecucion(pcb, timestamp() - tiempoInicioExec);
 
         switch (cpuResponse) {
             case HEADER_proceso_desalojado:  // SALIDA INTERRUPCION

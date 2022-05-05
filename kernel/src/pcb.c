@@ -43,6 +43,17 @@ void pcb_responder_a_consola(t_pcb* self, uint8_t rta) {
     stream_send_empty_buffer(self->socketConsola, rta);
 }
 
+double pcb_estimar_srt(t_pcb* self){
+    double alfa = kernel_config_get_alfa(kernelConfig);
+
+    if(self->ultima_ejecucion == -1){
+            return self->ultimaEstimacion; //estimación inicial
+    }
+
+    self->ultimaEstimacion = alfa*self->ultimaEjecucion + (1-alfa)*self->ultimaEstimacion;
+    return self->ultimaEstimacion;
+}
+
 uint32_t pcb_get_pid(t_pcb* self) {
     return self->pid;
 }
