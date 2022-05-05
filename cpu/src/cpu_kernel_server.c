@@ -28,10 +28,7 @@ static t_instruccion* cpu_fetch_instruction(t_pcb_cpu* pcb) {
 }
 
 static bool cpu_decode_instruction(t_instruccion* instruction) {
-    if (instruccion_get_tipo_instruccion(instruction) == INSTRUCCION_copy) {
-        return true;
-    }
-    return false;
+    return instruccion_get_tipo_instruccion(instruction) == INSTRUCCION_copy;
 }
 
 static uint32_t instruccion_fetch_operands(t_instruccion* nextInstruction, t_pcb_cpu* pcb) {
@@ -218,14 +215,11 @@ static void noreturn interrupt_peticiones_de_kernel(void) {
 }
 
 void atender_peticiones_de_kernel(void) {
-    pthread_t dispatchTh;
-    pthread_create(&dispatchTh, NULL, (void*)dispatch_peticiones_de_kernel, NULL);
-
     pthread_t interruptTh;
     pthread_create(&interruptTh, NULL, (void*)interrupt_peticiones_de_kernel, NULL);
+    pthread_detach(interruptTh);
 
     log_info(cpuLogger, "Hilos de atención creados. Listo para atender peticiones de Kernel");
 
-    pthread_join(dispatchTh, NULL);
-    pthread_join(interruptTh, NULL);
+    dispatch_peticiones_de_kernel(); // Hilo principal queda loopeando acá por for(;;)
 }
