@@ -141,9 +141,9 @@ static noreturn void liberar_pcbs_en_exit(void) {
     }
 }
 
-void responer_no_hay_lugar_en_memoria(t_pcb* pcb){
+void responder_no_hay_lugar_en_memoria(t_pcb* pcb){
     estado_encolar_pcb(estadoExit, pcb);
-    log_transition(prevStatus, "EXIT", pcb_get_pid(pcb));
+    log_transition("NEW", "EXIT", pcb_get_pid(pcb));
     log_error(kernelLogger, "Memoria insuficiente para alojar el proceso %d", pcb_get_pid(pcb));
     pcb_responder_a_consola(pcb, HEADER_memoria_insuficiente);
 }
@@ -153,6 +153,7 @@ static noreturn void planificador_largo_plazo(void) {
     pthread_create(&liberarPcbsEnExitTh, NULL, (void*)liberar_pcbs_en_exit, NULL);
     pthread_detach(liberarPcbsEnExitTh);
 
+    uint32_t nuevaTablaPagina;
     t_pcb* pcbQuePasaAReady = NULL;
     char* prevStatus = NULL;
     for (;;) {
@@ -168,12 +169,12 @@ static noreturn void planificador_largo_plazo(void) {
             pthread_mutex_lock(estado_get_mutex(estadoNew));
             pcbQuePasaAReady = list_remove(estado_get_list(estadoNew), 0);
             pthread_mutex_unlock(estado_get_mutex(estadoNew));
-            uint32_t nuevaTablaPagina = mem_adapter_obtener_tabla_pagina(pcbQuePasaAReady, kernelConfig, kernelLogger);
+            nuevaTablaPagina = mem_adapter_obtener_tabla_pagina(pcbQuePasaAReady, kernelConfig, kernelLogger);
             pcb_set_tabla_pagina_primer_nivel(pcbQuePasaAReady, nuevaTablaPagina);
             prevStatus = string_from_format("NEW");
         }
         if(nuevaTablaPagina == -1){
-            responer_no_hay_lugar_en_memoria();
+            responder_no_hay_lugar_en_memoria(pcbQuePasaAReady);
         }else{
             estado_encolar_pcb(estadoReady, pcbQuePasaAReady);
             sem_post(estado_get_sem(estadoReady));
@@ -237,27 +238,33 @@ t_pcb* (*scheduler_elegir_segun_sjf)(t_estado* estadoReady);
 */
 
 t_pcb* elegir_segun_algoritmo(void) {
-    void* t_planificar_srt(t_pcb* p1, t_pcb* p2){
-        return (pcb_estimar_srt(p1) <= pcb_estimar_srt(p2)) ? p1 : p2;
-    }
     t_pcb* seleccionado = NULL;
+    int alfa = kernel_config_get_alfa(kernelConfig);
+
+    void* t_planificar_srt(t_pcb* p1, t_pcb* p2){
+        return (pcb_estimar_srt(p1, alfa) <= pcb_estimar_srt(p2, alfa)) ? p1 : p2;
+    }
+    bool t_encontrar_seleccionado(t_pcb* p1, t_pcb* p2){
+        return (pcb_get_pid((t_pcb*)seleccionado) == pcb_get_pid(seleccionado));
+    }
 
     if(strcmp(kernel_config_get_algoritmo(kernelConfig), "SRT") == 0){
         if(list_size(estado_get_list(estadoReady)) == 1){
             seleccionado = list_remove(estado_get_list(estadoReady),0);
-            pcb_estimar_srt(seleccionado);
+            pcb_estimar_srt(seleccionado, alfa); // Si la lista tiene 1 solo elemento rompe el get_minimum asi que lo busco por lugar 0 y estimo el próximo srt
             return seleccionado;
         }
         seleccionado = list_get_minimum(estado_get_list(estadoReady),(void*)t_planificar_srt);
-        return list_remove(estado_get_list(estadoReady),seleccionado->head->index);
+        seleccionado = list_remove_by_condition(estado_get_list(estadoReady),(void*)t_encontrar_seleccionado); // Tengo que hacer el remove porque lo anterior es un get
+        return seleccionado;
     }
     return list_remove(estado_get_list(estadoReady), 0);  // FIFO
 }
 
-double timestamp(){
+double timestamp(void){
     struct timespec tiempo;
-    clock_gettime(CLOCK_MONOTONIC,tiempo);
-    double tiempo_en_ms = tiempo.tv_sec * 1000 + tiempo.tv_nsec/1000000
+    clock_gettime(CLOCK_MONOTONIC, &tiempo);
+    double tiempo_en_ms = tiempo.tv_sec * 1000 + tiempo.tv_nsec/1000000;
 	return tiempo_en_ms;
 }
 

@@ -42,5 +42,6 @@ void pcb_set_instruction_buffer(t_pcb* self, t_buffer*);
 t_pcb* pcb_create(uint32_t pid, uint32_t tamanio, double estimacionRafaga);
 void pcb_destroy(t_pcb*);
 void pcb_responder_a_consola(t_pcb* self, uint8_t rta);
+double pcb_estimar_srt(t_pcb*, int); 
 
 #endif
