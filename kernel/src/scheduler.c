@@ -265,11 +265,11 @@ t_pcb* elegir_segun_algoritmo(void) {
     return list_remove(estado_get_list(estadoReady), 0);  // FIFO
 }
 
-double timestamp(){ // TODO: del cuatri pasado, revisar segun video
-	time_t tiempo;
-	time(&tiempo);
-	struct tm *tiempoActual = localtime(&tiempo);
-	return (tiempoActual->tm_sec + tiempoActual->tm_min * 60 + tiempoActual->tm_hour * 3600);
+double timestamp(){
+    struct timespec tiempo;
+    clock_gettime(CLOCK_MONOTONIC,tiempo);
+    double tiempo_en_ms = tiempo.tv_sec * 1000 + tiempo.tv_nsec/1000000
+	return tiempo_en_ms;
 }
 
 static void noreturn atender_pcb(void) {  // TEMPORALMENTE ACÁ, QUIZÁS SE MUEVA A OTRO ARCHIVO
