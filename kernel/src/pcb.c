@@ -43,12 +43,12 @@ void pcb_responder_a_consola(t_pcb* self, uint8_t rta) {
     stream_send_empty_buffer(self->socketConsola, rta);
 }
 
-double pcb_estimar_srt(t_pcb* self, int alfa){
-    if(self->ultimaEjecucion == -1){
-            return self->ultimaEstimacion; //estimación inicial
+double pcb_estimar_srt(t_pcb* self, int alfa) {
+    if (self->ultimaEjecucion == -1) {
+        return self->ultimaEstimacion;  // estimación inicial
     }
 
-    self->ultimaEstimacion = alfa*self->ultimaEjecucion + (1-alfa)*self->ultimaEstimacion;
+    self->ultimaEstimacion = alfa * self->ultimaEjecucion + (1 - alfa) * self->ultimaEstimacion;
     return self->ultimaEstimacion;
 }
 
