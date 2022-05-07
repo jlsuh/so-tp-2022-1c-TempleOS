@@ -187,11 +187,9 @@ static void noreturn dispatch_peticiones_de_kernel(void) {
 
             bool stopExec = false;
             while (!stopExec) {
-                // Hacer ciclo instruccion
                 stopExec = cpu_ejecutar_ciclos_de_instruccion(newPcb);
 
                 if (!stopExec) {
-                    // TODO: Chequear si hay interrupcion
                     stopExec = cpu_hay_interrupcion(newPcb);
                 }
             }
@@ -209,7 +207,7 @@ static void noreturn interrupt_peticiones_de_kernel(void) {
             pthread_mutex_lock(&mutexInterrupcion);
             hayInterrupcion = true;
             pthread_mutex_unlock(&mutexInterrupcion);
-            log_info(cpuLogger, "INT: Se recibe de Kernel una petición de interrupción");
+            log_info(cpuLogger, "Se recibe de Kernel una petición de interrupción");
         }
     }
 }
@@ -221,5 +219,5 @@ void atender_peticiones_de_kernel(void) {
 
     log_info(cpuLogger, "Hilos de atención creados. Listo para atender peticiones de Kernel");
 
-    dispatch_peticiones_de_kernel(); // Hilo principal queda loopeando acá por for(;;)
+    dispatch_peticiones_de_kernel();
 }
