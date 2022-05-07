@@ -203,6 +203,7 @@ static void noreturn dispatch_peticiones_de_kernel(void) {
 static void noreturn interrupt_peticiones_de_kernel(void) {
     for (;;) {
         uint8_t nuevaInterrupcion = stream_recv_header(cpu_config_get_socket_interrupt(cpuConfig));
+        stream_recv_empty_buffer(cpu_config_get_socket_interrupt(cpuConfig));
         if (nuevaInterrupcion == INT_interrumpir_ejecucion) {
             pthread_mutex_lock(&mutexInterrupcion);
             hayInterrupcion = true;
