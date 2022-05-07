@@ -28,10 +28,7 @@ static t_instruccion* cpu_fetch_instruction(t_pcb_cpu* pcb) {
 }
 
 static bool cpu_decode_instruction(t_instruccion* instruction) {
-    if (instruccion_get_tipo_instruccion(instruction) == INSTRUCCION_copy) {
-        return true;
-    }
-    return false;
+    return instruccion_get_tipo_instruccion(instruction) == INSTRUCCION_copy;
 }
 
 static uint32_t instruccion_fetch_operands(t_instruccion* nextInstruction, t_pcb_cpu* pcb) {
@@ -190,11 +187,9 @@ static void noreturn dispatch_peticiones_de_kernel(void) {
 
             bool stopExec = false;
             while (!stopExec) {
-                // Hacer ciclo instruccion
                 stopExec = cpu_ejecutar_ciclos_de_instruccion(newPcb);
 
                 if (!stopExec) {
-                    // TODO: Chequear si hay interrupcion
                     stopExec = cpu_hay_interrupcion(newPcb);
                 }
             }
@@ -208,24 +203,22 @@ static void noreturn dispatch_peticiones_de_kernel(void) {
 static void noreturn interrupt_peticiones_de_kernel(void) {
     for (;;) {
         uint8_t nuevaInterrupcion = stream_recv_header(cpu_config_get_socket_interrupt(cpuConfig));
+        stream_recv_empty_buffer(cpu_config_get_socket_interrupt(cpuConfig));
         if (nuevaInterrupcion == INT_interrumpir_ejecucion) {
             pthread_mutex_lock(&mutexInterrupcion);
             hayInterrupcion = true;
             pthread_mutex_unlock(&mutexInterrupcion);
-            log_info(cpuLogger, "INT: Se recibe de Kernel una petición de interrupción");
+            log_info(cpuLogger, "Se recibe de Kernel una petición de interrupción");
         }
     }
 }
 
 void atender_peticiones_de_kernel(void) {
-    pthread_t dispatchTh;
-    pthread_create(&dispatchTh, NULL, (void*)dispatch_peticiones_de_kernel, NULL);
-
     pthread_t interruptTh;
     pthread_create(&interruptTh, NULL, (void*)interrupt_peticiones_de_kernel, NULL);
+    pthread_detach(interruptTh);
 
     log_info(cpuLogger, "Hilos de atención creados. Listo para atender peticiones de Kernel");
 
-    pthread_join(dispatchTh, NULL);
-    pthread_join(interruptTh, NULL);
+    dispatch_peticiones_de_kernel();
 }
