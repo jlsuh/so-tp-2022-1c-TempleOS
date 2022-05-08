@@ -18,6 +18,8 @@
 #include "memoria_config.h"
 #include "stream.h"
 
+#include "algoritmos.h"
+
 #define MEMORIA_CONFIG_PATH "cfg/memoria_config.cfg"
 #define MEMORIA_LOG_PATH "bin/memoria.log"
 #define MEMORIA_MODULE_NAME "Memoria"
@@ -493,3 +495,108 @@ void imprimir_memoria(void) {
     }
     printf("\n");
 }
+
+
+//---------------------ALGORITMOS-------------------------------------------
+
+int seleccionar_victima_clock(int paginaPuntero, uint32_t nroDeTabla1){
+
+	int indiceNivel1 = obtener_indice_nivel_uno(paginaPuntero);
+	int indiceNivel2 = obtener_indice_nivel_dos(paginaPuntero);
+
+	for(int i = indiceNivel1; i < entradasPorTabla; i++){
+
+		int nroTabla2 = tablasDeNivel1[nroDeTabla1].nroTablaNivel2[i];
+
+		for(int j = indiceNivel2; j < entradasPorTabla; j++){
+
+			bool bitPresencia = tablasDeNivel2[nroTabla2].entradaNivel2[j].bitPresencia;
+			bool bitUso = tablasDeNivel2[nroTabla2].entradaNivel2[j].bitUso;
+
+			if(bitPresencia && !bitUso){
+				log_trace(memoriaLogger, "Se elige la pagina victima");
+				int pagina_victima = obtener_pagina(i, j);
+				return pagina_victima;
+			}
+
+			if(bitPresencia && bitUso){
+				log_trace(memoriaLogger, "Cambiando bitUso de la pagina");
+				tablasDeNivel2[nroTabla2].entradaNivel2[j].bitUso = false;
+			}
+		}
+
+		if(i == entradasPorTabla){
+			i = 0;
+		}
+	}
+
+	return -1;
+
+}
+
+//aca esta el primer caso, cuando busca u=0 y m=0 pero la proxima busqueda tiene que ser u=0 m=1
+int seleccionar_victima_clock_modificado(int paginaPuntero, uint32_t nroDeTabla1){
+
+	int indiceNivel1 = obtener_indice_nivel_uno(paginaPuntero);
+	int indiceNivel2 = obtener_indice_nivel_dos(paginaPuntero);
+
+	for(int i = indiceNivel1; i < entradasPorTabla; i++){
+
+		int nroTabla2 = tablasDeNivel1[nroDeTabla1].nroTablaNivel2[i];
+
+		for(int j = indiceNivel2; j < entradasPorTabla; j++){
+
+			bool bitPresencia = tablasDeNivel2[nroTabla2].entradaNivel2[j].bitPresencia;
+			bool bitUso = tablasDeNivel2[nroTabla2].entradaNivel2[j].bitUso;
+			bool bitModificado = tablasDeNivel2[nroTabla2].entradaNivel2[j].bitModificado;
+
+			if(bitPresencia && !bitUso && !bitModificado){
+				log_trace(memoriaLogger, "Se elige la pagina victima");
+				int pagina_victima = obtener_pagina(i, j);
+				return pagina_victima;
+			}
+
+				log_trace(memoriaLogger, "Cambiando bitUso de la pagina");
+				tablasDeNivel2[nroTabla2].entradaNivel2[j].bitUso = false;
+
+		}
+
+		if(i == entradasPorTabla){
+			i = 0;
+		}
+	}
+
+	return -1;
+
+}
+
+int obtener_pagina(int indiceNivel1, int indiceNivel2){
+
+	int pagina;
+	pagina = indiceNivel1 * entradasPorTabla + indiceNivel2;
+	return pagina;
+
+}
+
+
+int obtener_indice_nivel_uno(int pagina){
+
+	int entradaNivel1;
+	int residuo = pagina % entradasPorTabla;
+	int entero = pagina / entradasPorTabla;
+	entradaNivel1 = entero - residuo;
+	return entradaNivel1;
+
+}
+
+int obtener_indice_nivel_dos(int pagina){
+
+	int entradaNivel2;
+
+	int entero = obtener_indice_nivel_uno(pagina);
+	entradaNivel2 = pagina - (entero * entradasPorTabla);
+	return entradaNivel2;
+
+}
+
+
