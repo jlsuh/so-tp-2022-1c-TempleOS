@@ -2,11 +2,15 @@
 
 #include <commons/config.h>
 #include <commons/log.h>
-#include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
 
 #include "module_config.h"
+
+/* Se mueven acá las declaraciones pues de lo contrario es una referencia
+   sin definir en la carpeta de tests (excluye al archivo con main) */
+t_log* cpuLogger;
+t_cpu_config* cpuConfig;
 
 struct t_cpu_config {
     char* IP;
@@ -75,6 +79,10 @@ int cpu_config_get_socket_interrupt(t_cpu_config* self) {
     return self->SOCKET_INTERRUPT;
 }
 
+int cpu_config_get_socket_memoria(t_cpu_config* self) {
+    return self->SOCKET_MEMORIA;
+}
+
 void cpu_config_set_socket_memoria(t_cpu_config* self, int socketMemoria) {
     self->SOCKET_MEMORIA = socketMemoria;
 }
@@ -85,4 +93,24 @@ void cpu_config_set_socket_dispatch(t_cpu_config* self, int socketDispatch) {
 
 void cpu_config_set_socket_interrupt(t_cpu_config* self, int socketInterrupt) {
     self->SOCKET_INTERRUPT = socketInterrupt;
+}
+
+void cpu_config_set_entradas_por_tabla(t_cpu_config* self, int cantEntradas) {
+    self->CANT_ENTRADAS_POR_TP = cantEntradas;
+}
+
+int cpu_config_get_entradas_por_tabla(t_cpu_config* self) {
+    return self->CANT_ENTRADAS_POR_TP;
+}
+
+void cpu_config_set_tamanio_pagina(t_cpu_config* self, int tamanioPagina) {
+    self->TAM_PAGINA = tamanioPagina;
+}
+
+int cpu_config_get_tamanio_pagina(t_cpu_config* self) {
+    return self->TAM_PAGINA;
+}
+
+uint32_t cpu_config_get_retardo_no_op(t_cpu_config* self) {
+    return self->RETARDO_NOOP;
 }

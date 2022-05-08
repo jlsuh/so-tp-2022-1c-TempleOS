@@ -19,8 +19,8 @@
 #define KERNEL_LOG_PATH "bin/kernel.log"
 #define KERNEL_MODULE_NAME "Kernel"
 
-t_log* kernelLogger;
-t_kernel_config* kernelConfig;
+extern t_log* kernelLogger;
+extern t_kernel_config* kernelConfig;
 
 static void __crear_hilo_handler_conexion_entrante(int* socket) {
     pthread_t threadSuscripcion;
@@ -32,12 +32,12 @@ static noreturn void __aceptar_conexiones_kernel(int socketEscucha) {
     struct sockaddr cliente = {0};
     socklen_t len = sizeof(cliente);
     log_info(kernelLogger, "Kernel: A la escucha de nuevas conexiones en puerto %d", socketEscucha);
-    int socketCliente;
+    int* socketCliente = NULL;
     for (;;) {
-        // socketCliente = malloc(sizeof(*socketCliente)); // TODO esto que es?
-        socketCliente = accept(socketEscucha, &cliente, &len);
-        if (socketCliente > 0) {
-            __crear_hilo_handler_conexion_entrante(&socketCliente);
+        socketCliente = malloc(sizeof(*socketCliente));
+        *socketCliente = accept(socketEscucha, &cliente, &len);
+        if (*socketCliente > 0) {
+            __crear_hilo_handler_conexion_entrante(socketCliente);
         } else {
             log_error(kernelLogger, "Kernel: Error al aceptar conexión: %s", strerror(errno));
         }

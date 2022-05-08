@@ -1,10 +1,16 @@
 #include "kernel_config.h"
 
 #include <commons/config.h>
+#include <commons/log.h>
 #include <stdlib.h>
 #include <string.h>
 
 #include "module_config.h"
+
+/* Se mueven acá las declaraciones pues de lo contrario es una referencia
+   sin definir en la carpeta de tests (excluye al archivo con main) */
+t_log* kernelLogger;
+t_kernel_config* kernelConfig;
 
 struct t_kernel_config {
     char* IP_MEMORIA;
@@ -133,8 +139,8 @@ int kernel_config_get_maximo_bloq(t_kernel_config* self) {
     return self->TIEMPO_MAXIMO_BLOQUEADO;
 }
 
-bool kernel_config_es_algoritmo_sjf(t_kernel_config* self) {
-    return strcmp(self->ALGORITMO_PLANIFICACION, "SJF") == 0;
+bool kernel_config_es_algoritmo_srt(t_kernel_config* self) {
+    return strcmp(self->ALGORITMO_PLANIFICACION, "SRT") == 0;
 }
 
 bool kernel_config_es_algoritmo_fifo(t_kernel_config* self) {

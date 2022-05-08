@@ -25,7 +25,7 @@ t_pcb* pcb_create(uint32_t pid, uint32_t tamanio, double estimacionInicial) {
     t_pcb* self = malloc(sizeof(*self));
     self->pid = pid;
     self->tamanio = tamanio;
-    self->instrucciones = list_create();
+    self->instrucciones = NULL;
     self->programCounter = 0;
     self->ultimaEstimacion = estimacionInicial;
     self->ultimaEjecucion = -1;
@@ -43,6 +43,15 @@ void pcb_responder_a_consola(t_pcb* self, uint8_t rta) {
     stream_send_empty_buffer(self->socketConsola, rta);
 }
 
+double pcb_estimar_srt(t_pcb* self, int alfa) {
+    if (self->ultimaEjecucion == -1) {
+        return self->ultimaEstimacion;  // estimación inicial
+    }
+
+    self->ultimaEstimacion = alfa * self->ultimaEjecucion + (1 - alfa) * self->ultimaEstimacion;
+    return self->ultimaEstimacion;
+}
+
 uint32_t pcb_get_pid(t_pcb* self) {
     return self->pid;
 }
@@ -53,6 +62,10 @@ uint32_t pcb_get_tamanio(t_pcb* self) {
 
 t_list* pcb_get_instrucciones(t_pcb* self) {
     return self->instrucciones;
+}
+
+void pcb_set_instrucciones(t_pcb* self, t_list* instrucciones) {
+    self->instrucciones = instrucciones;
 }
 
 uint64_t pcb_get_program_counter(t_pcb* self) {
@@ -95,11 +108,11 @@ void pcb_set_estado_actual(t_pcb* self, uint8_t estado) {
     self->estadoActual = estado;
 }
 
-uint32_t pcb_get_tiempo_de_bloq(t_pcb* self) {
+uint32_t pcb_get_tiempo_de_bloqueo(t_pcb* self) {
     return self->tiempoDeBloqueo;
 }
 
-void pcb_set_tiempo_de_bloq(t_pcb* self, uint32_t t) {
+void pcb_set_tiempo_de_bloqueo(t_pcb* self, uint32_t t) {
     self->tiempoDeBloqueo = t;
 }
 

@@ -6,7 +6,7 @@
 typedef struct t_kernel_config t_kernel_config;
 
 bool kernel_config_es_algoritmo_fifo(t_kernel_config *);
-bool kernel_config_es_algoritmo_sjf(t_kernel_config *);
+bool kernel_config_es_algoritmo_srt(t_kernel_config *);
 char *kernel_config_get_algoritmo(t_kernel_config *);
 char *kernel_config_get_ip_cpu(t_kernel_config *);
 char *kernel_config_get_ip_escucha(t_kernel_config *);
