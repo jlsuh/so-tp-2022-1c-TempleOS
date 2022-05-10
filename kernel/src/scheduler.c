@@ -162,7 +162,7 @@ static void noreturn planificador_largo_plazo(void) {
     pthread_create(&liberarPcbsEnExitTh, NULL, (void*)liberar_pcbs_en_exit, NULL);
     pthread_detach(liberarPcbsEnExitTh);
 
-    uint32_t nuevaTablaPagina;
+    int nuevaTablaPagina;
     t_pcb* pcbQuePasaAReady = NULL;
     char* prevStatus = NULL;
     for (;;) {
