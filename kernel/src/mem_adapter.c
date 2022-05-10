@@ -7,13 +7,11 @@
 #include "kernel_config.h"
 #include "stream.h"
 
-uint32_t mem_adapter_obtener_tabla_pagina(t_pcb* pcbAIniciar, t_kernel_config* kernelConfig, t_log* kernelLogger) {
-    /* Enviar PID + tamaño
-    uint32_t newPid = pcb_get_pid(pcbAIniciar);
+int mem_adapter_obtener_tabla_pagina(t_pcb* pcbAIniciar, t_kernel_config* kernelConfig, t_log* kernelLogger) {
+    /* Enviar tamaño
     uint32_t newTamanio = pcb_get_tamanio(pcbAIniciar);
 
     t_buffer* bufferNuevaTablaPagina = buffer_create();
-    buffer_pack(bufferNuevaTablaPagina, &newPid, sizeof(newPid));
     buffer_pack(bufferNuevaTablaPagina, &newTamanio, sizeof(newTamanio));
 
     // Enviamos la petición a kernel con la info necesaria
@@ -45,10 +43,10 @@ uint32_t mem_adapter_obtener_tabla_pagina(t_pcb* pcbAIniciar, t_kernel_config* k
 }
 
 void mem_adapter_finalizar_proceso(t_pcb* pcbAFinalizar, t_kernel_config* kernelConfig, t_log* kernelLogger) {
-    uint32_t pidATerminar = pcb_get_pid(pcbAFinalizar);
+    uint32_t tablaATerminar = pcb_get_tabla_pagina_primer_nivel(pcbAFinalizar);
 
     t_buffer* bufferPcbAFinalizar = buffer_create();
-    buffer_pack(bufferPcbAFinalizar, &pidATerminar, sizeof(pidATerminar));
+    buffer_pack(bufferPcbAFinalizar, &tablaATerminar, sizeof(tablaATerminar));
 
     stream_send_buffer(kernel_config_get_socket_memoria(kernelConfig), HEADER_proceso_terminado, bufferPcbAFinalizar);
     buffer_destroy(bufferPcbAFinalizar);
