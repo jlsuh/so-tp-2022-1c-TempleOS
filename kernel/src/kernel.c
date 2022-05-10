@@ -28,7 +28,7 @@ static void __crear_hilo_handler_conexion_entrante(int* socket) {
     pthread_detach(threadSuscripcion);
 }
 
-static noreturn void __aceptar_conexiones_kernel(int socketEscucha) {
+static void noreturn __aceptar_conexiones_kernel(int socketEscucha) {
     struct sockaddr cliente = {0};
     socklen_t len = sizeof(cliente);
     log_info(kernelLogger, "Kernel: A la escucha de nuevas conexiones en puerto %d", socketEscucha);
