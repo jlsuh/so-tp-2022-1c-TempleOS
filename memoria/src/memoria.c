@@ -516,6 +516,7 @@ int seleccionar_victima_clock(int paginaPuntero, uint32_t nroDeTabla1){
 			if(bitPresencia && !bitUso){
 				log_trace(memoriaLogger, "Se elige la pagina victima");
 				int pagina_victima = obtener_pagina(i, j);
+				mover_puntero(pagina_victima); //TODO
 				return pagina_victima;
 			}
 
@@ -534,12 +535,16 @@ int seleccionar_victima_clock(int paginaPuntero, uint32_t nroDeTabla1){
 
 }
 
-//aca esta el primer caso, cuando busca u=0 y m=0 pero la proxima busqueda tiene que ser u=0 m=1
+
 int seleccionar_victima_clock_modificado(int paginaPuntero, uint32_t nroDeTabla1){
+
+	int cantidad_paginas_proceso = obtener_paginas_proceso(); //TODO
+	int paginas_leidas = 0;
 
 	int indiceNivel1 = obtener_indice_nivel_uno(paginaPuntero);
 	int indiceNivel2 = obtener_indice_nivel_dos(paginaPuntero);
 
+	//PRIMERA BUSQUEDA
 	for(int i = indiceNivel1; i < entradasPorTabla; i++){
 
 		int nroTabla2 = tablasDeNivel1[nroDeTabla1].nroTablaNivel2[i];
@@ -553,16 +558,65 @@ int seleccionar_victima_clock_modificado(int paginaPuntero, uint32_t nroDeTabla1
 			if(bitPresencia && !bitUso && !bitModificado){
 				log_trace(memoriaLogger, "Se elige la pagina victima");
 				int pagina_victima = obtener_pagina(i, j);
+				mover_puntero(pagina_victima);
 				return pagina_victima;
 			}
 
-				log_trace(memoriaLogger, "Cambiando bitUso de la pagina");
-				tablasDeNivel2[nroTabla2].entradaNivel2[j].bitUso = false;
+			paginas_leidas++;
+			if(paginas_leidas == cantidad_paginas_proceso){
+				break;
+			}
+
 
 		}
 
 		if(i == entradasPorTabla){
 			i = 0;
+		}
+
+		if(paginas_leidas == cantidad_paginas_proceso){
+			break;
+		}
+	}
+
+	paginas_leidas = 0;
+
+	//SEGUNDA BUSQUEDA
+	for(int i = indiceNivel1; i < entradasPorTabla; i++){
+
+		int nroTabla2 = tablasDeNivel1[nroDeTabla1].nroTablaNivel2[i];
+
+		for(int j = indiceNivel2; j < entradasPorTabla; j++){
+
+			bool bitPresencia = tablasDeNivel2[nroTabla2].entradaNivel2[j].bitPresencia;
+			bool bitUso = tablasDeNivel2[nroTabla2].entradaNivel2[j].bitUso;
+			bool bitModificado = tablasDeNivel2[nroTabla2].entradaNivel2[j].bitModificado;
+
+			if(bitPresencia && !bitUso && bitModificado){
+				log_trace(memoriaLogger, "Se elige la pagina victima");
+				int pagina_victima = obtener_pagina(i, j);
+				mover_puntero(pagina_victima); //TODO
+				return pagina_victima;
+			}
+
+			log_trace(memoriaLogger, "Cambiando bitUso de la pagina");
+			tablasDeNivel2[nroTabla2].entradaNivel2[j].bitUso = false;
+
+
+			paginas_leidas++;
+			if(paginas_leidas == cantidad_paginas_proceso){
+				break;
+			}
+
+
+		}
+
+		if(i == entradasPorTabla){
+			i = 0;
+		}
+
+		if(paginas_leidas == cantidad_paginas_proceso){
+			break;
 		}
 	}
 
