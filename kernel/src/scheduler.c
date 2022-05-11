@@ -9,6 +9,7 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <stdnoreturn.h>
+#include <unistd.h>
 
 #include "buffer.h"
 #include "common_flags.h"
@@ -273,7 +274,26 @@ double timestamp(void) {
     return tiempo_en_ms;
 }
 
+static void atender_bloqueo(void* args){
+	t_pcb* pcb = (t_pcb*) args; // TODO: chequear esto si anda
+
+    estado_encolar_pcb(estadoBlocked, pcb);
+    pcb_set_estado_actual(pcb, BLOCKED);
+    log_transition("EXEC", "BLOCKED", pcb_get_pid(pcb));
+    sem_post(estado_get_sem(estadoBlocked));
+    usleep(pcb_get_tiempo_de_bloqueo(pcb)*1000);
+
+    if(pcb_get_estado_actual(pcb) == SUSPENDED_BLOCKED){
+        estado_encolar_pcb(estadoSuspendedReady, pcb);
+        pcb_set_estado_actual(pcb, SUSPENDED_READY);
+        log_transition("SUSPENDED_BLOCKED", "SUSPENDED_READY", pcb_get_pid(pcb));
+        sem_post(estado_get_sem(estadoSuspendedReady));
+    }
+}
+
 static void noreturn atender_pcb(void) {  // TEMPORALMENTE ACÁ, QUIZÁS SE MUEVA A OTRO ARCHIVO
+    pthread_t hiloAtenderBloqueo; // TODO: Esto no rompe nada acá? 
+
     for (;;) {
         sem_wait(estado_get_sem(estadoExec));
 
@@ -308,10 +328,8 @@ static void noreturn atender_pcb(void) {  // TEMPORALMENTE ACÁ, QUIZÁS SE MUEV
                 sem_post(estado_get_sem(estadoExit));
                 break;
             case HEADER_proceso_bloqueado:
-                estado_encolar_pcb(estadoBlocked, pcb);
-                pcb_set_estado_actual(pcb, BLOCKED);
-                log_transition("EXEC", "BLOCKED", pcb_get_pid(pcb));
-                // TODO: en otro hilo hacer el wait(tiempo_bloqueo) del pcb
+                pthread_create(&hiloAtenderBloqueo, NULL, (void*) atender_bloqueo, pcb); 
+                pthread_detach(hiloAtenderBloqueo);
                 break;
             default:
                 log_error(kernelLogger, "Error al recibir mensaje de CPU");
