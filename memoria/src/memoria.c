@@ -672,7 +672,7 @@ int obtener_indice_nivel_dos(int pagina){
 //-----------------------------SUSPENSION PROCESO-------------------------------
 
 
-void suspender_estructuras_administrativas(uint32_t nroDeTabla1){
+void suspender_proceso(uint32_t nroDeTabla1){
 
 
 	for(int i = 0; i < entradasPorTabla; i++){
