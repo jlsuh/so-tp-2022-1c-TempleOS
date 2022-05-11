@@ -41,6 +41,22 @@ typedef struct
     t_entrada_nivel_dos* entradaNivel2;
 } t_tabla_nivel_dos;
 
+typedef struct
+{
+    bool bitPresencia;
+    bool bitUso;
+    bool bitModificado;
+} t_array_paginas_suspendidos;
+
+typedef struct
+{
+    t_array_paginas_suspendidos* paginas_suspendidas;
+} t_tabla_suspendidos;
+
+t_tabla_suspendidos* tabla_suspendidos;
+
+
+
 t_log* memoriaLogger;
 t_memoria_config* memoriaConfig;
 void* memoriaPrincipal;
@@ -652,5 +668,45 @@ int obtener_indice_nivel_dos(int pagina){
 	return entradaNivel2;
 
 }
+
+//-----------------------------SUSPENSION PROCESO-------------------------------
+
+
+void suspender_estructuras_administrativas(uint32_t nroDeTabla1){
+
+
+	for(int i = 0; i < entradasPorTabla; i++){
+
+			int nroDeTabla2 = tablasDeNivel1[nroDeTabla1].nroTablaNivel2[i];
+
+			for(int j = 0; j < entradasPorTabla; j++){
+
+				bool bitPresencia = tablasDeNivel2[nroDeTabla2].entradaNivel2[j].bitPresencia;
+				bool bitUso = tablasDeNivel2[nroDeTabla2].entradaNivel2[j].bitUso;
+				bool bitModificado = tablasDeNivel2[nroDeTabla2].entradaNivel2[j].bitModificado;
+
+				tabla_suspendidos[nroDeTabla1].paginas_suspendidas[j].bitPresencia = bitPresencia;
+				tabla_suspendidos[nroDeTabla1].paginas_suspendidas[j].bitUso = bitUso;
+				tabla_suspendidos[nroDeTabla1].paginas_suspendidas[j].bitModificado = bitModificado;
+
+				if(bitPresencia && bitModificado){
+					log_trace(memoriaLogger, "La pagina esta en memoria");
+					//realizar swapeo TODO
+					//liberar marco
+
+				}
+
+				//limpiar pagina de la tabla del proceso
+				tablasDeNivel2[nroDeTabla2].entradaNivel2[j].bitPresencia = -1;
+				tablasDeNivel2[nroDeTabla2].entradaNivel2[j].bitUso = -1;
+				tablasDeNivel2[nroDeTabla2].entradaNivel2[j].bitModificado = -1;
+				tablasDeNivel2[nroDeTabla2].entradaNivel2[j].indiceMarco = -1;
+
+			}
+
+		}
+
+}
+
 
 
