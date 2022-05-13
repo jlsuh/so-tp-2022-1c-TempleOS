@@ -33,6 +33,7 @@ static sem_t gradoMultiprog;
 static sem_t hayPcbsParaAgregarAlSistema;
 static sem_t dispatchPermitido;
 static sem_t sePuedeInterrumpirCPU;
+static sem_t ejecutaMedianoPlazo;
 
 static t_estado* estadoNew;
 static t_estado* estadoReady;
@@ -74,6 +75,7 @@ void inicializar_estructuras(void) {
     sem_init(&gradoMultiprog, 0, valorInicialGradoMultiprog);
     sem_init(&dispatchPermitido, 0, 1);
     sem_init(&sePuedeInterrumpirCPU, 0, 1);
+    sem_init(&ejecutaMedianoPlazo, 0, 1);
     log_info(kernelLogger, "Se inicializa el grado multiprogramación en %d", valorInicialGradoMultiprog);
 
     estadoNew = estado_create(NEW);
@@ -204,25 +206,54 @@ static void noreturn planificador_largo_plazo(void) {
     }
 }
 
-/*
+static void noreturn atender_suspended_ready_a_ready(void) {
+    int nuevaTablaPagina;
+    t_pcb* pcbQuePasaAReady = NULL;
+
+    for (;;) {
+        sem_wait(estado_get_sem(estadoSuspendedReady));
+        sem_wait(&gradoMultiprog);
+        if (list_size(estado_get_list(estadoSuspendedReady)) > 0) {  // Prioridad a procesos en SUSREADY por sobre NEW
+            pthread_mutex_lock(estado_get_mutex(estadoSuspendedReady));
+            pcbQuePasaAReady = list_remove(estado_get_list(estadoSuspendedReady), 0);
+            pthread_mutex_unlock(estado_get_mutex(estadoSuspendedReady));
+
+           /* nuevaTablaPagina = mem_adapter_avisar_reactivacion(pcbQuePasaAReady, kernelConfig, kernelLogger);
+            pcb_set_tabla_pagina_primer_nivel(pcbQuePasaAReady, nuevaTablaPagina);*/
+            log_transition("SUSPENDED_READY", "READY", pcb_get_pid(pcbQuePasaAReady));
+
+            pthread_mutex_lock(&hayQueDesalojarMutex);
+            hayQueDesalojar = true;
+            pthread_mutex_unlock(&hayQueDesalojarMutex);
+        } 
+        //sem_post(&ejecutaMedianoPlazo); TODO: definir como dar prioridad
+        pcbQuePasaAReady = NULL;
+    }
+}
+
 static void noreturn planificador_mediano_plazo(void) {
-    bool supera_limite_block(void* tcb_en_lista) {
-                return (pcb_get_tiempo_de_bloq((t_pcb*)tcb_en_lista) > kernel_config_get_maximo_bloq(kernelConfig)); // TODO: los dos gets de esta linea
-        }
+    bool supera_limite_block(void* pcb_en_lista) {
+        return (pcb_get_tiempo_de_bloqueo((t_pcb*)pcb_en_lista) > kernel_config_get_maximo_bloq(kernelConfig));
+    }
+
+    pthread_t atenderTransicionSuspendedReady;
+    pthread_create(&atenderTransicionSuspendedReady, NULL, (void*)atender_suspended_ready_a_ready, NULL);
+    pthread_detach(atenderTransicionSuspendedReady);
 
     t_pcb* pcbASuspender = NULL;
 
-    for (;;) {
-        //SEMAFORO HAY UNO BLOQUEADO
+    for (;;) { // TRANSICION BLOCKED -> SUSPENDED BLOCKED
+        sem_wait(estado_get_sem(estadoBlocked));
         if(list_size(estado_get_list(estadoBlocked)) > 0 && list_any_satisfy(estado_get_list(estadoBlocked),(void*)supera_limite_block)){
             pcbASuspender = list_remove_by_condition(estado_get_list(estadoBlocked),(void*)supera_limite_block);
             estado_encolar_pcb(estadoSuspendedBlocked, pcbASuspender);
-            //SACAR TIEMPO BLOQUEO
-            //SEMAFORO BLOQUEADOS --
+            //mem_adapter_avisar_suspension(pcbASuspender, kernelConfig, kernelLogger);
+
+            pcb_set_estado_actual(pcbASuspender, SUSPENDED_BLOCKED);
+            log_transition("BLOCKED", "SUSPENDED_BLOCKED", pcb_get_pid(pcbASuspender));
         }
     }
 }
-*/
 
 // TODO: Abstraerlo en un puntero a la función del pcb con la idea de: t_pcb* pcb = scheduler_elegir_segun_algoritmo(estadoReady)
 /*
@@ -281,10 +312,16 @@ static void atender_bloqueo(void* args){
     pcb_set_estado_actual(pcb, BLOCKED);
     log_transition("EXEC", "BLOCKED", pcb_get_pid(pcb));
     sem_post(estado_get_sem(estadoBlocked));
-    usleep(pcb_get_tiempo_de_bloqueo(pcb)*1000);
+    usleep(pcb_get_tiempo_de_bloqueo(pcb)*1000); 
+    /* Supongo acá que si el t.espera es muy corto no puede causar que el sleep se haga entero antes que el mediano plazo lo pase
+    suspenda, pero debido a que si el tiempo es corto como para que pase eso entonces es mas corto que el límite de suspensión
+    por eso no meto ningún semáforo */
+    pcb_set_tiempo_de_bloqueo(pcb, 0);
 
     if(pcb_get_estado_actual(pcb) == SUSPENDED_BLOCKED){
+        pthread_mutex_lock(estado_get_mutex(estadoSuspendedReady));
         estado_encolar_pcb(estadoSuspendedReady, pcb);
+        pthread_mutex_unlock(estado_get_mutex(estadoSuspendedReady));
         pcb_set_estado_actual(pcb, SUSPENDED_READY);
         log_transition("SUSPENDED_BLOCKED", "SUSPENDED_READY", pcb_get_pid(pcb));
         sem_post(estado_get_sem(estadoSuspendedReady));
