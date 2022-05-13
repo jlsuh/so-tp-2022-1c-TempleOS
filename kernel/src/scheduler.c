@@ -33,7 +33,7 @@ static sem_t gradoMultiprog;
 static sem_t hayPcbsParaAgregarAlSistema;
 static sem_t dispatchPermitido;
 static sem_t sePuedeInterrumpirCPU;
-static sem_t ejecutaMedianoPlazo;
+static sem_t transicionadorSusReadyAReady;
 
 static t_estado* estadoNew;
 static t_estado* estadoReady;
@@ -47,6 +47,7 @@ static bool hayQueDesalojar;
 pthread_mutex_t hayQueDesalojarMutex;
 
 static void noreturn planificador_largo_plazo(void);
+static void noreturn planificador_mediano_plazo(void);
 static void noreturn planificador_corto_plazo(void);
 
 static uint32_t get_next_pid(void) {
@@ -75,7 +76,7 @@ void inicializar_estructuras(void) {
     sem_init(&gradoMultiprog, 0, valorInicialGradoMultiprog);
     sem_init(&dispatchPermitido, 0, 1);
     sem_init(&sePuedeInterrumpirCPU, 0, 1);
-    sem_init(&ejecutaMedianoPlazo, 0, 1);
+    sem_init(&transicionadorSusReadyAReady, 0, 1);
     log_info(kernelLogger, "Se inicializa el grado multiprogramación en %d", valorInicialGradoMultiprog);
 
     estadoNew = estado_create(NEW);
@@ -94,11 +95,9 @@ void inicializar_estructuras(void) {
     pthread_create(&cortoPlazoTh, NULL, (void*)planificador_corto_plazo, NULL);
     pthread_detach(cortoPlazoTh);
 
-    /*
     pthread_t medianoPlazoTh;
     pthread_create(&medianoPlazoTh, NULL, (void*)planificador_mediano_plazo, NULL);
     pthread_detach(medianoPlazoTh);
-    */
 }
 
 void* encolar_en_new_a_nuevo_pcb_entrante(void* socket) {
@@ -165,68 +164,55 @@ static void noreturn planificador_largo_plazo(void) {
     pthread_create(&liberarPcbsEnExitTh, NULL, (void*)liberar_pcbs_en_exit, NULL);
     pthread_detach(liberarPcbsEnExitTh);
 
-    int nuevaTablaPagina;
-    t_pcb* pcbQuePasaAReady = NULL;
-    char* prevStatus = NULL;
     for (;;) {
         sem_wait(&hayPcbsParaAgregarAlSistema);
         sem_wait(&gradoMultiprog);
-        if (list_size(estado_get_list(estadoSuspendedReady)) > 0) {  // Prioridad a procesos en SUSREADY por sobre NEW
-            // TODO: Transicionar de SUSREADY a READY no debería ser una responsabilidad del planificador a largo plazo, sino del mediano plazo
-            pthread_mutex_lock(estado_get_mutex(estadoSuspendedReady));
-            pcbQuePasaAReady = list_remove(estado_get_list(estadoSuspendedReady), 0);
-            pthread_mutex_unlock(estado_get_mutex(estadoSuspendedReady));
-            prevStatus = string_from_format("SUSREADY");
-
-            pthread_mutex_lock(&hayQueDesalojarMutex);
-            hayQueDesalojar = true;
-            pthread_mutex_unlock(&hayQueDesalojarMutex);
-        } else {
+        if (list_size(estado_get_list(estadoSuspendedReady)) > 0) {  // Prioridad a procesos en SUSREADY por sobre NEW (SUSREADY -> READY)
+            sem_post(&transicionadorSusReadyAReady);
+        } else {  // NEW -> READY
             pthread_mutex_lock(estado_get_mutex(estadoNew));
-            pcbQuePasaAReady = list_remove(estado_get_list(estadoNew), 0);
+            t_pcb* pcbQuePasaAReady = list_remove(estado_get_list(estadoNew), 0);
             pthread_mutex_unlock(estado_get_mutex(estadoNew));
-            nuevaTablaPagina = mem_adapter_obtener_tabla_pagina(pcbQuePasaAReady, kernelConfig, kernelLogger);
+            int nuevaTablaPagina = mem_adapter_obtener_tabla_pagina(pcbQuePasaAReady, kernelConfig, kernelLogger);
             pcb_set_tabla_pagina_primer_nivel(pcbQuePasaAReady, nuevaTablaPagina);
-            prevStatus = string_from_format("NEW");
 
             pthread_mutex_lock(&hayQueDesalojarMutex);
             hayQueDesalojar = true;
             pthread_mutex_unlock(&hayQueDesalojarMutex);
+
+            if (nuevaTablaPagina == -1) {
+                responder_no_hay_lugar_en_memoria(pcbQuePasaAReady);
+            } else {
+                estado_encolar_pcb(estadoReady, pcbQuePasaAReady);
+                sem_post(estado_get_sem(estadoReady));
+                log_transition("NEW", "READY", pcb_get_pid(pcbQuePasaAReady));
+            }
+            pcbQuePasaAReady = NULL;
         }
+    }
+}
+
+static void noreturn transicionador_suspended_ready_a_ready(void) {
+    for (;;) {
+        sem_wait(&transicionadorSusReadyAReady);
+        pthread_mutex_lock(estado_get_mutex(estadoSuspendedReady));
+        t_pcb* pcbQuePasaAReady = list_remove(estado_get_list(estadoSuspendedReady), 0);
+        pthread_mutex_unlock(estado_get_mutex(estadoSuspendedReady));
+
+        // TODO: Revisar si hay lugar?
+        int nuevaTablaPagina = mem_adapter_avisar_reactivacion(pcbQuePasaAReady, kernelConfig, kernelLogger);
+        pcb_set_tabla_pagina_primer_nivel(pcbQuePasaAReady, nuevaTablaPagina);
         if (nuevaTablaPagina == -1) {
             responder_no_hay_lugar_en_memoria(pcbQuePasaAReady);
         } else {
             estado_encolar_pcb(estadoReady, pcbQuePasaAReady);
             sem_post(estado_get_sem(estadoReady));
-            log_transition(prevStatus, "READY", pcb_get_pid(pcbQuePasaAReady));
-        }
-        free(prevStatus);
-        prevStatus = NULL;
-        pcbQuePasaAReady = NULL;
-    }
-}
-
-static void noreturn atender_suspended_ready_a_ready(void) {
-    int nuevaTablaPagina;
-    t_pcb* pcbQuePasaAReady = NULL;
-
-    for (;;) {
-        sem_wait(estado_get_sem(estadoSuspendedReady));
-        sem_wait(&gradoMultiprog);
-        if (list_size(estado_get_list(estadoSuspendedReady)) > 0) {  // Prioridad a procesos en SUSREADY por sobre NEW
-            pthread_mutex_lock(estado_get_mutex(estadoSuspendedReady));
-            pcbQuePasaAReady = list_remove(estado_get_list(estadoSuspendedReady), 0);
-            pthread_mutex_unlock(estado_get_mutex(estadoSuspendedReady));
-
-           /* nuevaTablaPagina = mem_adapter_avisar_reactivacion(pcbQuePasaAReady, kernelConfig, kernelLogger);
-            pcb_set_tabla_pagina_primer_nivel(pcbQuePasaAReady, nuevaTablaPagina);*/
             log_transition("SUSPENDED_READY", "READY", pcb_get_pid(pcbQuePasaAReady));
+        }
 
-            pthread_mutex_lock(&hayQueDesalojarMutex);
-            hayQueDesalojar = true;
-            pthread_mutex_unlock(&hayQueDesalojarMutex);
-        } 
-        //sem_post(&ejecutaMedianoPlazo); TODO: definir como dar prioridad
+        pthread_mutex_lock(&hayQueDesalojarMutex);
+        hayQueDesalojar = true;
+        pthread_mutex_unlock(&hayQueDesalojarMutex);
         pcbQuePasaAReady = NULL;
     }
 }
@@ -237,20 +223,20 @@ static void noreturn planificador_mediano_plazo(void) {
     }
 
     pthread_t atenderTransicionSuspendedReady;
-    pthread_create(&atenderTransicionSuspendedReady, NULL, (void*)atender_suspended_ready_a_ready, NULL);
+    pthread_create(&atenderTransicionSuspendedReady, NULL, (void*)transicionador_suspended_ready_a_ready, NULL);
     pthread_detach(atenderTransicionSuspendedReady);
 
     t_pcb* pcbASuspender = NULL;
 
-    for (;;) { // TRANSICION BLOCKED -> SUSPENDED BLOCKED
+    for (;;) {  // TRANSICION BLOCKED -> SUSPENDED BLOCKED
         sem_wait(estado_get_sem(estadoBlocked));
-        if(list_size(estado_get_list(estadoBlocked)) > 0 && list_any_satisfy(estado_get_list(estadoBlocked),(void*)supera_limite_block)){
-            pcbASuspender = list_remove_by_condition(estado_get_list(estadoBlocked),(void*)supera_limite_block);
+        if (list_any_satisfy(estado_get_list(estadoBlocked), (void*)supera_limite_block)) {
+            pcbASuspender = list_remove_by_condition(estado_get_list(estadoBlocked), (void*)supera_limite_block);
             estado_encolar_pcb(estadoSuspendedBlocked, pcbASuspender);
-            //mem_adapter_avisar_suspension(pcbASuspender, kernelConfig, kernelLogger);
-
+            mem_adapter_avisar_suspension(pcbASuspender, kernelConfig, kernelLogger);
             pcb_set_estado_actual(pcbASuspender, SUSPENDED_BLOCKED);
             log_transition("BLOCKED", "SUSPENDED_BLOCKED", pcb_get_pid(pcbASuspender));
+            sem_post(&gradoMultiprog);
         }
     }
 }
@@ -305,31 +291,31 @@ double timestamp(void) {
     return tiempo_en_ms;
 }
 
-static void atender_bloqueo(void* args){
-	t_pcb* pcb = (t_pcb*) args; // TODO: chequear esto si anda
+static void atender_bloqueo(void* args) {
+    t_pcb* pcb = (t_pcb*)args;  // TODO: chequear esto si anda
 
     estado_encolar_pcb(estadoBlocked, pcb);
     pcb_set_estado_actual(pcb, BLOCKED);
     log_transition("EXEC", "BLOCKED", pcb_get_pid(pcb));
     sem_post(estado_get_sem(estadoBlocked));
-    usleep(pcb_get_tiempo_de_bloqueo(pcb)*1000); 
-    /* Supongo acá que si el t.espera es muy corto no puede causar que el sleep se haga entero antes que el mediano plazo lo pase
-    suspenda, pero debido a que si el tiempo es corto como para que pase eso entonces es mas corto que el límite de suspensión
-    por eso no meto ningún semáforo */
+    usleep(pcb_get_tiempo_de_bloqueo(pcb) * 1000);
     pcb_set_tiempo_de_bloqueo(pcb, 0);
 
-    if(pcb_get_estado_actual(pcb) == SUSPENDED_BLOCKED){
-        pthread_mutex_lock(estado_get_mutex(estadoSuspendedReady));
+    if (pcb_get_estado_actual(pcb) == SUSPENDED_BLOCKED) {
         estado_encolar_pcb(estadoSuspendedReady, pcb);
-        pthread_mutex_unlock(estado_get_mutex(estadoSuspendedReady));
         pcb_set_estado_actual(pcb, SUSPENDED_READY);
         log_transition("SUSPENDED_BLOCKED", "SUSPENDED_READY", pcb_get_pid(pcb));
-        sem_post(estado_get_sem(estadoSuspendedReady));
+        sem_post(&hayPcbsParaAgregarAlSistema);
+    } else if (pcb_get_estado_actual(pcb) == BLOCKED) {  // No se bloqueó (BLOCKED)
+        estado_encolar_pcb(estadoReady, pcb);
+        pcb_set_estado_actual(pcb, READY);
+        log_transition("BLOCKED", "READY", pcb_get_pid(pcb));
+        sem_post(estado_get_sem(estadoReady));
     }
 }
 
 static void noreturn atender_pcb(void) {  // TEMPORALMENTE ACÁ, QUIZÁS SE MUEVA A OTRO ARCHIVO
-    pthread_t hiloAtenderBloqueo; // TODO: Esto no rompe nada acá? 
+    pthread_t hiloAtenderBloqueo;         // TODO: Esto no rompe nada acá?
 
     for (;;) {
         sem_wait(estado_get_sem(estadoExec));
@@ -359,13 +345,12 @@ static void noreturn atender_pcb(void) {  // TEMPORALMENTE ACÁ, QUIZÁS SE MUEV
                 estado_encolar_pcb(estadoExit, pcb);
                 pcb_set_estado_actual(pcb, EXIT);
                 log_transition("EXEC", "EXIT", pcb_get_pid(pcb));
-                sem_post(&gradoMultiprog);
                 // mem_adapter_finalizar_proceso(pcb, kernelConfig, kernelLogger);
                 pcb_responder_a_consola(pcb, HEADER_proceso_terminado);
                 sem_post(estado_get_sem(estadoExit));
                 break;
             case HEADER_proceso_bloqueado:
-                pthread_create(&hiloAtenderBloqueo, NULL, (void*) atender_bloqueo, pcb); 
+                pthread_create(&hiloAtenderBloqueo, NULL, (void*)atender_bloqueo, pcb);
                 pthread_detach(hiloAtenderBloqueo);
                 break;
             default:
@@ -405,6 +390,7 @@ static void noreturn planificador_corto_plazo(void) {
         sem_wait(&dispatchPermitido);
         log_info(kernelLogger, "Se permite dispatch");
 
+        // TODO: Puede pasar que el hilo que debe atender a un nuevo ingreso en ready, se quede tildado acá y no mande la correspondiente interrupción a CPU
         pthread_mutex_lock(estado_get_mutex(estadoReady));
         t_pcb* pcbToDispatch = elegir_segun_algoritmo();
         pthread_mutex_unlock(estado_get_mutex(estadoReady));
