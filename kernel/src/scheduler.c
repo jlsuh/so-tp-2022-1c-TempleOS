@@ -44,8 +44,8 @@ static t_estado* estadoSuspendedReady;
 static bool hayQueDesalojar;
 pthread_mutex_t hayQueDesalojarMutex;
 
-static noreturn void planificador_largo_plazo(void);
-static noreturn void planificador_corto_plazo(void);
+static void noreturn planificador_largo_plazo(void);
+static void noreturn planificador_corto_plazo(void);
 
 static uint32_t get_next_pid(void) {
     pthread_mutex_lock(&nextPidMutex);
@@ -140,7 +140,7 @@ void* encolar_en_new_a_nuevo_pcb_entrante(void* socket) {
     return NULL;
 }
 
-static noreturn void liberar_pcbs_en_exit(void) {
+static void noreturn liberar_pcbs_en_exit(void) {
     for (;;) {
         sem_wait(estado_get_sem(estadoExit));
         t_pcb* pcbALiberar = estado_desencolar_primer_pcb(estadoExit);
@@ -157,12 +157,12 @@ void responder_no_hay_lugar_en_memoria(t_pcb* pcb) {
     pcb_responder_a_consola(pcb, HEADER_memoria_insuficiente);
 }
 
-static noreturn void planificador_largo_plazo(void) {
+static void noreturn planificador_largo_plazo(void) {
     pthread_t liberarPcbsEnExitTh;
     pthread_create(&liberarPcbsEnExitTh, NULL, (void*)liberar_pcbs_en_exit, NULL);
     pthread_detach(liberarPcbsEnExitTh);
 
-    uint32_t nuevaTablaPagina;
+    int nuevaTablaPagina;
     t_pcb* pcbQuePasaAReady = NULL;
     char* prevStatus = NULL;
     for (;;) {
@@ -204,7 +204,7 @@ static noreturn void planificador_largo_plazo(void) {
 }
 
 /*
-static noreturn void planificador_mediano_plazo(void) {
+static void noreturn planificador_mediano_plazo(void) {
     bool supera_limite_block(void* tcb_en_lista) {
                 return (pcb_get_tiempo_de_bloq((t_pcb*)tcb_en_lista) > kernel_config_get_maximo_bloq(kernelConfig)); // TODO: los dos gets de esta linea
         }
@@ -284,11 +284,11 @@ static void noreturn atender_pcb(void) {  // TEMPORALMENTE ACÁ, QUIZÁS SE MUEV
         cpu_adapter_enviar_pcb_a_cpu(pcb, kernelConfig, kernelLogger);
         uint8_t cpuResponse = stream_recv_header(kernel_config_get_socket_dispatch_cpu(kernelConfig));
 
+        pthread_mutex_lock(estado_get_mutex(estadoExec));
         pcb = cpu_adapter_recibir_pcb_actualizado_de_cpu(pcb, cpuResponse, kernelConfig, kernelLogger);
         pcb_set_ultima_ejecucion(pcb, timestamp() - tiempoInicioExec);
-
-        pthread_mutex_lock(estado_get_mutex(estadoExec));
         list_remove(estado_get_list(estadoExec), 0);
+        // Quizás meter un log acá de que cierto pcb volvió de CPU
         pthread_mutex_unlock(estado_get_mutex(estadoExec));
 
         switch (cpuResponse) {
@@ -322,20 +322,6 @@ static void noreturn atender_pcb(void) {  // TEMPORALMENTE ACÁ, QUIZÁS SE MUEV
     }
 }
 
-/* Respecto al booleano hayQueDesalojar:
-No podrá distinguir, por cada proceso, si el proceso pertenece al conjunto de proceso nuevos allegados a la cola ready (en forma granular).
-
-Consultar esto si es algo como:
-- Si un proceso llega a la cola de ready, osea, pasa a conformar parte del conjunto de nuevos allegados a la cola ready,
-se debe considerar a los demás procesos que lleguen aprovechar de esa interrupción? (la interrupción no es granular)
-O en su lugar, debería considerarse, CADA VEZ QUE LLEGA UN NUEVO PROCESO A READY, como una nueva interrupción? (la interrupción es granular, por cada proceso)
-En otras palabras, ¿debería la CPU llevar a cabo N desalojos, siendo N la cantidad de procesos que llegaron a ready?
-¿O es suficiente con llevar a cabo UN ÚNICO DESALOJO, considerando aquellos procesos que, por alguna razón del destino, llegaron a conformar parte de
-los nuevos procesos allegados a la cola ready?
-
-Por ahora se toma la decisión de:
-- Hacerlo como un booleano y consideramos por ahora que es suficiente con llevar a cabo un único desalojo.
-*/
 static void noreturn planificador_corto_plazo(void) {
     pthread_t atenderPCBThread;
     pthread_create(&atenderPCBThread, NULL, (void*)atender_pcb, NULL);
@@ -343,20 +329,26 @@ static void noreturn planificador_corto_plazo(void) {
 
     for (;;) {
         sem_wait(estado_get_sem(estadoReady));
+        log_info(kernelLogger, "Se toma una intancia de READY");
 
         if (kernel_config_es_algoritmo_srt(kernelConfig)) {
-            pthread_mutex_lock(estado_get_mutex(estadoExec));
-            log_info(kernelLogger, "Size de exec: %d", list_size(estado_get_list(estadoExec)));
+            log_info(kernelLogger, ">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> ES SRT <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<");
             pthread_mutex_lock(&hayQueDesalojarMutex);
-            if (hayQueDesalojar && list_size(estado_get_list(estadoExec)) == 1) {
+            if (hayQueDesalojar) {
+                log_info(kernelLogger, "Se ingresa a hayQueDesalojar");
                 hayQueDesalojar = false;
-                cpu_adapter_interrumpir_cpu(kernelConfig, kernelLogger);
+                pthread_mutex_lock(estado_get_mutex(estadoExec));
+                if (list_size(estado_get_list(estadoExec)) == 1) {
+                    log_info(kernelLogger, "Se ingresa a list_size(estado_get_list(estadoExec)) == 1");
+                    cpu_adapter_interrumpir_cpu(kernelConfig, kernelLogger);
+                }
+                pthread_mutex_unlock(estado_get_mutex(estadoExec));
             }
             pthread_mutex_unlock(&hayQueDesalojarMutex);
-            pthread_mutex_unlock(estado_get_mutex(estadoExec));
         }
 
         sem_wait(&dispatchPermitido);
+        log_info(kernelLogger, "Se permite dispatch");
 
         pthread_mutex_lock(estado_get_mutex(estadoReady));
         t_pcb* pcbToDispatch = elegir_segun_algoritmo();
