@@ -23,7 +23,6 @@
 
 extern t_log* kernelLogger;
 extern t_kernel_config* kernelConfig;
-extern t_log* kernelLogger;
 
 static uint32_t nextPid;
 static uint32_t tiempoInicioExec;
@@ -32,7 +31,6 @@ static pthread_mutex_t nextPidMutex;
 static sem_t gradoMultiprog;
 static sem_t hayPcbsParaAgregarAlSistema;
 static sem_t dispatchPermitido;
-static sem_t sePuedeInterrumpirCPU;
 static sem_t transicionadorSusReadyAReady;
 
 static t_estado* estadoNew;
@@ -44,7 +42,7 @@ static t_estado* estadoSuspendedBlocked;
 static t_estado* estadoSuspendedReady;
 
 static bool hayQueDesalojar;
-pthread_mutex_t hayQueDesalojarMutex;
+static pthread_mutex_t hayQueDesalojarMutex;
 
 static void noreturn planificador_largo_plazo(void);
 static void noreturn planificador_mediano_plazo(void);
@@ -75,8 +73,7 @@ void inicializar_estructuras(void) {
     sem_init(&hayPcbsParaAgregarAlSistema, 0, 0);
     sem_init(&gradoMultiprog, 0, valorInicialGradoMultiprog);
     sem_init(&dispatchPermitido, 0, 1);
-    sem_init(&sePuedeInterrumpirCPU, 0, 1);
-    sem_init(&transicionadorSusReadyAReady, 0, 1);
+    sem_init(&transicionadorSusReadyAReady, 0, 0);
     log_info(kernelLogger, "Se inicializa el grado multiprogramación en %d", valorInicialGradoMultiprog);
 
     estadoNew = estado_create(NEW);
@@ -307,12 +304,22 @@ static void atender_bloqueo(void* args) {
 
     if (pcb_get_estado_actual(pcb) == SUSPENDED_BLOCKED) {
         // TODO: Desencolar pcb de estadoSuspendedBlocked
+        t_pcb* pcbTargetSuspendedBlocked = estado_remover_pcb_de_cola(estadoSuspendedBlocked, pcb);
+        if (pcb_get_pid(pcb) != pcb_get_pid(pcbTargetSuspendedBlocked)) {
+            log_error(kernelLogger, "El PCB y PCBTargetSuspendedBlocked no son los mismos");
+            exit(-1);
+        }
         pcb_set_estado_actual(pcb, SUSPENDED_READY);
         estado_encolar_pcb(estadoSuspendedReady, pcb);
         log_transition("SUSPENDED_BLOCKED", "SUSPENDED_READY", pcb_get_pid(pcb));
         sem_post(&hayPcbsParaAgregarAlSistema);
     } else if (pcb_get_estado_actual(pcb) == BLOCKED) {  // No se bloqueó (BLOCKED)
         // TODO: Desencolar pcb de estadoBlocked
+        t_pcb* pcbTargetBlocked = estado_remover_pcb_de_cola(estadoBlocked, pcb);
+        if (pcb_get_pid(pcb) != pcb_get_pid(pcbTargetBlocked)) {
+            log_error(kernelLogger, "El PCB y PCBTargetBlocked no son los mismos");
+            exit(-1);
+        }
         pcb_set_estado_actual(pcb, READY);
         estado_encolar_pcb(estadoReady, pcb);
         log_transition("BLOCKED", "READY", pcb_get_pid(pcb));
