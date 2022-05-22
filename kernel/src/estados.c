@@ -14,30 +14,6 @@ struct t_estado {
     pthread_mutex_t* mutexEstado;
 };
 
-void cambiar_estado(t_estado* estadoDest, t_pcb* targetPcb) {
-    /* switch (pcb_get_estado_actual(targetPcb)) {
-         case NEW:
-             estado_remover_pcb_de_cola(estadoNew, targetPcb);
-         case READY:
-             estado_remover_pcb_de_cola(estadoReady, targetPcb);
-         case EXEC:
-             estado_remover_pcb_de_cola(estadoExec, targetPcb);
-         case EXIT:
-             estado_remover_pcb_de_cola(estadoExit, targetPcb);
-         case BLOCKED:
-             estado_remover_pcb_de_cola(estadoBlocked, targetPcb);
-         case SUSPENDED_BLOCKED:
-             estado_remover_pcb_de_cola(estadoSuspendedBlocked, targetPcb);
-         case SUSPENDED_READY:
-             estado_remover_pcb_de_cola(estadoSuspendedReady, targetPcb);
-         default:
-             break;
-     }*/
-    // TODO: terminar de ver esto, los structs estados estan en el scheduler.c
-    estado_encolar_pcb(estadoDest, targetPcb);
-    return;
-}
-
 static bool es_este_pcb_por_id(void* pcbDeLaLista, void* targetPcb) {
     return (pcb_get_pid((t_pcb*)pcbDeLaLista)) == pcb_get_pid(targetPcb);
 }
