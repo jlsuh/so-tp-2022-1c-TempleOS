@@ -31,7 +31,7 @@ static void __crear_hilo_handler_conexion_entrante(int* socket) {
 static void noreturn __aceptar_conexiones_kernel(int socketEscucha) {
     struct sockaddr cliente = {0};
     socklen_t len = sizeof(cliente);
-    log_info(kernelLogger, "Kernel: A la escucha de nuevas conexiones en puerto %d", socketEscucha);
+    log_info(kernelLogger, "A la escucha de nuevas conexiones en puerto %d", socketEscucha);
     int* socketCliente = NULL;
     for (;;) {
         socketCliente = malloc(sizeof(*socketCliente));
@@ -39,7 +39,7 @@ static void noreturn __aceptar_conexiones_kernel(int socketEscucha) {
         if (*socketCliente > 0) {
             __crear_hilo_handler_conexion_entrante(socketCliente);
         } else {
-            log_error(kernelLogger, "Kernel: Error al aceptar conexión: %s", strerror(errno));
+            log_error(kernelLogger, "Error al aceptar conexión: %s", strerror(errno));
         }
     }
 }
