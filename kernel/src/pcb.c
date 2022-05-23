@@ -36,6 +36,7 @@ t_pcb* pcb_create(uint32_t pid, uint32_t tamanio, double estimacionInicial) {
 
 void pcb_destroy(t_pcb* self) {
     list_destroy_and_destroy_elements(self->instrucciones, instruccion_destroy);
+    buffer_destroy(self->instructionsBuffer);
     free(self);
 }
 
