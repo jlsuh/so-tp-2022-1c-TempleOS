@@ -13,12 +13,11 @@
 #include <sys/stat.h>
 #include <unistd.h>
 
+#include "algoritmos.h"
 #include "common_flags.h"
 #include "connections.h"
 #include "memoria_config.h"
 #include "stream.h"
-
-#include "algoritmos.h"
 
 #define MEMORIA_CONFIG_PATH "cfg/memoria_config.cfg"
 #define MEMORIA_LOG_PATH "bin/memoria.log"
@@ -51,11 +50,10 @@ typedef struct
 typedef struct
 {
     t_array_paginas_suspendidos* paginas_suspendidas;
+    //TODOD guardar tamaño con las paginas supendidas, ergo nuevo struct
 } t_tabla_suspendidos;
 
 t_tabla_suspendidos* tabla_suspendidos;
-
-
 
 t_log* memoriaLogger;
 t_memoria_config* memoriaConfig;
@@ -116,6 +114,7 @@ int main(int argc, char* argv[]) {
     inicializar_tablas_de_nivel_1();
     inicializar_tablas_de_nivel_2();
     inicializar_marcos();
+    // TODO inicializar tabla suspendidos
 
     recibir_conexiones(socketEscucha);
 
@@ -273,10 +272,10 @@ void* recibir_conexion(int socketEscucha, pthread_t* threadSuscripcion) {
     return funcion_suscripcion;
 }
 
-uint32_t obtener_nro_de_tabla_1(uint32_t nroDeTabla2){
-    for(int i = 0; i < cantidadProcesosMax; i++){
-        for(int j = 0; j < entradasPorTabla; j++){
-            if(tablasDeNivel1[i].nroTablaNivel2[j] == nroDeTabla2){
+uint32_t obtener_nro_de_tabla_1(uint32_t nroDeTabla2) {
+    for (int i = 0; i < cantidadProcesosMax; i++) {
+        for (int j = 0; j < entradasPorTabla; j++) {
+            if (tablasDeNivel1[i].nroTablaNivel2[j] == nroDeTabla2) {
                 return i;
             }
         }
@@ -512,201 +511,172 @@ void imprimir_memoria(void) {
     printf("\n");
 }
 
-
 //---------------------ALGORITMOS-------------------------------------------
 
-int seleccionar_victima_clock(int paginaPuntero, uint32_t nroDeTabla1){
+int seleccionar_victima_clock(int paginaPuntero, uint32_t nroDeTabla1) {
+    int indiceNivel1 = obtener_indice_nivel_uno(paginaPuntero);
+    int indiceNivel2 = obtener_indice_nivel_dos(paginaPuntero);
 
-	int indiceNivel1 = obtener_indice_nivel_uno(paginaPuntero);
-	int indiceNivel2 = obtener_indice_nivel_dos(paginaPuntero);
+    for (int i = indiceNivel1; i < entradasPorTabla; i++) {
+        int nroTabla2 = tablasDeNivel1[nroDeTabla1].nroTablaNivel2[i];
 
-	for(int i = indiceNivel1; i < entradasPorTabla; i++){
+        for (int j = indiceNivel2; j < entradasPorTabla; j++) {
+            bool bitPresencia = tablasDeNivel2[nroTabla2].entradaNivel2[j].bitPresencia;
+            bool bitUso = tablasDeNivel2[nroTabla2].entradaNivel2[j].bitUso;
 
-		int nroTabla2 = tablasDeNivel1[nroDeTabla1].nroTablaNivel2[i];
+            if (bitPresencia && !bitUso) {
+                log_trace(memoriaLogger, "Se elige la pagina victima");
+                int pagina_victima = obtener_pagina(i, j);
+                mover_puntero(pagina_victima);  // TODO
+                return pagina_victima;
+            }
 
-		for(int j = indiceNivel2; j < entradasPorTabla; j++){
+            if (bitPresencia && bitUso) {
+                log_trace(memoriaLogger, "Cambiando bitUso de la pagina");
+                tablasDeNivel2[nroTabla2].entradaNivel2[j].bitUso = false;
+            }
+        }
 
-			bool bitPresencia = tablasDeNivel2[nroTabla2].entradaNivel2[j].bitPresencia;
-			bool bitUso = tablasDeNivel2[nroTabla2].entradaNivel2[j].bitUso;
+        if (i == entradasPorTabla) {
+            i = 0;
+        }
+    }
 
-			if(bitPresencia && !bitUso){
-				log_trace(memoriaLogger, "Se elige la pagina victima");
-				int pagina_victima = obtener_pagina(i, j);
-				mover_puntero(pagina_victima); //TODO
-				return pagina_victima;
-			}
-
-			if(bitPresencia && bitUso){
-				log_trace(memoriaLogger, "Cambiando bitUso de la pagina");
-				tablasDeNivel2[nroTabla2].entradaNivel2[j].bitUso = false;
-			}
-		}
-
-		if(i == entradasPorTabla){
-			i = 0;
-		}
-	}
-
-	return -1;
-
+    return -1;
 }
 
+int seleccionar_victima_clock_modificado(int paginaPuntero, uint32_t nroDeTabla1) {
+    int cantidad_paginas_proceso = obtener_paginas_proceso();  // TODO
+    int paginas_leidas = 0;
 
-int seleccionar_victima_clock_modificado(int paginaPuntero, uint32_t nroDeTabla1){
+    int indiceNivel1 = obtener_indice_nivel_uno(paginaPuntero);
+    int indiceNivel2 = obtener_indice_nivel_dos(paginaPuntero);
 
-	int cantidad_paginas_proceso = obtener_paginas_proceso(); //TODO
-	int paginas_leidas = 0;
+    // PRIMERA BUSQUEDA
+    for (int i = indiceNivel1; i < entradasPorTabla; i++) {
+        int nroTabla2 = tablasDeNivel1[nroDeTabla1].nroTablaNivel2[i];
 
-	int indiceNivel1 = obtener_indice_nivel_uno(paginaPuntero);
-	int indiceNivel2 = obtener_indice_nivel_dos(paginaPuntero);
+        for (int j = indiceNivel2; j < entradasPorTabla; j++) {
+            bool bitPresencia = tablasDeNivel2[nroTabla2].entradaNivel2[j].bitPresencia;
+            bool bitUso = tablasDeNivel2[nroTabla2].entradaNivel2[j].bitUso;
+            bool bitModificado = tablasDeNivel2[nroTabla2].entradaNivel2[j].bitModificado;
 
-	//PRIMERA BUSQUEDA
-	for(int i = indiceNivel1; i < entradasPorTabla; i++){
+            if (bitPresencia && !bitUso && !bitModificado) {
+                log_trace(memoriaLogger, "Se elige la pagina victima");
+                int pagina_victima = obtener_pagina(i, j);
+                mover_puntero(pagina_victima);
+                return pagina_victima;
+            }
 
-		int nroTabla2 = tablasDeNivel1[nroDeTabla1].nroTablaNivel2[i];
+            paginas_leidas++;
+            if (paginas_leidas == cantidad_paginas_proceso) {
+                break;
+            }
+        }
 
-		for(int j = indiceNivel2; j < entradasPorTabla; j++){
+        if (i == entradasPorTabla) {
+            i = 0;
+        }
 
-			bool bitPresencia = tablasDeNivel2[nroTabla2].entradaNivel2[j].bitPresencia;
-			bool bitUso = tablasDeNivel2[nroTabla2].entradaNivel2[j].bitUso;
-			bool bitModificado = tablasDeNivel2[nroTabla2].entradaNivel2[j].bitModificado;
+        if (paginas_leidas == cantidad_paginas_proceso) {
+            break;
+        }
+    }
 
-			if(bitPresencia && !bitUso && !bitModificado){
-				log_trace(memoriaLogger, "Se elige la pagina victima");
-				int pagina_victima = obtener_pagina(i, j);
-				mover_puntero(pagina_victima);
-				return pagina_victima;
-			}
+    paginas_leidas = 0;
 
-			paginas_leidas++;
-			if(paginas_leidas == cantidad_paginas_proceso){
-				break;
-			}
+    // SEGUNDA BUSQUEDA
+    for (int i = indiceNivel1; i < entradasPorTabla; i++) {
+        int nroTabla2 = tablasDeNivel1[nroDeTabla1].nroTablaNivel2[i];
 
+        for (int j = indiceNivel2; j < entradasPorTabla; j++) {
+            bool bitPresencia = tablasDeNivel2[nroTabla2].entradaNivel2[j].bitPresencia;
+            bool bitUso = tablasDeNivel2[nroTabla2].entradaNivel2[j].bitUso;
+            bool bitModificado = tablasDeNivel2[nroTabla2].entradaNivel2[j].bitModificado;
 
-		}
+            if (bitPresencia && !bitUso && bitModificado) {
+                log_trace(memoriaLogger, "Se elige la pagina victima");
+                int pagina_victima = obtener_pagina(i, j);
+                mover_puntero(pagina_victima);  // TODO
+                return pagina_victima;
+            }
 
-		if(i == entradasPorTabla){
-			i = 0;
-		}
+            log_trace(memoriaLogger, "Cambiando bitUso de la pagina");
+            tablasDeNivel2[nroTabla2].entradaNivel2[j].bitUso = false;
 
-		if(paginas_leidas == cantidad_paginas_proceso){
-			break;
-		}
-	}
+            paginas_leidas++;
+            if (paginas_leidas == cantidad_paginas_proceso) {
+                break;
+            }
+        }
 
-	paginas_leidas = 0;
+        if (i == entradasPorTabla) {
+            i = 0;
+        }
 
-	//SEGUNDA BUSQUEDA
-	for(int i = indiceNivel1; i < entradasPorTabla; i++){
+        if (paginas_leidas == cantidad_paginas_proceso) {
+            break;
+        }
+    }
 
-		int nroTabla2 = tablasDeNivel1[nroDeTabla1].nroTablaNivel2[i];
-
-		for(int j = indiceNivel2; j < entradasPorTabla; j++){
-
-			bool bitPresencia = tablasDeNivel2[nroTabla2].entradaNivel2[j].bitPresencia;
-			bool bitUso = tablasDeNivel2[nroTabla2].entradaNivel2[j].bitUso;
-			bool bitModificado = tablasDeNivel2[nroTabla2].entradaNivel2[j].bitModificado;
-
-			if(bitPresencia && !bitUso && bitModificado){
-				log_trace(memoriaLogger, "Se elige la pagina victima");
-				int pagina_victima = obtener_pagina(i, j);
-				mover_puntero(pagina_victima); //TODO
-				return pagina_victima;
-			}
-
-			log_trace(memoriaLogger, "Cambiando bitUso de la pagina");
-			tablasDeNivel2[nroTabla2].entradaNivel2[j].bitUso = false;
-
-
-			paginas_leidas++;
-			if(paginas_leidas == cantidad_paginas_proceso){
-				break;
-			}
-
-
-		}
-
-		if(i == entradasPorTabla){
-			i = 0;
-		}
-
-		if(paginas_leidas == cantidad_paginas_proceso){
-			break;
-		}
-	}
-
-	return -1;
-
+    return -1;
 }
 
-int obtener_pagina(int indiceNivel1, int indiceNivel2){
-
-	int pagina;
-	pagina = indiceNivel1 * entradasPorTabla + indiceNivel2;
-	return pagina;
-
+int obtener_pagina(int indiceNivel1, int indiceNivel2) {
+    int pagina;
+    pagina = indiceNivel1 * entradasPorTabla + indiceNivel2;
+    return pagina;
 }
 
-
-int obtener_indice_nivel_uno(int pagina){
-
-	int entradaNivel1;
-	int residuo = pagina % entradasPorTabla;
-	int entero = pagina / entradasPorTabla;
-	entradaNivel1 = entero - residuo;
-	return entradaNivel1;
-
+int obtener_indice_nivel_uno(int pagina) {
+    int entradaNivel1;
+    int residuo = pagina % entradasPorTabla;
+    int entero = pagina / entradasPorTabla;
+    entradaNivel1 = entero - residuo;
+    return entradaNivel1;
 }
 
-int obtener_indice_nivel_dos(int pagina){
+int obtener_indice_nivel_dos(int pagina) {
+    int entradaNivel2;
 
-	int entradaNivel2;
-
-	int entero = obtener_indice_nivel_uno(pagina);
-	entradaNivel2 = pagina - (entero * entradasPorTabla);
-	return entradaNivel2;
-
+    int entero = obtener_indice_nivel_uno(pagina);
+    entradaNivel2 = pagina - (entero * entradasPorTabla);
+    return entradaNivel2;
 }
 
 //-----------------------------SUSPENSION PROCESO-------------------------------
 
+void suspender_proceso(uint32_t nroDeTabla1) {
+    int contPagSuspend = 0;
+    abrir_archivo(nroDeTabla1);
+    for (int i = 0; i < entradasPorTabla; i++) {
+        int nroDeTabla2 = tablasDeNivel1[nroDeTabla1].nroTablaNivel2[i];
 
-void suspender_proceso(uint32_t nroDeTabla1){
+        for (int j = 0; j < entradasPorTabla; j++) {
+            bool bitPresencia = tablasDeNivel2[nroDeTabla2].entradaNivel2[j].bitPresencia;
+            bool bitUso = tablasDeNivel2[nroDeTabla2].entradaNivel2[j].bitUso;
+            bool bitModificado = tablasDeNivel2[nroDeTabla2].entradaNivel2[j].bitModificado;
+            int marco = tablasDeNivel2[nroDeTabla2].entradaNivel2[j].indiceMarco;
 
+            tabla_suspendidos[nroDeTabla1].paginas_suspendidas[contPagSuspend].bitPresencia = bitPresencia;
+            tabla_suspendidos[nroDeTabla1].paginas_suspendidas[contPagSuspend].bitUso = bitUso;
+            tabla_suspendidos[nroDeTabla1].paginas_suspendidas[contPagSuspend].bitModificado = bitModificado;
+            contPagSuspend++;
 
-	for(int i = 0; i < entradasPorTabla; i++){
-
-			int nroDeTabla2 = tablasDeNivel1[nroDeTabla1].nroTablaNivel2[i];
-
-			for(int j = 0; j < entradasPorTabla; j++){
-
-				bool bitPresencia = tablasDeNivel2[nroDeTabla2].entradaNivel2[j].bitPresencia;
-				bool bitUso = tablasDeNivel2[nroDeTabla2].entradaNivel2[j].bitUso;
-				bool bitModificado = tablasDeNivel2[nroDeTabla2].entradaNivel2[j].bitModificado;
-
-				tabla_suspendidos[nroDeTabla1].paginas_suspendidas[j].bitPresencia = bitPresencia;
-				tabla_suspendidos[nroDeTabla1].paginas_suspendidas[j].bitUso = bitUso;
-				tabla_suspendidos[nroDeTabla1].paginas_suspendidas[j].bitModificado = bitModificado;
-
-				if(bitPresencia && bitModificado){
-					log_trace(memoriaLogger, "La pagina esta en memoria");
-					//realizar swapeo TODO
-					//liberar marco
-
-				}
-
-				//limpiar pagina de la tabla del proceso
-				tablasDeNivel2[nroDeTabla2].entradaNivel2[j].bitPresencia = -1;
-				tablasDeNivel2[nroDeTabla2].entradaNivel2[j].bitUso = -1;
-				tablasDeNivel2[nroDeTabla2].entradaNivel2[j].bitModificado = -1;
-				tablasDeNivel2[nroDeTabla2].entradaNivel2[j].indiceMarco = -1;
-
-			}
-
-		}
-
+            if (bitPresencia && bitModificado) { //TODO bitmodificado entonces aunque tengamos algoritmo de clock hay que cambiar el bit de modificado cuando corresponda.
+                log_trace(memoriaLogger, "La pagina esta en memoria");
+                int pagina = nroDeTabla2 * entradasPorTabla + j;
+                memcpy(inicio_archivo + sizeof(uint32_t) * pagina, memoriaPrincipal + marco * tamanioPagina, sizeof(uint32_t));
+                memset(memoriaPrincipal + marco * tamanioPagina, 0, tamanioPagina);
+            }
+        }
+        tablasDeNivel1[nroDeTabla1].nroTablaNivel2[i] = -1;
+        // TODO liberar cada tabla de nivel 2 - con un solo free() es suficiente?
+        free(tablasDeNivel2[nroDeTabla2].entradaNivel2);  // TODO asi? O eliminar entrada por entrada?
+    }
+    cerrar_archivo();
 }
 
-
-
+// ---------------------------- RECUPERACION PROCESO -----------------------------
+// TODO usuar crear proceso, y luego pisar los bits con los de la tabla de suspendidos y luego liberar la tabla de suspendidos.
+// TODO asigna los marcos a los bit de presencia 1 trayendo del archivo la pagina correspondiente.
