@@ -68,6 +68,7 @@ void kernel_config_destroy(t_kernel_config* self) {
 }
 
 double kernel_config_get_est_inicial(t_kernel_config* self) {
+    // TODO: Está bien dividirlo por 1000?
     return self->ESTIMACION_INICIAL / 1000;
 }
 
@@ -135,7 +136,7 @@ char* kernel_config_get_algoritmo(t_kernel_config* self) {
     return self->ALGORITMO_PLANIFICACION;
 }
 
-int kernel_config_get_maximo_bloq(t_kernel_config* self) {
+int kernel_config_get_tiempo_maximo_bloqueado(t_kernel_config* self) {
     return self->TIEMPO_MAXIMO_BLOQUEADO;
 }
 
