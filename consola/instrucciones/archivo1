@@ -1,5 +1,4 @@
 NO_OP 5
-
 READ 0
 WRITE 4 42
 COPY 0 4

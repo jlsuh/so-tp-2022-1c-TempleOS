@@ -18,7 +18,7 @@ char *kernel_config_get_puerto_memoria(t_kernel_config *);
 double kernel_config_get_est_inicial(t_kernel_config *);
 int kernel_config_get_alfa(t_kernel_config *);
 int kernel_config_get_grado_multiprogramacion(t_kernel_config *);
-int kernel_config_get_maximo_bloq(t_kernel_config *);
+int kernel_config_get_tiempo_maximo_bloqueado(t_kernel_config *);
 int kernel_config_get_socket_dispatch_cpu(t_kernel_config *);
 int kernel_config_get_socket_interrupt_cpu(t_kernel_config *);
 int kernel_config_get_socket_memoria(t_kernel_config *);
