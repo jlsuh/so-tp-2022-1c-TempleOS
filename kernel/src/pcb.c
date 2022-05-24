@@ -1,6 +1,7 @@
 #include "pcb.h"
 
 #include <commons/collections/list.h>
+#include <stdbool.h>
 #include <stdint.h>
 
 #include "estados.h"
@@ -19,6 +20,11 @@ struct t_pcb {
     uint32_t tiempoDeBloqueo;
     int socketConsola;
     t_buffer* instructionsBuffer;
+    pthread_mutex_t* mutex;
+    time_t tiempoInicialBloqueado;
+    time_t tiempoFinalBloqueado;
+    pthread_t* hiloContador;
+    bool ejecutandoIO;
 };
 
 t_pcb* pcb_create(uint32_t pid, uint32_t tamanio, double estimacionInicial) {
@@ -31,12 +37,23 @@ t_pcb* pcb_create(uint32_t pid, uint32_t tamanio, double estimacionInicial) {
     self->ultimaEjecucion = -1;
     self->estadoActual = NEW;
     self->tiempoDeBloqueo = 0;
+    self->socketConsola = -1;
+    self->instructionsBuffer = NULL;
+    self->ejecutandoIO = false;
+    self->mutex = malloc(sizeof(*(self->mutex)));
+    pthread_mutex_init(self->mutex, NULL);
     return self;
 }
 
 void pcb_destroy(t_pcb* self) {
-    list_destroy_and_destroy_elements(self->instrucciones, instruccion_destroy);
-    buffer_destroy(self->instructionsBuffer);
+    if (self->instrucciones != NULL) {
+        list_destroy_and_destroy_elements(self->instrucciones, instruccion_destroy);
+    }
+    if (self->instructionsBuffer != NULL) {
+        buffer_destroy(self->instructionsBuffer);
+    }
+    pthread_mutex_destroy(self->mutex);
+    free(self->mutex);
     free(self);
 }
 
@@ -131,4 +148,40 @@ t_buffer* pcb_get_instruction_buffer(t_pcb* self) {
 
 void pcb_set_instruction_buffer(t_pcb* self, t_buffer* buffer) {
     self->instructionsBuffer = buffer;
+}
+
+pthread_mutex_t* pcb_get_mutex(t_pcb* self) {
+    return self->mutex;
+}
+
+void pcb_set_tiempo_inicial_bloqueado(t_pcb* self, time_t tiempoInicialBloqueado) {
+    self->tiempoInicialBloqueado = tiempoInicialBloqueado;
+}
+
+time_t pcb_get_tiempo_inicial_bloqueado(t_pcb* self) {
+    return self->tiempoInicialBloqueado;
+}
+
+void pcb_set_tiempo_final_bloqueado(t_pcb* self, time_t tiempoFinalBloqueado) {
+    self->tiempoFinalBloqueado = tiempoFinalBloqueado;
+}
+
+time_t pcb_get_tiempo_final_bloqueado(t_pcb* self) {
+    return self->tiempoFinalBloqueado;
+}
+
+void pcb_set_hilo_contador(t_pcb* self, pthread_t* th) {
+    self->hiloContador = th;
+}
+
+pthread_t* pcb_get_hilo_contador(t_pcb* self) {
+    return self->hiloContador;
+}
+
+void pcb_set_ejecutando_io(t_pcb* self, bool ejecutandoIO) {
+    self->ejecutandoIO = ejecutandoIO;
+}
+
+bool pcb_get_ejecutando_io(t_pcb* self) {
+    return self->ejecutandoIO;
 }
