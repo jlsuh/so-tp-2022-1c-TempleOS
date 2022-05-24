@@ -2,6 +2,7 @@
 #define PCB_H_INCLUDED
 
 #include <commons/collections/list.h>
+#include <pthread.h>
 #include <stdint.h>
 
 #include "stream.h"
@@ -42,6 +43,19 @@ void pcb_set_instruction_buffer(t_pcb* self, t_buffer*);
 t_pcb* pcb_create(uint32_t pid, uint32_t tamanio, double estimacionRafaga);
 void pcb_destroy(t_pcb*);
 void pcb_responder_a_consola(t_pcb* self, uint8_t rta);
-double pcb_estimar_srt(t_pcb*, int); 
+double pcb_estimar_srt(t_pcb*, int);
+
+pthread_mutex_t* pcb_get_mutex(t_pcb*);
+
+void pcb_set_tiempo_inicial_bloqueado(t_pcb*, time_t tiempoInicialBloqueado);
+time_t pcb_get_tiempo_inicial_bloqueado(t_pcb*);
+void pcb_set_tiempo_final_bloqueado(t_pcb*, time_t tiempoFinalBloqueado);
+time_t pcb_get_tiempo_final_bloqueado(t_pcb*);
+
+void pcb_set_hilo_contador(t_pcb*, pthread_t* th);
+pthread_t* pcb_get_hilo_contador(t_pcb*);
+
+void pcb_set_ejecutando_io(t_pcb*, bool ejecutandoIO);
+bool pcb_get_ejecutando_io(t_pcb*);
 
 #endif
