@@ -20,6 +20,7 @@ typedef enum {
     BLOCKED,
     SUSPENDED_READY,
     SUSPENDED_BLOCKED,
+    PCBS_ESPERANDO_PARA_IO,
 } t_nombre_estado;
 
 void cambiar_estado(t_estado *estadoDest, t_pcb *pcb);
