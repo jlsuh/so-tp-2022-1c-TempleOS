@@ -24,7 +24,6 @@ void cpu_adapter_enviar_pcb_a_cpu(t_pcb* pcbAEnviar, t_kernel_config* kernelConf
 }
 
 t_pcb* cpu_adapter_recibir_pcb_actualizado_de_cpu(t_pcb* pcbAActualizar, uint8_t cpuResponse, t_kernel_config* kernelConfig, t_log* kernelLogger) {
-    // TODO: Tabla de páginas nivel 1 se actualiza? Pid se actualiza?
     uint32_t pidRecibido = 0;
     uint64_t programCounterActualizado = 0;
     uint32_t tablaPagsActualizada = 0;

@@ -51,7 +51,7 @@ static void noreturn planificador_largo_plazo(void);
 // static void noreturn planificador_mediano_plazo(void);
 static void noreturn planificador_corto_plazo(void);
 static void noreturn iniciar_dispositivo_io(void);
-static void noreturn transicionador_suspended_ready_a_ready(void);
+static void noreturn planificador_mediano_plazo(void);
 
 static uint32_t get_next_pid(void) {
     pthread_mutex_lock(&nextPidMutex);
@@ -99,17 +99,13 @@ void inicializar_estructuras(void) {
     pthread_create(&cortoPlazoTh, NULL, (void*)planificador_corto_plazo, NULL);
     pthread_detach(cortoPlazoTh);
 
-    /* pthread_t medianoPlazoTh;
+    pthread_t medianoPlazoTh;
     pthread_create(&medianoPlazoTh, NULL, (void*)planificador_mediano_plazo, NULL);
-    pthread_detach(medianoPlazoTh); */
+    pthread_detach(medianoPlazoTh);
 
     pthread_t dispositivoIOTh;
     pthread_create(&dispositivoIOTh, NULL, (void*)iniciar_dispositivo_io, NULL);
     pthread_detach(dispositivoIOTh);
-
-    pthread_t transicionadorSusreadyAReadyTh;
-    pthread_create(&transicionadorSusreadyAReadyTh, NULL, (void*)transicionador_suspended_ready_a_ready, NULL);
-    pthread_detach(transicionadorSusreadyAReadyTh);
 
     log_info(kernelLogger, "Se crean los hilos planificadores");
 }
@@ -126,7 +122,7 @@ void* encolar_en_new_a_nuevo_pcb_entrante(void* socket) {
         stream_recv_buffer(*socketProceso, bufferHandshakeInicial);
         buffer_unpack(bufferHandshakeInicial, &tamanio, sizeof(tamanio));
         buffer_destroy(bufferHandshakeInicial);
-        stream_send_empty_buffer(*socketProceso, HANDSHAKE_ok_continue);  // TODO: Esto hace que la consola se vaya antes. Debería en realidad quedar bloqueado hasta la completitud de su ciclo de vida. Moverlo a EXIT?
+        stream_send_empty_buffer(*socketProceso, HANDSHAKE_ok_continue);  // TODO: Descomentarlo en consola.c luego en producción
 
         uint8_t consolaResponse = stream_recv_header(*socketProceso);
         if (consolaResponse != HEADER_lista_instrucciones) {
@@ -160,7 +156,7 @@ static void noreturn liberar_pcbs_en_exit(void) {
     for (;;) {
         sem_wait(estado_get_sem(estadoExit));
         t_pcb* pcbALiberar = estado_desencolar_primer_pcb(estadoExit);
-        // TODO: Acá invocar algo para comunicarse con memoria para que desasigne recursos del proceso en exit
+        // TODO: mem_adapter_finalizar_proceso(pcbALiberar, kernelConfig, kernelLogger);
         pcb_destroy(pcbALiberar);
         sem_post(&gradoMultiprog);
     }
@@ -181,9 +177,9 @@ static void noreturn planificador_largo_plazo(void) {
     for (;;) {
         sem_wait(&hayPcbsParaAgregarAlSistema);
         sem_wait(&gradoMultiprog);
-        if (list_size(estado_get_list(estadoSuspendedReady)) > 0) {  // Prioridad a procesos en SUSREADY por sobre NEW (SUSREADY -> READY)
+        if (list_size(estado_get_list(estadoSuspendedReady)) > 0) {
             sem_post(&transicionarSusreadyAReady);
-        } else {  // NEW -> READY
+        } else {
             pthread_mutex_lock(estado_get_mutex(estadoNew));
             t_pcb* pcbQuePasaAReady = list_remove(estado_get_list(estadoNew), 0);
             pthread_mutex_unlock(estado_get_mutex(estadoNew));
@@ -206,14 +202,13 @@ static void noreturn planificador_largo_plazo(void) {
     }
 }
 
-static void noreturn transicionador_suspended_ready_a_ready(void) {
+static void noreturn planificador_mediano_plazo(void) {
     for (;;) {
         sem_wait(&transicionarSusreadyAReady);
         pthread_mutex_lock(estado_get_mutex(estadoSuspendedReady));
         t_pcb* pcbQuePasaAReady = list_remove(estado_get_list(estadoSuspendedReady), 0);
         pthread_mutex_unlock(estado_get_mutex(estadoSuspendedReady));
 
-        // TODO: Revisar si hay lugar?
         int nuevaTablaPagina = mem_adapter_avisar_reactivacion(pcbQuePasaAReady, kernelConfig, kernelLogger);
         pcb_set_tabla_pagina_primer_nivel(pcbQuePasaAReady, nuevaTablaPagina);
         if (nuevaTablaPagina == -1) {
@@ -323,15 +318,11 @@ static void iniciar_contador_blocked_a_suspended_blocked(void* pcbVoid) {
 
     intervalo_de_pausa(kernel_config_get_tiempo_maximo_bloqueado(kernelConfig));
 
-    // Vemos si el pcb esta en la lista de bloqueados
     if (estado_remover_pcb_de_cola(estadoBlocked, dummyPcb) != NULL) {
-
         pthread_mutex_lock(pcb_get_mutex(pcb));
-        // En caso de que esté, validamos que efectivamente se haya pasado o igualado al tiempo de bloqueo máximo
         time_t tiempoFinal;
         pcb_set_tiempo_final_bloqueado(pcb, time(&tiempoFinal));
         double tiempoEsperandoEnBlocked = difftime(pcb_get_tiempo_final_bloqueado(pcb), pcb_get_tiempo_inicial_bloqueado(pcb));
-        // log_error(kernelLogger, "Tiempo esperando en blocked: %f | Total esperando: %f | Kernel tiempo max bloqueo: %f", tiempoEsperandoEnBlocked, pcb_get_tiempo_de_bloqueo(pcb) / 1000.0 + tiempoEsperandoEnBlocked, kernel_config_get_tiempo_maximo_bloqueado(kernelConfig) / 1000.0);
         if (tiempoEsperandoEnBlocked + pcb_get_tiempo_de_bloqueo(pcb) / 1000.0 <= kernel_config_get_tiempo_maximo_bloqueado(kernelConfig) / 1000.0 && pcb_get_ejecutando_io(pcb)) {
             pcb_destroy(dummyPcb);
             pthread_mutex_unlock(pcb_get_mutex(pcb));
@@ -339,7 +330,6 @@ static void iniciar_contador_blocked_a_suspended_blocked(void* pcbVoid) {
             return;
         }
 
-        // En caso de que haya pasado el tiempo máximo de bloqueo, lo sacamos de la lista de bloqueados y lo ponemos en la lista de bloqueados suspendidos
         pcb_set_estado_actual(pcb, SUSPENDED_BLOCKED);
         // TODO: mem_adapter_avisar_suspension(pcbASuspender, kernelConfig, kernelLogger);
         estado_encolar_pcb(estadoSuspendedBlocked, pcb);
@@ -360,7 +350,6 @@ static void atender_bloqueo(t_pcb* pcb) {
     sem_post(estado_get_sem(pcbsEsperandoParaIO));
     pcb_set_estado_actual(pcb, BLOCKED);
     estado_encolar_pcb(estadoBlocked, pcb);
-    // sem_post(estado_get_sem(estadoBlocked));
     log_transition("EXEC", "BLOCKED", pcb_get_pid(pcb));
     log_info(kernelLogger, "PCB <ID %d> ingresa a la cola de espera de I/O", pcb_get_pid(pcb));
     pthread_t* contadorASuspendedBlocked = malloc(sizeof(*contadorASuspendedBlocked));
@@ -369,7 +358,7 @@ static void atender_bloqueo(t_pcb* pcb) {
     pcb_set_hilo_contador(pcb, contadorASuspendedBlocked);
 }
 
-static void noreturn atender_pcb(void) {  // TEMPORALMENTE ACÁ, QUIZÁS SE MUEVA A OTRO ARCHIVO
+static void noreturn atender_pcb(void) {
     for (;;) {
         sem_wait(estado_get_sem(estadoExec));
 
@@ -384,11 +373,10 @@ static void noreturn atender_pcb(void) {  // TEMPORALMENTE ACÁ, QUIZÁS SE MUEV
         pcb = cpu_adapter_recibir_pcb_actualizado_de_cpu(pcb, cpuResponse, kernelConfig, kernelLogger);
         pcb_set_ultima_ejecucion(pcb, timestamp() - tiempoInicioExec);
         list_remove(estado_get_list(estadoExec), 0);
-        // TODO: Quizás meter un log acá de que cierto pcb volvió de CPU
         pthread_mutex_unlock(estado_get_mutex(estadoExec));
 
         switch (cpuResponse) {
-            case HEADER_proceso_desalojado:  // SALIDA INTERRUPCION
+            case HEADER_proceso_desalojado:
                 pcb_set_estado_actual(pcb, READY);
                 estado_encolar_pcb(estadoReady, pcb);
                 log_transition("EXEC", "READY", pcb_get_pid(pcb));
@@ -439,7 +427,6 @@ static void noreturn planificador_corto_plazo(void) {
         sem_wait(&dispatchPermitido);
         log_info(kernelLogger, "Se permite dispatch");
 
-        // TODO: Puede pasar que el hilo que debe atender a un nuevo ingreso en ready, se quede tildado acá y no mande la correspondiente interrupción a CPU
         pthread_mutex_lock(estado_get_mutex(estadoReady));
         t_pcb* pcbToDispatch = elegir_segun_algoritmo();
         pthread_mutex_unlock(estado_get_mutex(estadoReady));
