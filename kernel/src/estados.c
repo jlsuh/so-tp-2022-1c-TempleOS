@@ -20,8 +20,11 @@ static bool es_este_pcb_por_id(void* pcbDeLaLista, void* targetPcb) {
 
 t_pcb* estado_remover_pcb_de_cola(t_estado* estadoTarget, t_pcb* targetPcb) {
     pthread_mutex_lock(estado_get_mutex(estadoTarget));
+    t_pcb* pcb = NULL;
     uint32_t index = list_get_index(estado_get_list(estadoTarget), es_este_pcb_por_id, targetPcb);
-    t_pcb* pcb = list_remove(estado_get_list(estadoTarget), index);
+    if (index != -1) {
+        pcb = list_remove(estado_get_list(estadoTarget), index);
+    }
     pthread_mutex_unlock(estado_get_mutex(estadoTarget));
     return pcb;
 }
@@ -47,7 +50,6 @@ t_estado* estado_create(t_nombre_estado nombre) {
 void estado_encolar_pcb(t_estado* estadoDest, t_pcb* targetPcb) {
     pthread_mutex_lock(estado_get_mutex(estadoDest));
     list_add(estado_get_list(estadoDest), targetPcb);
-    pcb_set_estado_actual(targetPcb, estado_get_nombre_estado(estadoDest));
     pthread_mutex_unlock(estado_get_mutex(estadoDest));
 }
 
