@@ -55,6 +55,17 @@ int main(int argc, char *argv[]) {
     const char *pathInstrucciones = argv[2];
     __consola_enviar_instrucciones_a_kernel(pathInstrucciones, consolaLogger, kernelSocket);
 
+    // TODO: Descomentar esto en producción
+    /* kernelResponse = stream_recv_header(kernelSocket);
+    stream_recv_empty_buffer(kernelSocket);
+    if (kernelResponse != HEADER_proceso_terminado) {
+        log_error(consolaLogger, "Error al intentar finalizar consola");
+        __consola_destroy(consolaConfig, consolaLogger);
+        return -1;
+    } else {
+        log_info(consolaLogger, "Finalización de consola");
+    } */
+
     consola_config_destroy(consolaConfig);
     log_destroy(consolaLogger);
     return 0;
