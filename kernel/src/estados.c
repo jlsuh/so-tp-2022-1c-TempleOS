@@ -29,6 +29,17 @@ t_pcb* estado_remover_pcb_de_cola(t_estado* estadoTarget, t_pcb* targetPcb) {
     return pcb;
 }
 
+bool estado_contiene_pcb(t_estado* estadoTarget, t_pcb* targetPcb) {
+    pthread_mutex_lock(estado_get_mutex(estadoTarget));
+    bool contains = false;
+    uint32_t index = list_get_index(estado_get_list(estadoTarget), es_este_pcb_por_id, targetPcb);
+    if (index != -1) {
+        contains = true;
+    }
+    pthread_mutex_unlock(estado_get_mutex(estadoTarget));
+    return contains;
+}
+
 t_pcb* estado_desencolar_primer_pcb(t_estado* estadoTarget) {
     pthread_mutex_lock(estado_get_mutex(estadoTarget));
     t_pcb* pcb = list_remove(estado_get_list(estadoTarget), 0);

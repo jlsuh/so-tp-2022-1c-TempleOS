@@ -329,7 +329,7 @@ static void iniciar_contador_blocked_a_suspended_blocked(void* pcbVoid) {
 
     intervalo_de_pausa(kernel_config_get_tiempo_maximo_bloqueado(kernelConfig));
 
-    if (pcb_get_veces_bloqueado(pcb) == laVezBloqueadaQueRepresentaElHilo) {
+    if (estado_contiene_pcb(estadoBlocked, dummyPCB) && pcb_get_veces_bloqueado(pcb) == laVezBloqueadaQueRepresentaElHilo) {
         if (estado_remover_pcb_de_cola(estadoBlocked, dummyPCB) != NULL) {
             pthread_mutex_lock(pcb_get_mutex(pcb));
             if (!pcb_get_tiempo_final_bloqueado_setteado(pcb)) {

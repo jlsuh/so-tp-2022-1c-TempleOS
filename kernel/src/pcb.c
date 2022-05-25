@@ -11,7 +11,6 @@
 struct t_pcb {
     uint32_t pid;
     uint32_t tamanio;
-    t_list* instrucciones;
     uint64_t programCounter;
     uint32_t tablaPaginaPrimerNivel;
     double ultimaEstimacion;
@@ -23,15 +22,14 @@ struct t_pcb {
     pthread_mutex_t* mutex;
     time_t tiempoInicialBloqueado;
     time_t tiempoFinalBloqueado;
-    pthread_t* hiloContador;
-    bool ejecutandoIO;
+    bool tiempoFinalBloqueadoSetteado;
+    int vecesBloqueado;
 };
 
 t_pcb* pcb_create(uint32_t pid, uint32_t tamanio, double estimacionInicial) {
     t_pcb* self = malloc(sizeof(*self));
     self->pid = pid;
     self->tamanio = tamanio;
-    self->instrucciones = NULL;
     self->programCounter = 0;
     self->ultimaEstimacion = estimacionInicial;
     self->ultimaEjecucion = -1;
@@ -39,16 +37,14 @@ t_pcb* pcb_create(uint32_t pid, uint32_t tamanio, double estimacionInicial) {
     self->tiempoDeBloqueo = 0;
     self->socketConsola = -1;
     self->instructionsBuffer = NULL;
-    self->ejecutandoIO = false;
     self->mutex = malloc(sizeof(*(self->mutex)));
+    self->tiempoFinalBloqueadoSetteado = false;
     pthread_mutex_init(self->mutex, NULL);
+    self->vecesBloqueado = 0;
     return self;
 }
 
 void pcb_destroy(t_pcb* self) {
-    if (self->instrucciones != NULL) {
-        list_destroy_and_destroy_elements(self->instrucciones, instruccion_destroy);
-    }
     if (self->instructionsBuffer != NULL) {
         buffer_destroy(self->instructionsBuffer);
     }
@@ -76,14 +72,6 @@ uint32_t pcb_get_pid(t_pcb* self) {
 
 uint32_t pcb_get_tamanio(t_pcb* self) {
     return self->tamanio;
-}
-
-t_list* pcb_get_instrucciones(t_pcb* self) {
-    return self->instrucciones;
-}
-
-void pcb_set_instrucciones(t_pcb* self, t_list* instrucciones) {
-    self->instrucciones = instrucciones;
 }
 
 uint64_t pcb_get_program_counter(t_pcb* self) {
@@ -114,8 +102,8 @@ double pcb_get_ultima_ejecucion(t_pcb* self) {
     return self->ultimaEjecucion;
 }
 
-void pcb_set_ultima_ejecucion(t_pcb* self, double ej) {
-    self->ultimaEjecucion = ej;
+void pcb_set_ultima_ejecucion(t_pcb* self, double ultimaEjecucion) {
+    self->ultimaEjecucion = ultimaEjecucion;
 }
 
 uint8_t pcb_get_estado_actual(t_pcb* self) {
@@ -170,18 +158,18 @@ time_t pcb_get_tiempo_final_bloqueado(t_pcb* self) {
     return self->tiempoFinalBloqueado;
 }
 
-void pcb_set_hilo_contador(t_pcb* self, pthread_t* th) {
-    self->hiloContador = th;
+bool pcb_get_tiempo_final_bloqueado_setteado(t_pcb* self) {
+    return self->tiempoFinalBloqueadoSetteado;
 }
 
-pthread_t* pcb_get_hilo_contador(t_pcb* self) {
-    return self->hiloContador;
+void pcb_set_tiempo_final_bloqueado_setteado(t_pcb* self, bool tiempoFinalBloqueadoSetteado) {
+    self->tiempoFinalBloqueadoSetteado = tiempoFinalBloqueadoSetteado;
 }
 
-void pcb_set_ejecutando_io(t_pcb* self, bool ejecutandoIO) {
-    self->ejecutandoIO = ejecutandoIO;
+void pcb_set_veces_bloqueado(t_pcb* self, int vecesBloqueado) {
+    self->vecesBloqueado = vecesBloqueado;
 }
 
-bool pcb_get_ejecutando_io(t_pcb* self) {
-    return self->ejecutandoIO;
+int pcb_get_veces_bloqueado(t_pcb* self) {
+    return self->vecesBloqueado;
 }
