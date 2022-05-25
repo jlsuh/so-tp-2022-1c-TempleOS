@@ -161,7 +161,7 @@ static void noreturn liberar_pcbs_en_exit(void) {
 void responder_no_hay_lugar_en_memoria(t_pcb* pcb) {
     estado_encolar_pcb(estadoExit, pcb);
     log_transition("NEW", "EXIT", pcb_get_pid(pcb));
-    log_error(kernelLogger, "Memoria insuficiente para alojar el proceso %d", pcb_get_pid(pcb));
+    log_info(kernelLogger, "Memoria insuficiente para alojar el proceso %d", pcb_get_pid(pcb));
     pcb_responder_a_consola(pcb, HEADER_memoria_insuficiente);
 }
 
@@ -324,7 +324,7 @@ static void iniciar_contador_blocked_a_suspended_blocked(void* pcbVoid) {
     pcb_set_veces_bloqueado(pcb, pcb_get_veces_bloqueado(pcb) + 1);
     int laVezBloqueadaQueRepresentaElHilo = pcb_get_veces_bloqueado(pcb);
     pthread_mutex_unlock(pcb_get_mutex(pcb));
-    log_error(kernelLogger, "Veces bloqueado local: %d | Iniciando contador de blocked a suspended blocked de PCB <ID %d>", laVezBloqueadaQueRepresentaElHilo, pcb_get_pid(pcb));
+    log_debug(kernelLogger, "Veces bloqueado local: %d | Iniciando contador de blocked a suspended blocked de PCB <ID %d>", laVezBloqueadaQueRepresentaElHilo, pcb_get_pid(pcb));
     t_pcb* dummyPCB = pcb_create(pcb_get_pid(pcb), pcb_get_tamanio(pcb), pcb_get_est_actual(pcb));
 
     intervalo_de_pausa(kernel_config_get_tiempo_maximo_bloqueado(kernelConfig));
@@ -340,11 +340,11 @@ static void iniciar_contador_blocked_a_suspended_blocked(void* pcbVoid) {
             }
 
             double tiempoEsperandoEnBlocked = difftime(pcb_get_tiempo_final_bloqueado(pcb), pcb_get_tiempo_inicial_bloqueado(pcb));
-            // log_error(kernelLogger, "Tiempo en que fue creado el hilo: %s | PCB ID: %d | Tiempo blocked: %f | Tiempo total bloqueado: %f | Tiempo máximo bloqueado: %f", tiempoEnQueFueCreadoElHilo, pcb_get_pid(pcb), tiempoEsperandoEnBlocked, tiempoEsperandoEnBlocked + pcb_get_tiempo_de_bloqueo(pcb) / 1000.0, kernel_config_get_tiempo_maximo_bloqueado(kernelConfig) / 1000.0);
-            // log_error(kernelLogger, "Veces bloqueado local: %d | Veces bloqueado PCB: %d", laVezBloqueadaQueRepresentaElHilo, pcb_get_veces_bloqueado(pcb));
+            // log_debug(kernelLogger, "Tiempo en que fue creado el hilo: %s | PCB ID: %d | Tiempo blocked: %f | Tiempo total bloqueado: %f | Tiempo máximo bloqueado: %f", tiempoEnQueFueCreadoElHilo, pcb_get_pid(pcb), tiempoEsperandoEnBlocked, tiempoEsperandoEnBlocked + pcb_get_tiempo_de_bloqueo(pcb) / 1000.0, kernel_config_get_tiempo_maximo_bloqueado(kernelConfig) / 1000.0);
+            // log_debug(kernelLogger, "Veces bloqueado local: %d | Veces bloqueado PCB: %d", laVezBloqueadaQueRepresentaElHilo, pcb_get_veces_bloqueado(pcb));
             if (pcb_get_tiempo_de_bloqueo(pcb) / 1000.0 <= kernel_config_get_tiempo_maximo_bloqueado(kernelConfig) / 1000.0) {
                 if (pcb_get_tiempo_de_bloqueo(pcb) / 1000.0 + tiempoEsperandoEnBlocked <= kernel_config_get_tiempo_maximo_bloqueado(kernelConfig) / 1000.0) {
-                    // log_error(kernelLogger, "SE VA ANTES <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< ID %d", pcb_get_pid(pcb));
+                    // log_debug(kernelLogger, "SE VA ANTES <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< ID %d", pcb_get_pid(pcb));
                     // Como el tiempo de bloqueo total es menor ó igual al tiempo máximo tolerable de bloqueo, NO se suspende el proceso y se transiciona de BLOCKED a READY
                     pcb_destroy(dummyPCB);
                     pthread_mutex_unlock(pcb_get_mutex(pcb));
@@ -355,7 +355,7 @@ static void iniciar_contador_blocked_a_suspended_blocked(void* pcbVoid) {
             pcb_set_estado_actual(pcb, SUSPENDED_BLOCKED);
             // TODO: mem_adapter_avisar_suspension(pcbASuspender, kernelConfig, kernelLogger);
             estado_encolar_pcb(estadoSuspendedBlocked, pcb);
-            log_error(kernelLogger, "Tiempo en que fue creado: %s | Entra en suspensión PCB <ID %d>", tiempoEnQueFueCreadoElHilo, pcb_get_pid(pcb));
+            log_debug(kernelLogger, "Tiempo en que fue creado: %s | Entra en suspensión PCB <ID %d>", tiempoEnQueFueCreadoElHilo, pcb_get_pid(pcb));
             log_transition("BLOCKED", "SUSBLOCKED", pcb_get_pid(pcb));
             sem_post(&gradoMultiprog);
             pthread_mutex_unlock(pcb_get_mutex(pcb));
