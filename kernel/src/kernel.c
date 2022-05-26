@@ -50,7 +50,7 @@ static void __kernel_destroy(t_kernel_config* kernelConfig, t_log* kernelLogger)
 }
 
 int main(int argc, char* argv[]) {
-    kernelLogger = log_create(KERNEL_LOG_PATH, KERNEL_MODULE_NAME, true, LOG_LEVEL_INFO);
+    kernelLogger = log_create(KERNEL_LOG_PATH, KERNEL_MODULE_NAME, true, LOG_LEVEL_DEBUG);
     kernelConfig = kernel_config_create(KERNEL_CONFIG_PATH, kernelLogger);
 
     // Conexión con CPU en canal Dispatch

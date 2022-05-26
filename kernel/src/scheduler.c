@@ -48,7 +48,6 @@ static bool hayQueDesalojar;
 static pthread_mutex_t hayQueDesalojarMutex;
 
 static void noreturn planificador_largo_plazo(void);
-// static void noreturn planificador_mediano_plazo(void);
 static void noreturn planificador_corto_plazo(void);
 static void noreturn iniciar_dispositivo_io(void);
 static void noreturn planificador_mediano_plazo(void);
@@ -141,9 +140,6 @@ void* encolar_en_new_a_nuevo_pcb_entrante(void* socket) {
 
         log_info(kernelLogger, "Creación de nuevo proceso ID %d de tamaño %d mediante <socket %d>", pcb_get_pid(newPcb), tamanio, *socketProceso);
 
-        t_list* listaInstrucciones = instruccion_list_create_from_buffer(instructionsBuffer, kernelLogger);
-        pcb_set_instrucciones(newPcb, listaInstrucciones);
-
         estado_encolar_pcb(estadoNew, newPcb);
         log_transition("NULL", "NEW", pcb_get_pid(newPcb));
         sem_post(&hayPcbsParaAgregarAlSistema);
@@ -165,7 +161,7 @@ static void noreturn liberar_pcbs_en_exit(void) {
 void responder_no_hay_lugar_en_memoria(t_pcb* pcb) {
     estado_encolar_pcb(estadoExit, pcb);
     log_transition("NEW", "EXIT", pcb_get_pid(pcb));
-    log_error(kernelLogger, "Memoria insuficiente para alojar el proceso %d", pcb_get_pid(pcb));
+    log_info(kernelLogger, "Memoria insuficiente para alojar el proceso %d", pcb_get_pid(pcb));
     pcb_responder_a_consola(pcb, HEADER_memoria_insuficiente);
 }
 
@@ -282,10 +278,9 @@ static void noreturn iniciar_dispositivo_io(void) {
         sem_wait(estado_get_sem(pcbsEsperandoParaIO));
         t_pcb* pcbAEjecutarRafagasIO = estado_desencolar_primer_pcb(pcbsEsperandoParaIO);
         log_info(kernelLogger, "Ejecutando ráfagas I/O de PCB <ID %d> por %d milisegundos", pcb_get_pid(pcbAEjecutarRafagasIO), pcb_get_tiempo_de_bloqueo(pcbAEjecutarRafagasIO));
+        pcb_test_and_set_tiempo_final_bloqueado(pcbAEjecutarRafagasIO);
 
         intervalo_de_pausa(pcb_get_tiempo_de_bloqueo(pcbAEjecutarRafagasIO));
-        time_t tiempoFinal;
-        pcb_set_tiempo_final_bloqueado(pcbAEjecutarRafagasIO, time(&tiempoFinal));
 
         pthread_mutex_lock(pcb_get_mutex(pcbAEjecutarRafagasIO));
         if (pcb_get_estado_actual(pcbAEjecutarRafagasIO) == BLOCKED) {
@@ -303,6 +298,7 @@ static void noreturn iniciar_dispositivo_io(void) {
             log_transition("SUSBLOCKED", "SUSREADY", pcb_get_pid(pcbAEjecutarRafagasIO));
             sem_post(&hayPcbsParaAgregarAlSistema);
         }
+        pcb_marcar_tiempo_final_como_no_establecido(pcbAEjecutarRafagasIO);
         pthread_mutex_unlock(pcb_get_mutex(pcbAEjecutarRafagasIO));
     }
 }
@@ -313,39 +309,44 @@ bool es_este_pcb_por_pid(void* unPcb, void* otroPcb) {
 
 static void iniciar_contador_blocked_a_suspended_blocked(void* pcbVoid) {
     t_pcb* pcb = (t_pcb*)pcbVoid;
-    log_error(kernelLogger, "Iniciando contador de blocked a suspended blocked de PCB <ID %d>", pcb_get_pid(pcb));
-    t_pcb* dummyPcb = pcb_create(pcb_get_pid(pcb), pcb_get_tamanio(pcb), pcb_get_est_actual(pcb));
+    pthread_mutex_lock(pcb_get_mutex(pcb));
+    pcb_set_veces_bloqueado(pcb, pcb_get_veces_bloqueado(pcb) + 1);
+    int laVezBloqueadaQueRepresentaElHilo = pcb_get_veces_bloqueado(pcb);
+    pthread_mutex_unlock(pcb_get_mutex(pcb));
+    log_debug(kernelLogger, "Iniciando contador de blocked a suspended blocked de PCB <ID %d>", pcb_get_pid(pcb));
+    t_pcb* dummyPCB = pcb_create(pcb_get_pid(pcb), pcb_get_tamanio(pcb), pcb_get_estimacion_actual(pcb));
 
     intervalo_de_pausa(kernel_config_get_tiempo_maximo_bloqueado(kernelConfig));
 
-    if (estado_remover_pcb_de_cola(estadoBlocked, dummyPcb) != NULL) {
-        pthread_mutex_lock(pcb_get_mutex(pcb));
-        time_t tiempoFinal;
-        pcb_set_tiempo_final_bloqueado(pcb, time(&tiempoFinal));
-        double tiempoEsperandoEnBlocked = difftime(pcb_get_tiempo_final_bloqueado(pcb), pcb_get_tiempo_inicial_bloqueado(pcb));
-        if (tiempoEsperandoEnBlocked + pcb_get_tiempo_de_bloqueo(pcb) / 1000.0 <= kernel_config_get_tiempo_maximo_bloqueado(kernelConfig) / 1000.0 && pcb_get_ejecutando_io(pcb)) {
-            pcb_destroy(dummyPcb);
+    if (estado_contiene_pcb(estadoBlocked, dummyPCB) && pcb_get_veces_bloqueado(pcb) == laVezBloqueadaQueRepresentaElHilo) {
+        if (estado_remover_pcb_de_cola(estadoBlocked, dummyPCB) != NULL) {
+            pcb_test_and_set_tiempo_final_bloqueado(pcb);
+
+            pthread_mutex_lock(pcb_get_mutex(pcb));
+            double tiempoEsperandoEnBlocked = difftime(pcb_get_tiempo_final_bloqueado(pcb), pcb_get_tiempo_inicial_bloqueado(pcb));
+            if (pcb_get_tiempo_de_bloqueo(pcb) / 1000.0 <= kernel_config_get_tiempo_maximo_bloqueado(kernelConfig) / 1000.0) {
+                if (pcb_get_tiempo_de_bloqueo(pcb) / 1000.0 + tiempoEsperandoEnBlocked <= kernel_config_get_tiempo_maximo_bloqueado(kernelConfig) / 1000.0) {
+                    pcb_destroy(dummyPCB);
+                    pthread_mutex_unlock(pcb_get_mutex(pcb));
+                    return;
+                }
+            }
+
+            pcb_set_estado_actual(pcb, SUSPENDED_BLOCKED);
+            // TODO: mem_adapter_avisar_suspension(pcbASuspender, kernelConfig, kernelLogger);
+            estado_encolar_pcb(estadoSuspendedBlocked, pcb);
+            log_debug(kernelLogger, "Entra en suspensión PCB <ID %d>", pcb_get_pid(pcb));
+            log_transition("BLOCKED", "SUSBLOCKED", pcb_get_pid(pcb));
+            sem_post(&gradoMultiprog);
             pthread_mutex_unlock(pcb_get_mutex(pcb));
-            log_error(kernelLogger, "FINALIZA ANTES <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< ID: %d", pcb_get_pid(pcb));
-            return;
         }
-
-        pcb_set_estado_actual(pcb, SUSPENDED_BLOCKED);
-        // TODO: mem_adapter_avisar_suspension(pcbASuspender, kernelConfig, kernelLogger);
-        estado_encolar_pcb(estadoSuspendedBlocked, pcb);
-        log_error(kernelLogger, "Entra en suspensión PCB <ID %d>", pcb_get_pid(pcb));
-        log_transition("BLOCKED", "SUSBLOCKED", pcb_get_pid(pcb));
-        sem_post(&gradoMultiprog);
-
-        pthread_mutex_unlock(pcb_get_mutex(pcb));
     }
 
-    pcb_destroy(dummyPcb);
+    pcb_destroy(dummyPCB);
 }
 
 static void atender_bloqueo(t_pcb* pcb) {
-    time_t tiempoInicial;
-    pcb_set_tiempo_inicial_bloqueado(pcb, time(&tiempoInicial));
+    pcb_marcar_tiempo_inicial_bloqueado(pcb);
     estado_encolar_pcb(pcbsEsperandoParaIO, pcb);
     sem_post(estado_get_sem(pcbsEsperandoParaIO));
     pcb_set_estado_actual(pcb, BLOCKED);
@@ -355,7 +356,6 @@ static void atender_bloqueo(t_pcb* pcb) {
     pthread_t* contadorASuspendedBlocked = malloc(sizeof(*contadorASuspendedBlocked));
     pthread_create(contadorASuspendedBlocked, NULL, (void*)iniciar_contador_blocked_a_suspended_blocked, (void*)pcb);
     pthread_detach(*contadorASuspendedBlocked);
-    pcb_set_hilo_contador(pcb, contadorASuspendedBlocked);
 }
 
 static void noreturn atender_pcb(void) {
