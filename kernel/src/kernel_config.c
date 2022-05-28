@@ -128,7 +128,7 @@ int kernel_config_get_grado_multiprogramacion(t_kernel_config* self) {
     return self->GRADO_MULTIPROGRAMACION;
 }
 
-int kernel_config_get_alfa(t_kernel_config* self) {
+double kernel_config_get_alfa(t_kernel_config* self) {
     return self->ALFA;
 }
 
