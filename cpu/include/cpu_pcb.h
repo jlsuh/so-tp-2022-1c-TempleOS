@@ -13,6 +13,5 @@ uint32_t cpu_pcb_get_tabla_pagina_primer_nivel(t_cpu_pcb*);
 uint64_t cpu_pcb_get_program_counter(t_cpu_pcb*);
 void cpu_pcb_set_instrucciones(t_cpu_pcb*, t_list* instrucciones);
 void cpu_pcb_set_program_counter(t_cpu_pcb*, uint64_t pc);
-void cpu_pcb_set_tabla_pagina_primer_nivel(t_cpu_pcb*, uint32_t tablaPaginaPrimerNivel)
 
 #endif

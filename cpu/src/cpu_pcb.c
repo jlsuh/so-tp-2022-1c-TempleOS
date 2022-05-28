@@ -36,10 +36,6 @@ uint32_t cpu_pcb_get_tabla_pagina_primer_nivel(t_cpu_pcb* self) {
     return self->tablaPaginaPrimerNivel;
 }
 
-void cpu_pcb_set_tabla_pagina_primer_nivel(t_cpu_pcb* self, uint32_t tablaPaginaPrimerNivel) {
-    self->tablaPaginaPrimerNivel = tablaPaginaPrimerNivel;
-}
-
 t_list* cpu_pcb_get_instrucciones(t_cpu_pcb* self) {
     return self->instrucciones;
 }
