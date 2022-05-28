@@ -9,9 +9,8 @@
 #include "common_flags.h"
 #include "common_utils.h"
 #include "cpu_config.h"
-// #include "cpu_memoria_cliente.h"
+#include "cpu_pcb.h"
 #include "instruccion.h"
-#include "pcb_cpu.h"
 #include "stream.h"
 
 extern t_cpu_config* cpuConfig;
@@ -20,9 +19,9 @@ extern t_log* cpuLogger;
 static bool hayInterrupcion;
 static pthread_mutex_t mutexInterrupcion;
 
-static t_instruccion* cpu_fetch_instruction(t_pcb_cpu* pcb) {
-    t_list* instructionsList = pcb_cpu_get_instrucciones(pcb);
-    uint64_t programCounter = pcb_cpu_get_program_counter(pcb);
+static t_instruccion* cpu_fetch_instruction(t_cpu_pcb* pcb) {
+    t_list* instructionsList = cpu_pcb_get_instrucciones(pcb);
+    uint64_t programCounter = cpu_pcb_get_program_counter(pcb);
     t_instruccion* nextInstruction = list_get(instructionsList, programCounter);
     return nextInstruction;
 }
@@ -31,18 +30,18 @@ static bool cpu_decode_instruction(t_instruccion* instruction) {
     return instruccion_get_tipo_instruccion(instruction) == INSTRUCCION_copy;
 }
 
-static uint32_t instruccion_fetch_operands(t_instruccion* nextInstruction, t_pcb_cpu* pcb) {
+static uint32_t instruccion_fetch_operands(t_instruccion* nextInstruction, t_cpu_pcb* pcb) {
     // Llegamos acá solamente en caso de INSTRUCCION_copy
     uint32_t direccionLogicaOrigen = instruccion_get_operando2(nextInstruction);
-    // uint32_t readValue = leer_en_memoria(direccionLogicaOrigen, pcb_cpu_get_tabla_pagina_primer_nivel(pcb)); Se abstrae de memoria por ahora
+    // uint32_t readValue = leer_en_memoria(direccionLogicaOrigen, cpu_pcb_get_tabla_pagina_primer_nivel(pcb)); Se abstrae de memoria por ahora
     uint32_t readValue = 2;
     log_info(cpuLogger, "INSTRUCCION_copy: Se lee el valor %d de memoria de la dirección lógica %d", readValue, direccionLogicaOrigen);
     return readValue;
 }
 
-static bool cpu_exec_instruction(t_pcb_cpu* pcb, t_tipo_instruccion tipoInstruccion, uint32_t operando1, uint32_t operando2) {
-    pcb_cpu_set_program_counter(pcb, pcb_cpu_get_program_counter(pcb) + 1);
-    uint64_t programCounterActualizado = pcb_cpu_get_program_counter(pcb);
+static bool cpu_exec_instruction(t_cpu_pcb* pcb, t_tipo_instruccion tipoInstruccion, uint32_t operando1, uint32_t operando2) {
+    cpu_pcb_set_program_counter(pcb, cpu_pcb_get_program_counter(pcb) + 1);
+    uint64_t programCounterActualizado = cpu_pcb_get_program_counter(pcb);
 
     bool stopExec = false;
     bool shouldWrite = false;
@@ -56,8 +55,8 @@ static bool cpu_exec_instruction(t_pcb_cpu* pcb, t_tipo_instruccion tipoInstrucc
     } else if (tipoInstruccion == INSTRUCCION_io) {
         uint32_t tiempoDeBloqueo = operando1;
         log_info(cpuLogger, "INSTRUCCION_io: Tiempo de bloqueo de %d milisegundos", tiempoDeBloqueo);
-        uint32_t pid = pcb_cpu_get_pid(pcb);
-        uint32_t tablaPaginaPrimerNivelActualizado = pcb_cpu_get_tabla_pagina_primer_nivel(pcb);
+        uint32_t pid = cpu_pcb_get_pid(pcb);
+        uint32_t tablaPaginaPrimerNivelActualizado = cpu_pcb_get_tabla_pagina_primer_nivel(pcb);
 
         t_buffer* bufferIO = buffer_create();
         buffer_pack(bufferIO, &pid, sizeof(pid));
@@ -71,7 +70,7 @@ static bool cpu_exec_instruction(t_pcb_cpu* pcb, t_tipo_instruccion tipoInstrucc
 
         stopExec = true;
     } else if (tipoInstruccion == INSTRUCCION_read) {
-        // uint32_t readValue = leer_en_memoria(operando1, pcb_cpu_get_tabla_pagina_primer_nivel(pcb)); Se abstrae de memoria por ahora
+        // uint32_t readValue = leer_en_memoria(operando1, cpu_pcb_get_tabla_pagina_primer_nivel(pcb)); Se abstrae de memoria por ahora
         uint32_t readValue = 3;
         log_info(cpuLogger, "INSTRUCCION_read: Se lee %d de la dirección lógica %d", readValue, operando1);
     } else if (tipoInstruccion == INSTRUCCION_write) {
@@ -82,8 +81,8 @@ static bool cpu_exec_instruction(t_pcb_cpu* pcb, t_tipo_instruccion tipoInstrucc
         logMsg = string_from_format("INSTRUCCION_copy: Se escribe %d en la dirección lógica %d", operando1, operando2);
     } else if (tipoInstruccion == INSTRUCCION_exit) {
         log_info(cpuLogger, "INSTRUCCION_exit: Se termina la ejecución del programa");
-        uint32_t pid = pcb_cpu_get_pid(pcb);
-        uint32_t tablaPaginaPrimerNivelActualizado = pcb_cpu_get_tabla_pagina_primer_nivel(pcb);
+        uint32_t pid = cpu_pcb_get_pid(pcb);
+        uint32_t tablaPaginaPrimerNivelActualizado = cpu_pcb_get_tabla_pagina_primer_nivel(pcb);
         t_buffer* bufferExit = buffer_create();
         buffer_pack(bufferExit, &pid, sizeof(pid));
         buffer_pack(bufferExit, &programCounterActualizado, sizeof(programCounterActualizado));
@@ -97,7 +96,7 @@ static bool cpu_exec_instruction(t_pcb_cpu* pcb, t_tipo_instruccion tipoInstrucc
     }
 
     if (shouldWrite) {
-        // escribir_en_memoria(operando1, pcb_cpu_get_tabla_pagina_primer_nivel(pcb), operando2); Se abstrae de memoria por ahora
+        // escribir_en_memoria(operando1, cpu_pcb_get_tabla_pagina_primer_nivel(pcb), operando2); Se abstrae de memoria por ahora
         log_info(cpuLogger, "%s", logMsg);
         free(logMsg);
     }
@@ -105,7 +104,7 @@ static bool cpu_exec_instruction(t_pcb_cpu* pcb, t_tipo_instruccion tipoInstrucc
     return stopExec;
 }
 
-static bool cpu_ejecutar_ciclos_de_instruccion(t_pcb_cpu* pcb) {
+static bool cpu_ejecutar_ciclos_de_instruccion(t_cpu_pcb* pcb) {
     // Fetch Instruction
     t_instruccion* nextInstruction = cpu_fetch_instruction(pcb);
     log_info(cpuLogger, "Fetch Instruction: Se obtiene la siguiente instrucción");
@@ -130,13 +129,13 @@ static bool cpu_ejecutar_ciclos_de_instruccion(t_pcb_cpu* pcb) {
     return stopExec;
 }
 
-static bool cpu_hay_interrupcion(t_pcb_cpu* pcb) {
+static bool cpu_hay_interrupcion(t_cpu_pcb* pcb) {
     pthread_mutex_lock(&mutexInterrupcion);
     bool stopExec = false;
     if (hayInterrupcion) {
-        uint32_t pid = pcb_cpu_get_pid(pcb);
-        uint64_t programCounterActualizado = pcb_cpu_get_program_counter(pcb);
-        uint32_t tablaPaginaPrimerNivelActualizado = pcb_cpu_get_tabla_pagina_primer_nivel(pcb);
+        uint32_t pid = cpu_pcb_get_pid(pcb);
+        uint64_t programCounterActualizado = cpu_pcb_get_program_counter(pcb);
+        uint32_t tablaPaginaPrimerNivelActualizado = cpu_pcb_get_tabla_pagina_primer_nivel(pcb);
 
         t_buffer* bufferInt = buffer_create();
         buffer_pack(bufferInt, &pid, sizeof(pid));
@@ -162,7 +161,7 @@ static void noreturn dispatch_peticiones_de_kernel(void) {
         // Recibir PCB de Kernel
         uint8_t kernelResponse = stream_recv_header(cpu_config_get_socket_dispatch(cpuConfig));
         t_buffer* bufferPcb = NULL;
-        t_pcb_cpu* newPcb = NULL;
+        t_cpu_pcb* newPcb = NULL;
         if (kernelResponse == HEADER_pcb_a_ejecutar) {
             bufferPcb = buffer_create();
             stream_recv_buffer(cpu_config_get_socket_dispatch(cpuConfig), bufferPcb);
@@ -171,7 +170,7 @@ static void noreturn dispatch_peticiones_de_kernel(void) {
             buffer_unpack(bufferPcb, &tablaPags, sizeof(tablaPags));
             buffer_destroy(bufferPcb);
 
-            newPcb = pcb_cpu_create(pidRecibido, programCounter, tablaPags);
+            newPcb = cpu_pcb_create(pidRecibido, programCounter, tablaPags);
             kernelResponse = stream_recv_header(cpu_config_get_socket_dispatch(cpuConfig));
             t_buffer* bufferInstrucciones = NULL;
             if (kernelResponse == HEADER_lista_instrucciones) {
@@ -179,7 +178,7 @@ static void noreturn dispatch_peticiones_de_kernel(void) {
                 stream_recv_buffer(cpu_config_get_socket_dispatch(cpuConfig), bufferInstrucciones);
 
                 t_list* listaInstrucciones = instruccion_list_create_from_buffer(bufferInstrucciones, cpuLogger);
-                pcb_cpu_set_instrucciones(newPcb, listaInstrucciones);
+                cpu_pcb_set_instrucciones(newPcb, listaInstrucciones);
             } else {
                 log_error(cpuLogger, "Error al intentar recibir las instrucciones de Kernel");
                 exit(-1);
