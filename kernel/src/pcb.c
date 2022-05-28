@@ -4,7 +4,7 @@
 #include <stdbool.h>
 #include <stdint.h>
 
-#include "estados.h"
+#include "estado.h"
 #include "instruccion.h"
 #include "stream.h"
 
@@ -13,8 +13,9 @@ struct t_pcb {
     uint32_t tamanio;
     uint64_t programCounter;
     uint32_t tablaPaginaPrimerNivel;
-    double ultimaEstimacion;
-    double ultimaEjecucion;
+    double estimacionActual;
+    double realAnterior;
+    double realesEjecutadosHastaAhora;
     uint8_t estadoActual;
     uint32_t tiempoDeBloqueo;
     int socketConsola;
@@ -44,8 +45,9 @@ t_pcb* pcb_create(uint32_t pid, uint32_t tamanio, double estimacionInicial) {
     self->tamanio = tamanio;
     self->programCounter = 0;
     self->tablaPaginaPrimerNivel = 0;
-    self->ultimaEstimacion = estimacionInicial;
-    self->ultimaEjecucion = -1;
+    self->estimacionActual = estimacionInicial;
+    self->realAnterior = 0.0;
+    self->realesEjecutadosHastaAhora = 0.0;
     self->estadoActual = NEW;
     self->tiempoDeBloqueo = 0;
     self->socketConsola = -1;
@@ -70,14 +72,6 @@ void pcb_responder_a_consola(t_pcb* self, uint8_t responseHeader) {
     stream_send_empty_buffer(self->socketConsola, responseHeader);
 }
 
-double pcb_estimar_srt(t_pcb* self, int alfa) {
-    if (self->ultimaEjecucion == -1) {
-        return self->ultimaEstimacion;  // estimación inicial
-    }
-    self->ultimaEstimacion = alfa * self->ultimaEjecucion + (1 - alfa) * self->ultimaEstimacion;
-    return self->ultimaEstimacion;
-}
-
 void pcb_test_and_set_tiempo_final_bloqueado(t_pcb* self) {
     pthread_mutex_lock(pcb_get_mutex(self));
     if (!__pcb_tiempo_final_ya_establecido(self)) {
@@ -85,6 +79,10 @@ void pcb_test_and_set_tiempo_final_bloqueado(t_pcb* self) {
         __pcb_marcar_tiempo_final_como_establecido(self);
     }
     pthread_mutex_unlock(pcb_get_mutex(self));
+}
+
+bool pcb_es_este_pcb_por_pid(void* unPcb, void* otroPcb) {
+    return pcb_get_pid((t_pcb*)unPcb) == pcb_get_pid((t_pcb*)otroPcb);
 }
 
 uint32_t pcb_get_pid(t_pcb* self) {
@@ -112,11 +110,11 @@ void pcb_set_tabla_pagina_primer_nivel(t_pcb* self, uint32_t tablaPaginaPrimerNi
 }
 
 double pcb_get_estimacion_actual(t_pcb* self) {
-    return self->ultimaEstimacion;
+    return self->estimacionActual;
 }
 
-void pcb_set_ultima_ejecucion(t_pcb* self, double ultimaEjecucion) {
-    self->ultimaEjecucion = ultimaEjecucion;
+void pcb_set_estimacion_actual(t_pcb* self, double estimacionActual) {
+    self->estimacionActual = estimacionActual;
 }
 
 uint8_t pcb_get_estado_actual(t_pcb* self) {
@@ -173,4 +171,20 @@ void pcb_marcar_tiempo_inicial_bloqueado(t_pcb* self) {
 
 void pcb_marcar_tiempo_final_como_no_establecido(t_pcb* self) {
     self->tiempoFinalBloqueadoEstablecido = false;
+}
+
+void pcb_set_real_anterior(t_pcb* self, double realAnterior) {
+    self->realAnterior = realAnterior;
+}
+
+double pcb_get_real_anterior(t_pcb* self) {
+    return self->realAnterior;
+}
+
+void pcb_set_reales_ejecutados_hasta_ahora(t_pcb* self, double realesEjecutadosHastaAhora) {
+    self->realesEjecutadosHastaAhora = realesEjecutadosHastaAhora;
+}
+
+double pcb_get_reales_ejecutados_hasta_ahora(t_pcb* self) {
+    return self->realesEjecutadosHastaAhora;
 }
