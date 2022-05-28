@@ -1,4 +1,4 @@
-#include "estados.h"
+#include "estado.h"
 
 #include <pthread.h>
 #include <semaphore.h>
