@@ -1,5 +1,5 @@
-#ifndef CONSOLA_PARSE_TESTS_H_INCLUDED
-#define CONSOLA_PARSE_TESTS_H_INCLUDED
+#ifndef CONSOLA_PARSER_TESTS_H_INCLUDED
+#define CONSOLA_PARSER_TESTS_H_INCLUDED
 
 void test_consola_parser_setup(void);
 void test_consola_parser_tear_down(void);
