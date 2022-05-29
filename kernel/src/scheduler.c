@@ -267,16 +267,30 @@ static void atender_bloqueo(t_pcb* pcb) {
     estado_encolar_pcb_atomic(estadoBlocked, pcb);
     log_transition("EXEC", "BLOCKED", pcb_get_pid(pcb));
     log_info(kernelLogger, "PCB <ID %d> ingresa a la cola de espera de I/O", pcb_get_pid(pcb));
-    pthread_t* contadorASuspendedBlocked = malloc(sizeof(*contadorASuspendedBlocked));
-    pthread_create(contadorASuspendedBlocked, NULL, (void*)iniciar_contador_blocked_a_suspended_blocked, (void*)pcb);
-    pthread_detach(*contadorASuspendedBlocked);
+    pthread_t contadorASuspendedBlocked;
+    pthread_create(&contadorASuspendedBlocked, NULL, (void*)iniciar_contador_blocked_a_suspended_blocked, (void*)pcb);
+    pthread_detach(contadorASuspendedBlocked);
+}
+
+void establecer_timespec(struct timespec* timespec) {
+    int retVal = clock_gettime(CLOCK_REALTIME, timespec);
+    if (retVal == -1) {
+        perror("clock_gettime");
+        exit(-1);
+    }
+}
+
+uint64_t obtener_diferencial_de_tiempo(struct timespec end, struct timespec start) {
+    return (end.tv_sec - start.tv_sec) * 1000 + (end.tv_nsec - start.tv_nsec) / 1000000;
 }
 
 static void noreturn atender_pcb(void) {
     for (;;) {
         sem_wait(estado_get_sem(estadoExec));
 
-        time_t tiempoInicialEjecucion = time(NULL);
+        struct timespec start;
+        establecer_timespec(&start);
+
         pthread_mutex_lock(estado_get_mutex(estadoExec));
         t_pcb* pcb = list_get(estado_get_list(estadoExec), 0);
         log_transition("READY", "EXEC", pcb_get_pid(pcb));
@@ -285,14 +299,17 @@ static void noreturn atender_pcb(void) {
         cpu_adapter_enviar_pcb_a_cpu(pcb, kernelConfig, kernelLogger);
         uint8_t cpuResponse = stream_recv_header(kernel_config_get_socket_dispatch_cpu(kernelConfig));
 
-        time_t tiempoFinalEjecucion = time(NULL);
+        struct timespec end;
+        establecer_timespec(&end);
+
         pthread_mutex_lock(estado_get_mutex(estadoExec));
         pcb = cpu_adapter_recibir_pcb_actualizado_de_cpu(pcb, cpuResponse, kernelConfig, kernelLogger);
-        pcb_set_real_anterior(pcb, difftime(tiempoFinalEjecucion, tiempoInicialEjecucion));  // Esto siempre daría un número con decimal 0, salvo que se utilice el NO_OP con un valor, por ejemplo: 10500
         list_remove(estado_get_list(estadoExec), 0);
         pthread_mutex_unlock(estado_get_mutex(estadoExec));
 
-        double realEjecutado = difftime(tiempoFinalEjecucion, tiempoInicialEjecucion);
+        uint64_t realEjecutado = obtener_diferencial_de_tiempo(end, start);
+        log_debug(kernelLogger, "Elapsed time: %ld miliseconds", realEjecutado);
+
         switch (cpuResponse) {
             case HEADER_proceso_desalojado:
                 actualizar_pcb_por_desalojo(pcb, realEjecutado);
@@ -380,7 +397,7 @@ void* encolar_en_new_a_nuevo_pcb_entrante(void* socket) {
 
         uint32_t newPid = obtener_siguiente_pid();
         t_pcb* newPcb = pcb_create(newPid, tamanio, kernel_config_get_est_inicial(kernelConfig));
-        pcb_set_socket(newPcb, *socketProceso);
+        pcb_set_socket(newPcb, socketProceso);
         pcb_set_instruction_buffer(newPcb, instructionsBufferCopy);
 
         log_info(kernelLogger, "Creación de nuevo proceso ID %d de tamaño %d mediante <socket %d>", pcb_get_pid(newPcb), tamanio, *socketProceso);

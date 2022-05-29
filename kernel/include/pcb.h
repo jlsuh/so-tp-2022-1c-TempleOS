@@ -36,7 +36,7 @@ void pcb_set_instruction_buffer(t_pcb*, t_buffer* instructionsBuffer);
 void pcb_set_program_counter(t_pcb*, uint64_t programCounter);
 void pcb_set_real_anterior(t_pcb*, double realAnterior);
 void pcb_set_reales_ejecutados_hasta_ahora(t_pcb*, double realesEjecutadosHastaAhora);
-void pcb_set_socket(t_pcb*, int socket);
+void pcb_set_socket(t_pcb*, int* socket);
 void pcb_set_tabla_pagina_primer_nivel(t_pcb*, uint32_t tablaPaginaPrimerNivel);
 void pcb_set_tiempo_de_bloqueo(t_pcb*, uint32_t tiempoDeBloqueo);
 void pcb_set_veces_bloqueado(t_pcb*, int vecesBloqueado);
