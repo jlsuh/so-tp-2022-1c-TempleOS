@@ -267,39 +267,30 @@ static void atender_bloqueo(t_pcb* pcb) {
     estado_encolar_pcb_atomic(estadoBlocked, pcb);
     log_transition("EXEC", "BLOCKED", pcb_get_pid(pcb));
     log_info(kernelLogger, "PCB <ID %d> ingresa a la cola de espera de I/O", pcb_get_pid(pcb));
-    pthread_t* contadorASuspendedBlocked = malloc(sizeof(*contadorASuspendedBlocked));
-    pthread_create(contadorASuspendedBlocked, NULL, (void*)iniciar_contador_blocked_a_suspended_blocked, (void*)pcb);
-    pthread_detach(*contadorASuspendedBlocked);
+    pthread_t contadorASuspendedBlocked;
+    pthread_create(&contadorASuspendedBlocked, NULL, (void*)iniciar_contador_blocked_a_suspended_blocked, (void*)pcb);
+    pthread_detach(contadorASuspendedBlocked);
 }
 
-/*
-    struct timespec start, end;
-    clock_gettime(CLOCK_REALTIME, &start);
-    intervalo_de_pausa(10500);
-    clock_gettime(CLOCK_REALTIME, &end);
+void establecer_timespec(struct timespec* timespec) {
+    int retVal = clock_gettime(CLOCK_REALTIME, timespec);
+    if (retVal == -1) {
+        perror("clock_gettime");
+        exit(-1);
+    }
+}
 
-    uint64_t delta_us = (end.tv_sec - start.tv_sec) * 1000 + (end.tv_nsec - start.tv_nsec) / 1000000;
-    char* str_delta_us = string_itoa(delta_us);
-    str_delta_us[strlen(str_delta_us) - 1] = '0';
-    uint64_t new_delta_us = atoi(str_delta_us);
-
-    printf("\nElapsed time: %ld\n", delta_us);
-    printf("Elapsed time (new): %ld\n", new_delta_us);
-
-    free(str_delta_us);
-*/
+uint64_t obtener_diferencial_de_tiempo(struct timespec end, struct timespec start) {
+    return (end.tv_sec - start.tv_sec) * 1000 + (end.tv_nsec - start.tv_nsec) / 1000000;
+}
 
 static void noreturn atender_pcb(void) {
     for (;;) {
         sem_wait(estado_get_sem(estadoExec));
 
         struct timespec start;
-        if (clock_gettime(CLOCK_REALTIME, &start) == -1) {
-            perror("clock_gettime");
-            exit(EXIT_FAILURE);
-        }
+        establecer_timespec(&start);
 
-        // time_t tiempoInicialEjecucion = time(NULL);
         pthread_mutex_lock(estado_get_mutex(estadoExec));
         t_pcb* pcb = list_get(estado_get_list(estadoExec), 0);
         log_transition("READY", "EXEC", pcb_get_pid(pcb));
@@ -309,24 +300,15 @@ static void noreturn atender_pcb(void) {
         uint8_t cpuResponse = stream_recv_header(kernel_config_get_socket_dispatch_cpu(kernelConfig));
 
         struct timespec end;
-        if (clock_gettime(CLOCK_REALTIME, &end) == -1) {
-            perror("clock_gettime");
-            exit(EXIT_FAILURE);
-        }
-        // time_t tiempoFinalEjecucion = time(NULL);
+        establecer_timespec(&end);
+
         pthread_mutex_lock(estado_get_mutex(estadoExec));
         pcb = cpu_adapter_recibir_pcb_actualizado_de_cpu(pcb, cpuResponse, kernelConfig, kernelLogger);
-        // pcb_set_real_anterior(pcb, difftime(tiempoFinalEjecucion, tiempoInicialEjecucion));  // TODO: Esto está mal, pues en caso de desalojar a un proceso no debe actualizar su real anterior ejecutado (solo actualizar realesEjecutadosHastaAhora)
         list_remove(estado_get_list(estadoExec), 0);
         pthread_mutex_unlock(estado_get_mutex(estadoExec));
 
-        // double realEjecutado = difftime(tiempoFinalEjecucion, tiempoInicialEjecucion);
-        uint64_t realEjecutado = (end.tv_sec - start.tv_sec) * 1000 + (end.tv_nsec - start.tv_nsec) / 1000000;
+        uint64_t realEjecutado = obtener_diferencial_de_tiempo(end, start);
         log_debug(kernelLogger, "Elapsed time: %ld miliseconds", realEjecutado);
-        /* char* strRealEjecutado = string_itoa(realEjecutado);
-        strRealEjecutado[strlen(strRealEjecutado) - 1] = '0';
-        uint64_t nuevoRealEjecutado = atoi(strRealEjecutado);
-        log_debug(kernelLogger, "Elapsed time (new): %ld", nuevoRealEjecutado); */
 
         switch (cpuResponse) {
             case HEADER_proceso_desalojado:
@@ -415,7 +397,7 @@ void* encolar_en_new_a_nuevo_pcb_entrante(void* socket) {
 
         uint32_t newPid = obtener_siguiente_pid();
         t_pcb* newPcb = pcb_create(newPid, tamanio, kernel_config_get_est_inicial(kernelConfig));
-        pcb_set_socket(newPcb, *socketProceso);
+        pcb_set_socket(newPcb, socketProceso);
         pcb_set_instruction_buffer(newPcb, instructionsBufferCopy);
 
         log_info(kernelLogger, "Creación de nuevo proceso ID %d de tamaño %d mediante <socket %d>", pcb_get_pid(newPcb), tamanio, *socketProceso);
