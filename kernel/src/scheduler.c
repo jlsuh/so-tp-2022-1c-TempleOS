@@ -25,7 +25,7 @@
 extern t_log* kernelLogger;
 extern t_kernel_config* kernelConfig;
 
-static t_pcb* (*elegir_pcb_segun_algoritmo)(t_estado*, double);
+static t_algoritmo elegir_pcb;
 
 static uint32_t nextPid;
 static pthread_mutex_t nextPidMutex;
@@ -48,114 +48,136 @@ static t_estado* pcbsEsperandoParaIO;
 static bool hayQueDesalojar;
 static pthread_mutex_t hayQueDesalojarMutex;
 
-static void noreturn planificador_largo_plazo(void);
-static void noreturn planificador_corto_plazo(void);
-static void noreturn iniciar_dispositivo_io(void);
-static void noreturn planificador_mediano_plazo(void);
-
-static uint32_t get_next_pid(void) {
-    pthread_mutex_lock(&nextPidMutex);
-    uint32_t newNextPid = nextPid++;
-    pthread_mutex_unlock(&nextPidMutex);
-    return newNextPid;
-}
-
+//////////////////////////////////////// General Functions ////////////////////////////////////////
 static void log_transition(const char* prev, const char* post, int pid) {
     char* transicion = string_from_format("\e[1;93m%s->%s\e[0m", prev, post);
     log_info(kernelLogger, "Transición de %s PCB <ID %d>", transicion, pid);
     free(transicion);
 }
 
-void inicializar_estructuras(void) {
-    nextPid = 0;
-    hayQueDesalojar = false;
-
-    pthread_mutex_init(&nextPidMutex, NULL);
-    pthread_mutex_init(&hayQueDesalojarMutex, NULL);
-
-    int valorInicialGradoMultiprog = kernel_config_get_grado_multiprogramacion(kernelConfig);
-
-    sem_init(&hayPcbsParaAgregarAlSistema, 0, 0);
-    sem_init(&gradoMultiprog, 0, valorInicialGradoMultiprog);
-    sem_init(&dispatchPermitido, 0, 1);
-    sem_init(&transicionarSusreadyAReady, 0, 0);
-    log_info(kernelLogger, "Se inicializa el grado multiprogramación en %d", valorInicialGradoMultiprog);
-
-    estadoNew = estado_create(NEW);
-    estadoReady = estado_create(READY);
-    estadoExec = estado_create(EXEC);
-    estadoExit = estado_create(EXIT);
-    estadoBlocked = estado_create(BLOCKED);
-    estadoSuspendedBlocked = estado_create(SUSPENDED_BLOCKED);
-    estadoSuspendedReady = estado_create(SUSPENDED_READY);
-
-    pcbsEsperandoParaIO = estado_create(PCBS_ESPERANDO_PARA_IO);
-
-    if (kernel_config_es_algoritmo_srt(kernelConfig)) {
-        elegir_pcb_segun_algoritmo = elegir_pcb_segun_srt;
-    } else if (kernel_config_es_algoritmo_fifo(kernelConfig)) {
-        elegir_pcb_segun_algoritmo = elegir_pcb_segun_fifo;
-    } else {
-        log_error(kernelLogger, "No se pudo inicializar el planificador, no se encontró un algoritmo de planificación válido");
-        exit(-1);
-    }
-
-    pthread_t largoPlazoTh;
-    pthread_create(&largoPlazoTh, NULL, (void*)planificador_largo_plazo, NULL);
-    pthread_detach(largoPlazoTh);
-
-    pthread_t cortoPlazoTh;
-    pthread_create(&cortoPlazoTh, NULL, (void*)planificador_corto_plazo, NULL);
-    pthread_detach(cortoPlazoTh);
-
-    pthread_t medianoPlazoTh;
-    pthread_create(&medianoPlazoTh, NULL, (void*)planificador_mediano_plazo, NULL);
-    pthread_detach(medianoPlazoTh);
-
-    pthread_t dispositivoIOTh;
-    pthread_create(&dispositivoIOTh, NULL, (void*)iniciar_dispositivo_io, NULL);
-    pthread_detach(dispositivoIOTh);
-
-    log_info(kernelLogger, "Se crean los hilos planificadores");
+static void responder_no_hay_lugar_en_memoria(t_pcb* pcb) {
+    estado_encolar_pcb_atomic(estadoExit, pcb);
+    log_transition("NEW", "EXIT", pcb_get_pid(pcb));
+    log_info(kernelLogger, "Memoria insuficiente para alojar el proceso %d", pcb_get_pid(pcb));
+    pcb_responder_a_consola(pcb, HEADER_memoria_insuficiente);
 }
 
-void* encolar_en_new_a_nuevo_pcb_entrante(void* socket) {
-    int* socketProceso = (int*)socket;
-    uint32_t tamanio = 0;
+static uint32_t obtener_siguiente_pid(void) {
+    pthread_mutex_lock(&nextPidMutex);
+    uint32_t newNextPid = nextPid++;
+    pthread_mutex_unlock(&nextPidMutex);
+    return newNextPid;
+}
 
-    uint8_t response = stream_recv_header(*socketProceso);
-    if (response != HANDSHAKE_consola) {
-        log_error(kernelLogger, "Error al intentar establecer conexión con proceso mediante <socket %d>", *socketProceso);
-    } else {
-        t_buffer* bufferHandshakeInicial = buffer_create();
-        stream_recv_buffer(*socketProceso, bufferHandshakeInicial);
-        buffer_unpack(bufferHandshakeInicial, &tamanio, sizeof(tamanio));
-        buffer_destroy(bufferHandshakeInicial);
-        stream_send_empty_buffer(*socketProceso, HANDSHAKE_ok_continue);  // TODO: Descomentarlo en consola.c luego en producción
+//////////////////////////////////////// Algorithms ////////////////////////////////////////
+t_pcb* segun_fifo(t_estado* estado, double _) {
+    return estado_desencolar_primer_pcb_atomic(estado);
+}
 
-        uint8_t consolaResponse = stream_recv_header(*socketProceso);
-        if (consolaResponse != HEADER_lista_instrucciones) {
-            log_error(kernelLogger, "Error al intentar recibir lista de instrucciones del proceso mediante <socket %d>", *socketProceso);
-            return NULL;
-        }
+t_pcb* menor_rafaga_restante(t_pcb* unPcb, t_pcb* otroPcb) {
+    double unaRafagaRestante = pcb_get_estimacion_actual(unPcb) - pcb_get_reales_ejecutados_hasta_ahora(unPcb);
+    double otraRafagaRestante = pcb_get_estimacion_actual(otroPcb) - pcb_get_reales_ejecutados_hasta_ahora(otroPcb);
+    return unaRafagaRestante <= otraRafagaRestante
+               ? unPcb
+               : otroPcb;
+}
 
-        t_buffer* instructionsBuffer = buffer_create();
-        stream_recv_buffer(*socketProceso, instructionsBuffer);
-        t_buffer* instructionsBufferCopy = buffer_create_copy(instructionsBuffer);
+double media_exponencial(double alfa, double realAnterior, double estimacionAnterior) {
+    return alfa * realAnterior + (1 - alfa) * estimacionAnterior;
+}
 
-        uint32_t newPid = get_next_pid();
-        t_pcb* newPcb = pcb_create(newPid, tamanio, kernel_config_get_est_inicial(kernelConfig));
-        pcb_set_socket(newPcb, *socketProceso);
-        pcb_set_instruction_buffer(newPcb, instructionsBufferCopy);
+double calcular_siguiente_estimacion(t_pcb* pcb, double alfa) {
+    return media_exponencial(
+        alfa,
+        pcb_get_real_anterior(pcb),
+        pcb_get_estimacion_actual(pcb)  // La estimación actual es la estimación anterior al momento de calcular la media exponencial
+    );
+}
 
-        log_info(kernelLogger, "Creación de nuevo proceso ID %d de tamaño %d mediante <socket %d>", pcb_get_pid(newPcb), tamanio, *socketProceso);
-
-        estado_encolar_pcb_atomic(estadoNew, newPcb);
-        log_transition("NULL", "NEW", pcb_get_pid(newPcb));
-        sem_post(&hayPcbsParaAgregarAlSistema);
-        buffer_destroy(instructionsBuffer);
+t_pcb* segun_srt(t_estado* estado, double alfa) {
+    t_pcb* pcbElecto = NULL;
+    pthread_mutex_lock(estado_get_mutex(estado));
+    int cantidadPcbsEnLista = list_size(estado_get_list(estado));
+    if (cantidadPcbsEnLista == 1) {
+        pcbElecto = estado_desencolar_primer_pcb(estado);
+    } else if (cantidadPcbsEnLista > 1) {
+        pcbElecto = list_get_minimum(estado_get_list(estado), (void*)menor_rafaga_restante);
+        estado_remover_pcb_de_cola(estado, pcbElecto);
     }
-    return NULL;
+    pthread_mutex_unlock(estado_get_mutex(estado));
+    return pcbElecto;
+}
+
+//////////////////////////////////////// Scheduler Functions ////////////////////////////////////////
+static void iniciar_contador_blocked_a_suspended_blocked(void* pcbVoid) {
+    t_pcb* pcb = (t_pcb*)pcbVoid;
+    pthread_mutex_lock(pcb_get_mutex(pcb));
+    pcb_set_veces_bloqueado(pcb, pcb_get_veces_bloqueado(pcb) + 1);
+    int laVezBloqueadaQueRepresentaElHilo = pcb_get_veces_bloqueado(pcb);
+    pthread_mutex_unlock(pcb_get_mutex(pcb));
+    log_debug(kernelLogger, "Iniciando contador de blocked a suspended blocked de PCB <ID %d>", pcb_get_pid(pcb));
+    t_pcb* dummyPCB = pcb_create(pcb_get_pid(pcb), pcb_get_tamanio(pcb), pcb_get_estimacion_actual(pcb));
+
+    intervalo_de_pausa(kernel_config_get_tiempo_maximo_bloqueado(kernelConfig));
+
+    if (estado_contiene_pcb_atomic(estadoBlocked, dummyPCB) && pcb_get_veces_bloqueado(pcb) == laVezBloqueadaQueRepresentaElHilo) {
+        if (estado_remover_pcb_de_cola_atomic(estadoBlocked, dummyPCB) != NULL) {
+            pcb_test_and_set_tiempo_final_bloqueado(pcb);
+
+            pthread_mutex_lock(pcb_get_mutex(pcb));
+            double tiempoEsperandoEnBlocked = difftime(pcb_get_tiempo_final_bloqueado(pcb), pcb_get_tiempo_inicial_bloqueado(pcb));
+            if (pcb_get_tiempo_de_bloqueo(pcb) / 1000.0 <= kernel_config_get_tiempo_maximo_bloqueado(kernelConfig) / 1000.0) {
+                if (pcb_get_tiempo_de_bloqueo(pcb) / 1000.0 + tiempoEsperandoEnBlocked <= kernel_config_get_tiempo_maximo_bloqueado(kernelConfig) / 1000.0) {
+                    pcb_destroy(dummyPCB);
+                    pthread_mutex_unlock(pcb_get_mutex(pcb));
+                    return;
+                }
+            }
+
+            pcb_set_estado_actual(pcb, SUSPENDED_BLOCKED);
+            // TODO: mem_adapter_avisar_suspension(pcbASuspender, kernelConfig, kernelLogger);
+            estado_encolar_pcb_atomic(estadoSuspendedBlocked, pcb);
+            log_debug(kernelLogger, "Entra en suspensión PCB <ID %d>", pcb_get_pid(pcb));
+            log_transition("BLOCKED", "SUSBLOCKED", pcb_get_pid(pcb));
+            sem_post(&gradoMultiprog);
+            pthread_mutex_unlock(pcb_get_mutex(pcb));
+        }
+    }
+
+    pcb_destroy(dummyPCB);
+}
+
+static void noreturn iniciar_dispositivo_io(void) {
+    for (;;) {
+        sem_wait(estado_get_sem(pcbsEsperandoParaIO));
+        t_pcb* pcbAEjecutarRafagasIO = estado_desencolar_primer_pcb_atomic(pcbsEsperandoParaIO);
+        log_info(kernelLogger, "Ejecutando ráfagas I/O de PCB <ID %d> por %d milisegundos", pcb_get_pid(pcbAEjecutarRafagasIO), pcb_get_tiempo_de_bloqueo(pcbAEjecutarRafagasIO));
+        pcb_test_and_set_tiempo_final_bloqueado(pcbAEjecutarRafagasIO);
+
+        intervalo_de_pausa(pcb_get_tiempo_de_bloqueo(pcbAEjecutarRafagasIO));
+
+        pthread_mutex_lock(pcb_get_mutex(pcbAEjecutarRafagasIO));
+        if (pcb_get_estado_actual(pcbAEjecutarRafagasIO) == BLOCKED) {
+            estado_remover_pcb_de_cola_atomic(estadoBlocked, pcbAEjecutarRafagasIO);
+            pcb_set_estado_actual(pcbAEjecutarRafagasIO, READY);
+            pthread_mutex_lock(&hayQueDesalojarMutex);
+            hayQueDesalojar = true;
+            pthread_mutex_unlock(&hayQueDesalojarMutex);
+            estado_encolar_pcb_atomic(estadoReady, pcbAEjecutarRafagasIO);
+            pcb_set_tiempo_de_bloqueo(pcbAEjecutarRafagasIO, 0);
+            log_transition("BLOCKED", "READY", pcb_get_pid(pcbAEjecutarRafagasIO));
+            sem_post(estado_get_sem(estadoReady));
+        } else if (pcb_get_estado_actual(pcbAEjecutarRafagasIO) == SUSPENDED_BLOCKED) {
+            estado_remover_pcb_de_cola_atomic(estadoSuspendedBlocked, pcbAEjecutarRafagasIO);
+            pcb_set_estado_actual(pcbAEjecutarRafagasIO, SUSPENDED_READY);
+            estado_encolar_pcb_atomic(estadoSuspendedReady, pcbAEjecutarRafagasIO);
+            pcb_set_tiempo_de_bloqueo(pcbAEjecutarRafagasIO, 0);
+            log_transition("SUSBLOCKED", "SUSREADY", pcb_get_pid(pcbAEjecutarRafagasIO));
+            sem_post(&hayPcbsParaAgregarAlSistema);
+        }
+        pcb_marcar_tiempo_final_como_no_establecido(pcbAEjecutarRafagasIO);
+        pthread_mutex_unlock(pcb_get_mutex(pcbAEjecutarRafagasIO));
+    }
 }
 
 static void noreturn hilo_que_libera_pcbs_en_exit(void) {
@@ -166,13 +188,6 @@ static void noreturn hilo_que_libera_pcbs_en_exit(void) {
         pcb_destroy(pcbALiberar);
         sem_post(&gradoMultiprog);
     }
-}
-
-void responder_no_hay_lugar_en_memoria(t_pcb* pcb) {
-    estado_encolar_pcb_atomic(estadoExit, pcb);
-    log_transition("NEW", "EXIT", pcb_get_pid(pcb));
-    log_info(kernelLogger, "Memoria insuficiente para alojar el proceso %d", pcb_get_pid(pcb));
-    pcb_responder_a_consola(pcb, HEADER_memoria_insuficiente);
 }
 
 static void noreturn planificador_largo_plazo(void) {
@@ -233,113 +248,15 @@ static void noreturn planificador_mediano_plazo(void) {
     }
 }
 
-t_pcb* elegir_pcb_segun_fifo(t_estado* estado, double _) {
-    return estado_desencolar_primer_pcb_atomic(estado);
+void actualizar_pcb_por_desalojo(t_pcb* pcb, double realEjecutado) {
+    pcb_set_reales_ejecutados_hasta_ahora(pcb, pcb_get_reales_ejecutados_hasta_ahora(pcb) + realEjecutado);
 }
 
-t_pcb* menor_rafaga_restante(t_pcb* unPcb, t_pcb* otroPcb) {
-    double unaRafagaRestante = pcb_get_estimacion_actual(unPcb) - pcb_get_reales_ejecutados_hasta_ahora(unPcb);
-    double otraRafagaRestante = pcb_get_estimacion_actual(otroPcb) - pcb_get_reales_ejecutados_hasta_ahora(otroPcb);
-    return unaRafagaRestante <= otraRafagaRestante
-               ? unPcb
-               : otroPcb;
-}
-
-double media_exponencial(double alfa, double realAnterior, double estimacionAnterior) {
-    return alfa * realAnterior + (1 - alfa) * estimacionAnterior;
-}
-
-double calcular_siguiente_estimacion(t_pcb* pcb, double alfa) {
-    return media_exponencial(
-        alfa,
-        pcb_get_real_anterior(pcb),
-        pcb_get_estimacion_actual(pcb)  // La estimación actual es la estimación anterior al momento de calcular la media exponencial
-    );
-}
-
-t_pcb* elegir_pcb_segun_srt(t_estado* estado, double alfa) {
-    t_pcb* pcbElecto = NULL;
-    pthread_mutex_lock(estado_get_mutex(estado));
-    int cantidadPcbsEnLista = list_size(estado_get_list(estado));
-    if (cantidadPcbsEnLista == 1) {
-        pcbElecto = estado_desencolar_primer_pcb(estado);
-    } else if (cantidadPcbsEnLista > 1) {
-        pcbElecto = list_get_minimum(estado_get_list(estado), (void*)menor_rafaga_restante);
-        estado_remover_pcb_de_cola(estado, pcbElecto);
-    }
-    pthread_mutex_unlock(estado_get_mutex(estado));
-    return pcbElecto;
-}
-
-static void noreturn iniciar_dispositivo_io(void) {
-    for (;;) {
-        sem_wait(estado_get_sem(pcbsEsperandoParaIO));
-        t_pcb* pcbAEjecutarRafagasIO = estado_desencolar_primer_pcb_atomic(pcbsEsperandoParaIO);
-        log_info(kernelLogger, "Ejecutando ráfagas I/O de PCB <ID %d> por %d milisegundos", pcb_get_pid(pcbAEjecutarRafagasIO), pcb_get_tiempo_de_bloqueo(pcbAEjecutarRafagasIO));
-        pcb_test_and_set_tiempo_final_bloqueado(pcbAEjecutarRafagasIO);
-
-        intervalo_de_pausa(pcb_get_tiempo_de_bloqueo(pcbAEjecutarRafagasIO));
-
-        pthread_mutex_lock(pcb_get_mutex(pcbAEjecutarRafagasIO));
-        if (pcb_get_estado_actual(pcbAEjecutarRafagasIO) == BLOCKED) {
-            estado_remover_pcb_de_cola_atomic(estadoBlocked, pcbAEjecutarRafagasIO);
-            pcb_set_estado_actual(pcbAEjecutarRafagasIO, READY);
-            pthread_mutex_lock(&hayQueDesalojarMutex);
-            hayQueDesalojar = true;
-            pthread_mutex_unlock(&hayQueDesalojarMutex);
-            estado_encolar_pcb_atomic(estadoReady, pcbAEjecutarRafagasIO);
-            pcb_set_tiempo_de_bloqueo(pcbAEjecutarRafagasIO, 0);
-            log_transition("BLOCKED", "READY", pcb_get_pid(pcbAEjecutarRafagasIO));
-            sem_post(estado_get_sem(estadoReady));
-        } else if (pcb_get_estado_actual(pcbAEjecutarRafagasIO) == SUSPENDED_BLOCKED) {
-            estado_remover_pcb_de_cola_atomic(estadoSuspendedBlocked, pcbAEjecutarRafagasIO);
-            pcb_set_estado_actual(pcbAEjecutarRafagasIO, SUSPENDED_READY);
-            estado_encolar_pcb_atomic(estadoSuspendedReady, pcbAEjecutarRafagasIO);
-            pcb_set_tiempo_de_bloqueo(pcbAEjecutarRafagasIO, 0);
-            log_transition("SUSBLOCKED", "SUSREADY", pcb_get_pid(pcbAEjecutarRafagasIO));
-            sem_post(&hayPcbsParaAgregarAlSistema);
-        }
-        pcb_marcar_tiempo_final_como_no_establecido(pcbAEjecutarRafagasIO);
-        pthread_mutex_unlock(pcb_get_mutex(pcbAEjecutarRafagasIO));
-    }
-}
-
-static void iniciar_contador_blocked_a_suspended_blocked(void* pcbVoid) {
-    t_pcb* pcb = (t_pcb*)pcbVoid;
-    pthread_mutex_lock(pcb_get_mutex(pcb));
-    pcb_set_veces_bloqueado(pcb, pcb_get_veces_bloqueado(pcb) + 1);
-    int laVezBloqueadaQueRepresentaElHilo = pcb_get_veces_bloqueado(pcb);
-    pthread_mutex_unlock(pcb_get_mutex(pcb));
-    log_debug(kernelLogger, "Iniciando contador de blocked a suspended blocked de PCB <ID %d>", pcb_get_pid(pcb));
-    t_pcb* dummyPCB = pcb_create(pcb_get_pid(pcb), pcb_get_tamanio(pcb), pcb_get_estimacion_actual(pcb));
-
-    intervalo_de_pausa(kernel_config_get_tiempo_maximo_bloqueado(kernelConfig));
-
-    if (estado_contiene_pcb_atomic(estadoBlocked, dummyPCB) && pcb_get_veces_bloqueado(pcb) == laVezBloqueadaQueRepresentaElHilo) {
-        if (estado_remover_pcb_de_cola_atomic(estadoBlocked, dummyPCB) != NULL) {
-            pcb_test_and_set_tiempo_final_bloqueado(pcb);
-
-            pthread_mutex_lock(pcb_get_mutex(pcb));
-            double tiempoEsperandoEnBlocked = difftime(pcb_get_tiempo_final_bloqueado(pcb), pcb_get_tiempo_inicial_bloqueado(pcb));
-            if (pcb_get_tiempo_de_bloqueo(pcb) / 1000.0 <= kernel_config_get_tiempo_maximo_bloqueado(kernelConfig) / 1000.0) {
-                if (pcb_get_tiempo_de_bloqueo(pcb) / 1000.0 + tiempoEsperandoEnBlocked <= kernel_config_get_tiempo_maximo_bloqueado(kernelConfig) / 1000.0) {
-                    pcb_destroy(dummyPCB);
-                    pthread_mutex_unlock(pcb_get_mutex(pcb));
-                    return;
-                }
-            }
-
-            pcb_set_estado_actual(pcb, SUSPENDED_BLOCKED);
-            // TODO: mem_adapter_avisar_suspension(pcbASuspender, kernelConfig, kernelLogger);
-            estado_encolar_pcb_atomic(estadoSuspendedBlocked, pcb);
-            log_debug(kernelLogger, "Entra en suspensión PCB <ID %d>", pcb_get_pid(pcb));
-            log_transition("BLOCKED", "SUSBLOCKED", pcb_get_pid(pcb));
-            sem_post(&gradoMultiprog);
-            pthread_mutex_unlock(pcb_get_mutex(pcb));
-        }
-    }
-
-    pcb_destroy(dummyPCB);
+void actualizar_pcb_por_bloqueo(t_pcb* pcb, double realEjecutado) {
+    pcb_set_real_anterior(pcb, pcb_get_reales_ejecutados_hasta_ahora(pcb) + realEjecutado);  // Digo que el real anterior es la sumatoria de los reales ejecutados hasta ahora, antes de bloquearse
+    pcb_set_reales_ejecutados_hasta_ahora(pcb, 0);                                           // Resetear reales ejecutados debido a que ya ejecutaron toda su ráfaga de CPU
+    double siguienteEstimacion = calcular_siguiente_estimacion(pcb, kernel_config_get_alfa(kernelConfig));
+    pcb_set_estimacion_actual(pcb, siguienteEstimacion);  // Establezco la nueva estimación para cuando me desbloquee (estimamos antes por conveniencia)
 }
 
 static void atender_bloqueo(t_pcb* pcb) {
@@ -378,7 +295,7 @@ static void noreturn atender_pcb(void) {
         double realEjecutado = difftime(tiempoFinalEjecucion, tiempoInicialEjecucion);
         switch (cpuResponse) {
             case HEADER_proceso_desalojado:
-                pcb_set_reales_ejecutados_hasta_ahora(pcb, pcb_get_reales_ejecutados_hasta_ahora(pcb) + realEjecutado);  // Digo que reales ejecutados es lo que se ejecuto hasta antes de interrumpirse
+                actualizar_pcb_por_desalojo(pcb, realEjecutado);
                 pcb_set_estado_actual(pcb, READY);
                 estado_encolar_pcb_atomic(estadoReady, pcb);
                 log_transition("EXEC", "READY", pcb_get_pid(pcb));
@@ -393,10 +310,7 @@ static void noreturn atender_pcb(void) {
                 sem_post(estado_get_sem(estadoExit));
                 break;
             case HEADER_proceso_bloqueado:
-                pcb_set_real_anterior(pcb, pcb_get_reales_ejecutados_hasta_ahora(pcb) + realEjecutado);  // Digo que el real anterior es la sumatoria de los reales ejecutados hasta ahora, antes de bloquearse
-                pcb_set_reales_ejecutados_hasta_ahora(pcb, 0);                                           // Resetear reales ejecutados debido a que ya ejecutaron toda su ráfaga de CPU
-                double siguienteEstimacion = calcular_siguiente_estimacion(pcb, kernel_config_get_alfa(kernelConfig));
-                pcb_set_estimacion_actual(pcb, siguienteEstimacion);  // Establezco la nueva estimación para cuando me desbloquee (estimamos antes por conveniencia)
+                actualizar_pcb_por_bloqueo(pcb, realEjecutado);
                 atender_bloqueo(pcb);
                 break;
             default:
@@ -433,9 +347,101 @@ static void noreturn planificador_corto_plazo(void) {
         sem_wait(&dispatchPermitido);
         log_info(kernelLogger, "Se permite dispatch");
 
-        t_pcb* pcbToDispatch = elegir_pcb_segun_algoritmo(estadoReady, kernel_config_get_alfa(kernelConfig));
+        t_pcb* pcbToDispatch = elegir_pcb(estadoReady, kernel_config_get_alfa(kernelConfig));
 
         estado_encolar_pcb_atomic(estadoExec, pcbToDispatch);
         sem_post(estado_get_sem(estadoExec));
     }
+}
+
+void* encolar_en_new_a_nuevo_pcb_entrante(void* socket) {
+    int* socketProceso = (int*)socket;
+    uint32_t tamanio = 0;
+
+    uint8_t response = stream_recv_header(*socketProceso);
+    if (response != HANDSHAKE_consola) {
+        log_error(kernelLogger, "Error al intentar establecer conexión con proceso mediante <socket %d>", *socketProceso);
+    } else {
+        t_buffer* bufferHandshakeInicial = buffer_create();
+        stream_recv_buffer(*socketProceso, bufferHandshakeInicial);
+        buffer_unpack(bufferHandshakeInicial, &tamanio, sizeof(tamanio));
+        buffer_destroy(bufferHandshakeInicial);
+        stream_send_empty_buffer(*socketProceso, HANDSHAKE_ok_continue);  // TODO: Descomentarlo en consola.c luego en producción
+
+        uint8_t consolaResponse = stream_recv_header(*socketProceso);
+        if (consolaResponse != HEADER_lista_instrucciones) {
+            log_error(kernelLogger, "Error al intentar recibir lista de instrucciones del proceso mediante <socket %d>", *socketProceso);
+            return NULL;
+        }
+
+        t_buffer* instructionsBuffer = buffer_create();
+        stream_recv_buffer(*socketProceso, instructionsBuffer);
+        t_buffer* instructionsBufferCopy = buffer_create_copy(instructionsBuffer);
+
+        uint32_t newPid = obtener_siguiente_pid();
+        t_pcb* newPcb = pcb_create(newPid, tamanio, kernel_config_get_est_inicial(kernelConfig));
+        pcb_set_socket(newPcb, *socketProceso);
+        pcb_set_instruction_buffer(newPcb, instructionsBufferCopy);
+
+        log_info(kernelLogger, "Creación de nuevo proceso ID %d de tamaño %d mediante <socket %d>", pcb_get_pid(newPcb), tamanio, *socketProceso);
+
+        estado_encolar_pcb_atomic(estadoNew, newPcb);
+        log_transition("NULL", "NEW", pcb_get_pid(newPcb));
+        sem_post(&hayPcbsParaAgregarAlSistema);
+        buffer_destroy(instructionsBuffer);
+    }
+    return NULL;
+}
+
+void inicializar_estructuras(void) {
+    nextPid = 0;
+    hayQueDesalojar = false;
+
+    pthread_mutex_init(&nextPidMutex, NULL);
+    pthread_mutex_init(&hayQueDesalojarMutex, NULL);
+
+    int valorInicialGradoMultiprog = kernel_config_get_grado_multiprogramacion(kernelConfig);
+
+    sem_init(&hayPcbsParaAgregarAlSistema, 0, 0);
+    sem_init(&gradoMultiprog, 0, valorInicialGradoMultiprog);
+    sem_init(&dispatchPermitido, 0, 1);
+    sem_init(&transicionarSusreadyAReady, 0, 0);
+    log_info(kernelLogger, "Se inicializa el grado multiprogramación en %d", valorInicialGradoMultiprog);
+
+    estadoNew = estado_create(NEW);
+    estadoReady = estado_create(READY);
+    estadoExec = estado_create(EXEC);
+    estadoExit = estado_create(EXIT);
+    estadoBlocked = estado_create(BLOCKED);
+    estadoSuspendedBlocked = estado_create(SUSPENDED_BLOCKED);
+    estadoSuspendedReady = estado_create(SUSPENDED_READY);
+
+    pcbsEsperandoParaIO = estado_create(PCBS_ESPERANDO_PARA_IO);
+
+    if (kernel_config_es_algoritmo_srt(kernelConfig)) {
+        elegir_pcb = segun_srt;
+    } else if (kernel_config_es_algoritmo_fifo(kernelConfig)) {
+        elegir_pcb = segun_fifo;
+    } else {
+        log_error(kernelLogger, "No se pudo inicializar el planificador, no se encontró un algoritmo de planificación válido");
+        exit(-1);
+    }
+
+    pthread_t largoPlazoTh;
+    pthread_create(&largoPlazoTh, NULL, (void*)planificador_largo_plazo, NULL);
+    pthread_detach(largoPlazoTh);
+
+    pthread_t medianoPlazoTh;
+    pthread_create(&medianoPlazoTh, NULL, (void*)planificador_mediano_plazo, NULL);
+    pthread_detach(medianoPlazoTh);
+
+    pthread_t cortoPlazoTh;
+    pthread_create(&cortoPlazoTh, NULL, (void*)planificador_corto_plazo, NULL);
+    pthread_detach(cortoPlazoTh);
+
+    pthread_t dispositivoIOTh;
+    pthread_create(&dispositivoIOTh, NULL, (void*)iniciar_dispositivo_io, NULL);
+    pthread_detach(dispositivoIOTh);
+
+    log_info(kernelLogger, "Se crean los hilos planificadores");
 }
