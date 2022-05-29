@@ -272,11 +272,34 @@ static void atender_bloqueo(t_pcb* pcb) {
     pthread_detach(*contadorASuspendedBlocked);
 }
 
+/*
+    struct timespec start, end;
+    clock_gettime(CLOCK_REALTIME, &start);
+    intervalo_de_pausa(10500);
+    clock_gettime(CLOCK_REALTIME, &end);
+
+    uint64_t delta_us = (end.tv_sec - start.tv_sec) * 1000 + (end.tv_nsec - start.tv_nsec) / 1000000;
+    char* str_delta_us = string_itoa(delta_us);
+    str_delta_us[strlen(str_delta_us) - 1] = '0';
+    uint64_t new_delta_us = atoi(str_delta_us);
+
+    printf("\nElapsed time: %ld\n", delta_us);
+    printf("Elapsed time (new): %ld\n", new_delta_us);
+
+    free(str_delta_us);
+*/
+
 static void noreturn atender_pcb(void) {
     for (;;) {
         sem_wait(estado_get_sem(estadoExec));
 
-        time_t tiempoInicialEjecucion = time(NULL);
+        struct timespec start;
+        if (clock_gettime(CLOCK_REALTIME, &start) == -1) {
+            perror("clock_gettime");
+            exit(EXIT_FAILURE);
+        }
+
+        // time_t tiempoInicialEjecucion = time(NULL);
         pthread_mutex_lock(estado_get_mutex(estadoExec));
         t_pcb* pcb = list_get(estado_get_list(estadoExec), 0);
         log_transition("READY", "EXEC", pcb_get_pid(pcb));
@@ -285,14 +308,26 @@ static void noreturn atender_pcb(void) {
         cpu_adapter_enviar_pcb_a_cpu(pcb, kernelConfig, kernelLogger);
         uint8_t cpuResponse = stream_recv_header(kernel_config_get_socket_dispatch_cpu(kernelConfig));
 
-        time_t tiempoFinalEjecucion = time(NULL);
+        struct timespec end;
+        if (clock_gettime(CLOCK_REALTIME, &end) == -1) {
+            perror("clock_gettime");
+            exit(EXIT_FAILURE);
+        }
+        // time_t tiempoFinalEjecucion = time(NULL);
         pthread_mutex_lock(estado_get_mutex(estadoExec));
         pcb = cpu_adapter_recibir_pcb_actualizado_de_cpu(pcb, cpuResponse, kernelConfig, kernelLogger);
-        pcb_set_real_anterior(pcb, difftime(tiempoFinalEjecucion, tiempoInicialEjecucion));  // Esto siempre daría un número con decimal 0, salvo que se utilice el NO_OP con un valor, por ejemplo: 10500
+        // pcb_set_real_anterior(pcb, difftime(tiempoFinalEjecucion, tiempoInicialEjecucion));  // TODO: Esto está mal, pues en caso de desalojar a un proceso no debe actualizar su real anterior ejecutado (solo actualizar realesEjecutadosHastaAhora)
         list_remove(estado_get_list(estadoExec), 0);
         pthread_mutex_unlock(estado_get_mutex(estadoExec));
 
-        double realEjecutado = difftime(tiempoFinalEjecucion, tiempoInicialEjecucion);
+        // double realEjecutado = difftime(tiempoFinalEjecucion, tiempoInicialEjecucion);
+        uint64_t realEjecutado = (end.tv_sec - start.tv_sec) * 1000 + (end.tv_nsec - start.tv_nsec) / 1000000;
+        log_debug(kernelLogger, "Elapsed time: %ld miliseconds", realEjecutado);
+        /* char* strRealEjecutado = string_itoa(realEjecutado);
+        strRealEjecutado[strlen(strRealEjecutado) - 1] = '0';
+        uint64_t nuevoRealEjecutado = atoi(strRealEjecutado);
+        log_debug(kernelLogger, "Elapsed time (new): %ld", nuevoRealEjecutado); */
+
         switch (cpuResponse) {
             case HEADER_proceso_desalojado:
                 actualizar_pcb_por_desalojo(pcb, realEjecutado);
