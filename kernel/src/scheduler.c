@@ -74,9 +74,13 @@ t_pcb* segun_fifo(t_estado* estado, double _) {
     return estado_desencolar_primer_pcb_atomic(estado);
 }
 
+double calcular_estimacion_restante(t_pcb* pcb) {
+    return pcb_get_estimacion_actual(pcb) - pcb_get_reales_ejecutados_hasta_ahora(pcb);
+}
+
 t_pcb* menor_rafaga_restante(t_pcb* unPcb, t_pcb* otroPcb) {
-    double unaRafagaRestante = pcb_get_estimacion_actual(unPcb) - pcb_get_reales_ejecutados_hasta_ahora(unPcb);
-    double otraRafagaRestante = pcb_get_estimacion_actual(otroPcb) - pcb_get_reales_ejecutados_hasta_ahora(otroPcb);
+    double unaRafagaRestante = calcular_estimacion_restante(unPcb);
+    double otraRafagaRestante = calcular_estimacion_restante(otroPcb);
     return unaRafagaRestante <= otraRafagaRestante
                ? unPcb
                : otroPcb;
@@ -252,10 +256,10 @@ void actualizar_pcb_por_desalojo(t_pcb* pcb, double realEjecutado) {
     pcb_set_reales_ejecutados_hasta_ahora(pcb, pcb_get_reales_ejecutados_hasta_ahora(pcb) + realEjecutado);
 }
 
-void actualizar_pcb_por_bloqueo(t_pcb* pcb, double realEjecutado) {
+void actualizar_pcb_por_bloqueo(t_pcb* pcb, double realEjecutado, double alfa) {
     pcb_set_real_anterior(pcb, pcb_get_reales_ejecutados_hasta_ahora(pcb) + realEjecutado);  // Digo que el real anterior es la sumatoria de los reales ejecutados hasta ahora, antes de bloquearse
     pcb_set_reales_ejecutados_hasta_ahora(pcb, 0);                                           // Resetear reales ejecutados debido a que ya ejecutaron toda su ráfaga de CPU
-    double siguienteEstimacion = calcular_siguiente_estimacion(pcb, kernel_config_get_alfa(kernelConfig));
+    double siguienteEstimacion = calcular_siguiente_estimacion(pcb, alfa);
     pcb_set_estimacion_actual(pcb, siguienteEstimacion);  // Establezco la nueva estimación para cuando me desbloquee (estimamos antes por conveniencia)
 }
 
@@ -327,7 +331,7 @@ static void noreturn atender_pcb(void) {
                 sem_post(estado_get_sem(estadoExit));
                 break;
             case HEADER_proceso_bloqueado:
-                actualizar_pcb_por_bloqueo(pcb, realEjecutado);
+                actualizar_pcb_por_bloqueo(pcb, realEjecutado, kernel_config_get_alfa(kernelConfig));
                 atender_bloqueo(pcb);
                 break;
             default:
