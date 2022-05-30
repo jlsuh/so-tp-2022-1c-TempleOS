@@ -48,9 +48,8 @@ static bool cpu_exec_instruction(t_cpu_pcb* pcb, t_tipo_instruccion tipoInstrucc
     char* logMsg = NULL;
 
     if (tipoInstruccion == INSTRUCCION_no_op) {
-        uint32_t retardoNoOpTotal = operando1 * cpu_config_get_retardo_no_op(cpuConfig);
-        log_info(cpuLogger, "INSTRUCCION_no_op: Ejecución NO_OP durante %d milisegundos", retardoNoOpTotal);
-        intervalo_de_pausa(retardoNoOpTotal);
+        log_info(cpuLogger, "INSTRUCCION_no_op: Ejecución NO_OP durante %d milisegundos", cpu_config_get_retardo_no_op(cpuConfig));
+        intervalo_de_pausa(cpu_config_get_retardo_no_op(cpuConfig));
         log_info(cpuLogger, "Fin de la ejecución de la instrucción NO_OP");
     } else if (tipoInstruccion == INSTRUCCION_io) {
         uint32_t tiempoDeBloqueo = operando1;
