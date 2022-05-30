@@ -15,17 +15,17 @@ t_kernel_config* kernelConfig;
 struct t_kernel_config {
     char* IP_MEMORIA;
     char* PUERTO_MEMORIA;
-    int SOCKET_MEMORIA;
     char* IP_CPU;
     char* PUERTO_CPU_DISPATCH;
-    int SOCKET_DISPATCH_CPU;
     char* PUERTO_CPU_INTERRUPT;
-    int SOCKET_INTERRUPT_CPU;
     char* IP_ESCUCHA;
     char* PUERTO_ESCUCHA;
     char* ALGORITMO_PLANIFICACION;
     double ESTIMACION_INICIAL;
     double ALFA;
+    int SOCKET_MEMORIA;
+    int SOCKET_DISPATCH_CPU;
+    int SOCKET_INTERRUPT_CPU;
     int GRADO_MULTIPROGRAMACION;
     int TIEMPO_MAXIMO_BLOQUEADO;
 };
@@ -34,17 +34,17 @@ static void __kernel_config_initializer(void* moduleConfig, t_config* tempCfg) {
     t_kernel_config* kernelConfig = (t_kernel_config*)moduleConfig;
     kernelConfig->IP_MEMORIA = strdup(config_get_string_value(tempCfg, "IP_MEMORIA"));
     kernelConfig->PUERTO_MEMORIA = strdup(config_get_string_value(tempCfg, "PUERTO_MEMORIA"));
-    kernelConfig->SOCKET_MEMORIA = -1;
     kernelConfig->IP_CPU = strdup(config_get_string_value(tempCfg, "IP_CPU"));
     kernelConfig->PUERTO_CPU_DISPATCH = strdup(config_get_string_value(tempCfg, "PUERTO_CPU_DISPATCH"));
-    kernelConfig->SOCKET_DISPATCH_CPU = -1;
     kernelConfig->PUERTO_CPU_INTERRUPT = strdup(config_get_string_value(tempCfg, "PUERTO_CPU_INTERRUPT"));
-    kernelConfig->SOCKET_INTERRUPT_CPU = -1;
     kernelConfig->IP_ESCUCHA = strdup(config_get_string_value(tempCfg, "IP_ESCUCHA"));
     kernelConfig->PUERTO_ESCUCHA = strdup(config_get_string_value(tempCfg, "PUERTO_ESCUCHA"));
     kernelConfig->ALGORITMO_PLANIFICACION = strdup(config_get_string_value(tempCfg, "ALGORITMO_PLANIFICACION"));
     kernelConfig->ESTIMACION_INICIAL = config_get_double_value(tempCfg, "ESTIMACION_INICIAL");
     kernelConfig->ALFA = config_get_double_value(tempCfg, "ALFA");
+    kernelConfig->SOCKET_MEMORIA = -1;
+    kernelConfig->SOCKET_DISPATCH_CPU = -1;
+    kernelConfig->SOCKET_INTERRUPT_CPU = -1;
     kernelConfig->GRADO_MULTIPROGRAMACION = config_get_int_value(tempCfg, "GRADO_MULTIPROGRAMACION");
     kernelConfig->TIEMPO_MAXIMO_BLOQUEADO = config_get_int_value(tempCfg, "TIEMPO_MAXIMO_BLOQUEADO");
 }
@@ -68,8 +68,7 @@ void kernel_config_destroy(t_kernel_config* self) {
 }
 
 double kernel_config_get_est_inicial(t_kernel_config* self) {
-    // TODO: Está bien dividirlo por 1000?
-    return self->ESTIMACION_INICIAL / 1000;
+    return self->ESTIMACION_INICIAL;
 }
 
 char* kernel_config_get_ip_escucha(t_kernel_config* self) {

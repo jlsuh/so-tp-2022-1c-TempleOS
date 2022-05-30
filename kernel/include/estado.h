@@ -24,6 +24,7 @@ t_pcb* estado_desencolar_primer_pcb(t_estado*);
 t_pcb* estado_desencolar_primer_pcb_atomic(t_estado*);
 t_pcb* estado_remover_pcb_de_cola(t_estado*, t_pcb* targetPcb);
 t_pcb* estado_remover_pcb_de_cola_atomic(t_estado*, t_pcb* targetPcb);
+void estado_destroy(t_estado* self);
 void estado_encolar_pcb_atomic(t_estado*, t_pcb* targetPcb);
 
 #endif

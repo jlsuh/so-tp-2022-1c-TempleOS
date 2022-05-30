@@ -3,6 +3,7 @@
 #include <commons/collections/list.h>
 #include <stdbool.h>
 #include <stdint.h>
+#include <unistd.h>
 
 #include "estado.h"
 #include "instruccion.h"
@@ -18,7 +19,7 @@ struct t_pcb {
     double realesEjecutadosHastaAhora;
     uint8_t estadoActual;
     uint32_t tiempoDeBloqueo;
-    int socketConsola;
+    int* socketConsola;
     t_buffer* instructionsBuffer;
     pthread_mutex_t* mutex;
     time_t tiempoInicialBloqueado;
@@ -50,7 +51,7 @@ t_pcb* pcb_create(uint32_t pid, uint32_t tamanio, double estimacionInicial) {
     self->realesEjecutadosHastaAhora = 0.0;
     self->estadoActual = NEW;
     self->tiempoDeBloqueo = 0;
-    self->socketConsola = -1;
+    self->socketConsola = NULL;
     self->instructionsBuffer = NULL;
     self->mutex = malloc(sizeof(*(self->mutex)));
     pthread_mutex_init(self->mutex, NULL);
@@ -63,13 +64,17 @@ void pcb_destroy(t_pcb* self) {
     if (self->instructionsBuffer != NULL) {
         buffer_destroy(self->instructionsBuffer);
     }
+    if (self->socketConsola != NULL) {
+        close(*self->socketConsola);
+        free(self->socketConsola);
+    }
     pthread_mutex_destroy(self->mutex);
     free(self->mutex);
     free(self);
 }
 
 void pcb_responder_a_consola(t_pcb* self, uint8_t responseHeader) {
-    stream_send_empty_buffer(self->socketConsola, responseHeader);
+    stream_send_empty_buffer(*self->socketConsola, responseHeader);
 }
 
 void pcb_test_and_set_tiempo_final_bloqueado(t_pcb* self) {
@@ -133,8 +138,8 @@ void pcb_set_tiempo_de_bloqueo(t_pcb* self, uint32_t tiempoDeBloqueo) {
     self->tiempoDeBloqueo = tiempoDeBloqueo;
 }
 
-void pcb_set_socket(t_pcb* self, int socket) {
-    self->socketConsola = socket;
+void pcb_set_socket(t_pcb* self, int* socketConsola) {
+    self->socketConsola = socketConsola;
 }
 
 t_buffer* pcb_get_instruction_buffer(t_pcb* self) {
