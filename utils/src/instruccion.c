@@ -36,7 +36,6 @@ t_list* instruccion_list_create_from_buffer(t_buffer* bufferConInstrucciones, t_
         uint32_t op2 = -1;
         switch (instruction) {
             case INSTRUCCION_no_op:
-                buffer_unpack(bufferConInstrucciones, &op1, sizeof(op1));
                 break;
             case INSTRUCCION_io:
                 buffer_unpack(bufferConInstrucciones, &op1, sizeof(op1));
