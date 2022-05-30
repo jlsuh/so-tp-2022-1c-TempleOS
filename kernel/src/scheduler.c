@@ -81,6 +81,8 @@ double calcular_estimacion_restante(t_pcb* pcb) {
 t_pcb* menor_rafaga_restante(t_pcb* unPcb, t_pcb* otroPcb) {
     double unaRafagaRestante = calcular_estimacion_restante(unPcb);
     double otraRafagaRestante = calcular_estimacion_restante(otroPcb);
+    log_debug(kernelLogger, "PCB <ID %d> RAFAGA DE %lf miliseconds", pcb_get_pid(unPcb), unaRafagaRestante);
+    log_debug(kernelLogger, "PCB <ID %d> RAFAGA DE %lf miliseconds", pcb_get_pid(otroPcb), otraRafagaRestante);
     return unaRafagaRestante <= otraRafagaRestante
                ? unPcb
                : otroPcb;
@@ -104,6 +106,7 @@ t_pcb* segun_srt(t_estado* estado, double alfa) {
     int cantidadPcbsEnLista = list_size(estado_get_list(estado));
     if (cantidadPcbsEnLista == 1) {
         pcbElecto = estado_desencolar_primer_pcb(estado);
+        log_debug(kernelLogger, "PCB <ID %d> ESTÁ SOLO EN READY", pcb_get_pid(pcbElecto));
     } else if (cantidadPcbsEnLista > 1) {
         pcbElecto = list_get_minimum(estado_get_list(estado), (void*)menor_rafaga_restante);
         estado_remover_pcb_de_cola(estado, pcbElecto);
