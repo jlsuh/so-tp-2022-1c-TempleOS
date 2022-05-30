@@ -31,15 +31,16 @@ static void __crear_hilo_handler_conexion_entrante(int* socket) {
 static void noreturn __aceptar_conexiones_kernel(int socketEscucha) {
     struct sockaddr cliente = {0};
     socklen_t len = sizeof(cliente);
-    log_info(kernelLogger, "Kernel: A la escucha de nuevas conexiones en puerto %d", socketEscucha);
-    int* socketCliente = NULL;
+    log_info(kernelLogger, "A la escucha de nuevas conexiones en puerto %d", socketEscucha);
+    // int* socketCliente = NULL;
     for (;;) {
-        socketCliente = malloc(sizeof(*socketCliente));
-        *socketCliente = accept(socketEscucha, &cliente, &len);
-        if (*socketCliente > 0) {
+        int clienteAceptado = accept(socketEscucha, &cliente, &len);
+        if (clienteAceptado > -1) {
+            int* socketCliente = malloc(sizeof(*socketCliente));
+            *socketCliente = clienteAceptado;
             __crear_hilo_handler_conexion_entrante(socketCliente);
         } else {
-            log_error(kernelLogger, "Kernel: Error al aceptar conexión: %s", strerror(errno));
+            log_error(kernelLogger, "Error al aceptar conexión: %s", strerror(errno));
         }
     }
 }
@@ -50,7 +51,7 @@ static void __kernel_destroy(t_kernel_config* kernelConfig, t_log* kernelLogger)
 }
 
 int main(int argc, char* argv[]) {
-    kernelLogger = log_create(KERNEL_LOG_PATH, KERNEL_MODULE_NAME, true, LOG_LEVEL_INFO);
+    kernelLogger = log_create(KERNEL_LOG_PATH, KERNEL_MODULE_NAME, true, LOG_LEVEL_DEBUG);
     kernelConfig = kernel_config_create(KERNEL_CONFIG_PATH, kernelLogger);
 
     // Conexión con CPU en canal Dispatch

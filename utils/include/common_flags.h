@@ -7,6 +7,7 @@ typedef enum {
     HEADER_proceso_terminado,
     HEADER_proceso_bloqueado,
     HEADER_proceso_desalojado,
+    HEADER_proceso_reactivado,
     HEADER_proceso_suspendido,
     HEADER_read,
     HEADER_write,

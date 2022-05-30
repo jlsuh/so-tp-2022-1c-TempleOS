@@ -60,9 +60,9 @@ t_list* instruccion_list_create_from_buffer(t_buffer* bufferConInstrucciones, t_
                 exit(-1);
         }
         t_instruccion* instruccionActual = instruccion_create(instruction, op1, op2);
-        log_info(logger, "Instrucción: %d con operandos: %d y %d", instruccionActual->tipoInstruccion, instruccionActual->operando1, instruccionActual->operando2);
         list_add(instrucciones, instruccionActual);
     }
+    log_info(logger, "Se desempaquetan %d instrucciones", list_size(instrucciones));
     return instrucciones;
 }
 

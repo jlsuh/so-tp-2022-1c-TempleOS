@@ -10,10 +10,6 @@
 static t_buffer* buffer = NULL;
 static t_log* consolaParserTestLogger = NULL;
 
-/* static uint8_t instrOpCode = 0;
-static uint32_t op1 = 0;
-static uint32_t op2 = 0; */
-
 // @Before
 void test_consola_parser_setup(void) {
     consolaParserTestLogger = log_create("./bin/consolaParserTest.log", "Consola Parser Test", false, LOG_LEVEL_INFO);
