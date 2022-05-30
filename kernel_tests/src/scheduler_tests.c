@@ -35,6 +35,7 @@ void test_scheduler_tear_down(void) {
     estado_destroy(estadoReady);
 }
 
+////////////////////////////// FIFO //////////////////////////////
 void test_planificar_segun_fifo(void) {
     elegir_pcb = segun_fifo;
 
@@ -55,6 +56,7 @@ void test_planificar_segun_fifo(void) {
     pcb_destroy(electo);
 }
 
+////////////////////////////// SRT //////////////////////////////
 void test_empates_en_srt_degradan_en_un_fifo(void) {
     elegir_pcb = segun_srt;
 
@@ -75,7 +77,8 @@ void test_empates_en_srt_degradan_en_un_fifo(void) {
     pcb_destroy(electo);
 }
 
-void test_se_elige_siempre_al_pcb_de_menor_rafaga_restante(void) {
+//////////////////// Desalojos ////////////////////
+void test_actualizar_un_pcb_por_desalojo_no_actualiza_estimacion_actual(void) {
     elegir_pcb = segun_srt;
 
     estado_encolar_pcb_atomic(estadoReady, pcb2);
@@ -84,26 +87,166 @@ void test_se_elige_siempre_al_pcb_de_menor_rafaga_restante(void) {
 
     t_pcb* electo = elegir_pcb(estadoReady, alfa);
     CU_ASSERT_EQUAL(pcb_get_pid(electo), pcb_get_pid(pcb2));
-    actualizar_pcb_por_bloqueo(electo, 2.0);
+
+    actualizar_pcb_por_desalojo(electo, 2000);
+    CU_ASSERT_EQUAL(pcb_get_estimacion_actual(electo), estimacionInicial);
+
+    pcb_destroy(electo);
 }
 
-void just_a_test(void) {
-    struct timespec start, end;
-    clock_gettime(CLOCK_REALTIME, &start);
-    intervalo_de_pausa(10500);
-    clock_gettime(CLOCK_REALTIME, &end);
+void test_actualizar_un_pcb_por_desalojo_actualiza_reales_ejecutados_hasta_ahora(void) {
+    elegir_pcb = segun_srt;
 
-    uint64_t delta_us = (end.tv_sec - start.tv_sec) * 1000 + (end.tv_nsec - start.tv_nsec) / 1000000;
-    char* str_delta_us = string_itoa(delta_us);
-    str_delta_us[strlen(str_delta_us) - 1] = '0';
-    uint64_t new_delta_us = atoi(str_delta_us);
+    estado_encolar_pcb_atomic(estadoReady, pcb1);
+    estado_encolar_pcb_atomic(estadoReady, pcb2);
+    estado_encolar_pcb_atomic(estadoReady, pcb3);
 
-    printf("\nElapsed time: %ld\n", delta_us);
-    printf("Elapsed time (new): %ld\n", new_delta_us);
+    t_pcb* electo = elegir_pcb(estadoReady, alfa);
+    CU_ASSERT_EQUAL(pcb_get_pid(electo), pcb_get_pid(pcb1));
 
-    free(str_delta_us);
+    actualizar_pcb_por_desalojo(electo, 3043);
+    CU_ASSERT_EQUAL(pcb_get_reales_ejecutados_hasta_ahora(electo), 3043);
 
-    pcb_destroy(pcb1);
-    pcb_destroy(pcb2);
-    pcb_destroy(pcb3);
+    pcb_destroy(electo);
+}
+
+void test_actualizar_un_pcb_por_varios_desalojos_actualiza_reales_ejecutados_hasta_ahora_como_la_sumatoria(void) {
+    elegir_pcb = segun_srt;
+
+    estado_encolar_pcb_atomic(estadoReady, pcb1);
+    estado_encolar_pcb_atomic(estadoReady, pcb2);
+    estado_encolar_pcb_atomic(estadoReady, pcb3);
+
+    t_pcb* electo = elegir_pcb(estadoReady, alfa);
+    CU_ASSERT_EQUAL(pcb_get_pid(electo), pcb_get_pid(pcb1));
+
+    actualizar_pcb_por_desalojo(electo, 2011);
+    CU_ASSERT_EQUAL(pcb_get_reales_ejecutados_hasta_ahora(electo), 2011);
+
+    estado_encolar_pcb_atomic(estadoReady, electo);
+
+    electo = elegir_pcb(estadoReady, alfa);
+    CU_ASSERT_EQUAL(pcb_get_pid(electo), pcb_get_pid(pcb1));
+
+    actualizar_pcb_por_desalojo(electo, 1042);
+    CU_ASSERT_EQUAL(pcb_get_reales_ejecutados_hasta_ahora(electo), 2011 + 1042);
+
+    pcb_destroy(electo);
+}
+
+void test_actualizar_un_pcb_por_varios_desalojos_disminuye_rafaga_restante(void) {
+    elegir_pcb = segun_srt;
+
+    estado_encolar_pcb_atomic(estadoReady, pcb1);
+    estado_encolar_pcb_atomic(estadoReady, pcb2);
+    estado_encolar_pcb_atomic(estadoReady, pcb3);
+
+    t_pcb* electo = elegir_pcb(estadoReady, alfa);
+    CU_ASSERT_EQUAL(pcb_get_pid(electo), pcb_get_pid(pcb1));
+
+    actualizar_pcb_por_desalojo(electo, 2011);
+    estado_encolar_pcb_atomic(estadoReady, electo);
+
+    electo = elegir_pcb(estadoReady, alfa);
+    CU_ASSERT_EQUAL(pcb_get_pid(electo), pcb_get_pid(pcb1));
+
+    actualizar_pcb_por_desalojo(electo, 1042);
+    CU_ASSERT_EQUAL(calcular_estimacion_restante(electo), estimacionInicial - 2011 - 1042);
+
+    pcb_destroy(electo);
+}
+
+//////////////////// Bloqueos ////////////////////
+void test_actualizar_un_pcb_por_bloqueo_actualiza_real_anterior_como_sumatoria_de_reales_ejecutados_hasta_ahora(void) {
+    elegir_pcb = segun_srt;
+
+    estado_encolar_pcb_atomic(estadoReady, pcb3);
+    estado_encolar_pcb_atomic(estadoReady, pcb1);
+    estado_encolar_pcb_atomic(estadoReady, pcb2);
+
+    t_pcb* electo = elegir_pcb(estadoReady, alfa);
+    CU_ASSERT_EQUAL(pcb_get_pid(electo), pcb_get_pid(pcb3));
+
+    t_pcb* pcb4 = pcb_create(4, size, estimacionInicial);
+    actualizar_pcb_por_desalojo(electo, 3043);
+    estado_encolar_pcb_atomic(estadoReady, electo);
+    estado_encolar_pcb_atomic(estadoReady, pcb4);
+
+    electo = elegir_pcb(estadoReady, alfa);
+    CU_ASSERT_EQUAL(pcb_get_pid(electo), pcb_get_pid(pcb3));
+
+    actualizar_pcb_por_desalojo(electo, 4024);
+    estado_encolar_pcb_atomic(estadoReady, electo);
+
+    electo = elegir_pcb(estadoReady, alfa);
+    CU_ASSERT_EQUAL(pcb_get_pid(electo), pcb_get_pid(pcb3));
+
+    actualizar_pcb_por_bloqueo(electo, 1032, alfa);
+    CU_ASSERT_EQUAL(pcb_get_real_anterior(electo), 3043 + 4024 + 1032);
+
+    pcb_destroy(electo);
+}
+
+void test_actualizar_un_pcb_por_bloqueo_actualiza_reales_ejecutados_hasta_ahora_en_cero(void) {
+    elegir_pcb = segun_srt;
+
+    estado_encolar_pcb_atomic(estadoReady, pcb3);
+    estado_encolar_pcb_atomic(estadoReady, pcb1);
+    estado_encolar_pcb_atomic(estadoReady, pcb2);
+
+    t_pcb* electo = elegir_pcb(estadoReady, alfa);
+    CU_ASSERT_EQUAL(pcb_get_pid(electo), pcb_get_pid(pcb3));
+
+    t_pcb* pcb4 = pcb_create(4, size, estimacionInicial);
+    actualizar_pcb_por_desalojo(electo, 3043);
+    estado_encolar_pcb_atomic(estadoReady, electo);
+    estado_encolar_pcb_atomic(estadoReady, pcb4);
+
+    electo = elegir_pcb(estadoReady, alfa);
+    CU_ASSERT_EQUAL(pcb_get_pid(electo), pcb_get_pid(pcb3));
+
+    actualizar_pcb_por_desalojo(electo, 4024);
+    estado_encolar_pcb_atomic(estadoReady, electo);
+
+    electo = elegir_pcb(estadoReady, alfa);
+    CU_ASSERT_EQUAL(pcb_get_pid(electo), pcb_get_pid(pcb3));
+
+    actualizar_pcb_por_bloqueo(electo, 1032, alfa);
+    CU_ASSERT_EQUAL(pcb_get_reales_ejecutados_hasta_ahora(electo), 0);
+
+    pcb_destroy(electo);
+}
+
+void test_actualizar_un_pcb_por_bloqueo_actualiza_estimacion_actual(void) {
+    elegir_pcb = segun_srt;
+
+    estado_encolar_pcb_atomic(estadoReady, pcb3);
+    estado_encolar_pcb_atomic(estadoReady, pcb1);
+    estado_encolar_pcb_atomic(estadoReady, pcb2);
+
+    t_pcb* electo = elegir_pcb(estadoReady, alfa);
+    CU_ASSERT_EQUAL(pcb_get_pid(electo), pcb_get_pid(pcb3));
+
+    actualizar_pcb_por_desalojo(electo, 3043);
+    estado_encolar_pcb_atomic(estadoReady, electo);
+
+    electo = elegir_pcb(estadoReady, alfa);
+    CU_ASSERT_EQUAL(pcb_get_pid(electo), pcb_get_pid(pcb3));
+
+    actualizar_pcb_por_desalojo(electo, 4024);
+    estado_encolar_pcb_atomic(estadoReady, electo);
+
+    electo = elegir_pcb(estadoReady, alfa);
+    CU_ASSERT_EQUAL(pcb_get_pid(electo), pcb_get_pid(pcb3));
+
+    double estimacionAntesDeBloquearse = pcb_get_estimacion_actual(electo);
+    double realAntesDeBloquearse = pcb_get_reales_ejecutados_hasta_ahora(electo) + 1032;
+    actualizar_pcb_por_bloqueo(electo, 1032, alfa);
+
+    double actual = pcb_get_estimacion_actual(electo);
+    double expected = alfa * realAntesDeBloquearse + (1 - alfa) * estimacionAntesDeBloquearse;
+
+    CU_ASSERT_EQUAL(actual, expected);
+
+    pcb_destroy(electo);
 }
