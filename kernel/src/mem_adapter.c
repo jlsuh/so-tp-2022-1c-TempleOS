@@ -8,7 +8,6 @@
 #include "stream.h"
 
 int mem_adapter_obtener_tabla_pagina(t_pcb* pcbAIniciar, t_kernel_config* kernelConfig, t_log* kernelLogger) {
-    /* Enviar tamaño
     uint32_t newTamanio = pcb_get_tamanio(pcbAIniciar);
 
     t_buffer* bufferNuevaTablaPagina = buffer_create();
@@ -37,9 +36,8 @@ int mem_adapter_obtener_tabla_pagina(t_pcb* pcbAIniciar, t_kernel_config* kernel
     }
 
     return nroTabla;
-    */
 
-    return 1;
+    //return 1;
 }
 
 void mem_adapter_finalizar_proceso(t_pcb* pcbAFinalizar, t_kernel_config* kernelConfig, t_log* kernelLogger) {
@@ -84,7 +82,7 @@ void mem_adapter_avisar_suspension(t_pcb* pcbASuspender, t_kernel_config* kernel
 }
 
 int mem_adapter_avisar_reactivacion(t_pcb* pcbAReactivar, t_kernel_config* kernelConfig, t_log* kernelLogger) {
-    /* uint32_t pidAReactivar = pcb_get_pid(pcbAReactivar);
+    uint32_t pidAReactivar = pcb_get_pid(pcbAReactivar);
 
     t_buffer* bufferPcbAReactivar = buffer_create();
     buffer_pack(bufferPcbAReactivar, &tablaAReactivar, sizeof(pidAReactivar));
@@ -109,7 +107,7 @@ int mem_adapter_avisar_reactivacion(t_pcb* pcbAReactivar, t_kernel_config* kerne
         exit(-1);
     }
 
-    return nroTabla;*/
+    return nroTabla;
 
-    return 1;
+    //return 1;
 }
