@@ -45,15 +45,13 @@ typedef struct
     bool bitPresencia;
     bool bitUso;
     bool bitModificado;
-} t_array_paginas_suspendidos;
+} t_entrada_pagina_suspendida;
 
-typedef struct
-{
-    t_array_paginas_suspendidos* paginas_suspendidas;
-    //TODOD guardar tamaño con las paginas supendidas, ergo nuevo struct
-} t_tabla_suspendidos;
-
-t_tabla_suspendidos* tabla_suspendidos;
+typedef struct {
+    uint32_t pid;
+    uint32_t tamanio;
+    t_entrada_pagina_suspendida* paginasSuspendidas;
+} t_proceso_suspendido;
 
 t_log* memoriaLogger;
 t_memoria_config* memoriaConfig;
@@ -62,6 +60,7 @@ void* inicio_archivo;
 int archivo_swap;
 t_tabla_nivel_uno* tablasDeNivel1;
 t_tabla_nivel_dos* tablasDeNivel2;
+t_proceso_suspendido* tablaSuspendidos;
 bool* marcosEnUso;
 int cantTotalMarcos;
 int marcosPorProceso;
@@ -166,7 +165,7 @@ void* escuchar_peticiones_kernel(void) {
 
 void* escuchar_peticiones_cpu(void) {
     int socket = memoria_config_get_cpu_socket(memoriaConfig);
-    uint32_t header, marco, valor;
+    uint32_t header, marco, valor, pagina, tablaNivel1;
     t_buffer* buffer;
     for (;;) {
         header = stream_recv_header(socket);
@@ -174,7 +173,22 @@ void* escuchar_peticiones_cpu(void) {
         stream_recv_buffer(socket, buffer);
         switch (header) {
             case HEADER_read:
-                buffer_unpack(buffer, &marco, sizeof(marco));
+                buffer_unpack(buffer, &marco, sizeof(marco)); 
+                
+                int pagina = buscar_pagina(marco); //TODO: dentro de esta funcion vamos a tener el array de marcos
+                //Este array de marcos matchea con la pagina (ej: 64marcos -> 256paginas) y hace las cuentitas
+                //Me devuelve pagina global
+
+
+                //TODO: hacer funcion: actualizarPaginaLectura;
+                int tablaNivel1 = obtener_indice_tabla_uno(pagina);
+                int entradaNivel1 = obtener_indice_tabla_dos(pagina); 
+                int entradaNivel2 = obtener_indice_entrada(pagina); //TODO: ver de hacer un struct
+
+                int nroTabla2 = tablasDeNivel1[tablaNivel1].nroTablaNivel2[entradaNivel1];
+
+                tablasDeNivel2[nroTabla2].entradaNivel2[entradaNivel2].bitUso = 1;
+
                 memcpy(&valor, memoriaPrincipal + marco, sizeof(valor));
                 t_buffer* buffer_rta = buffer_create();
                 buffer_pack(buffer_rta, &valor, sizeof(valor));
@@ -185,15 +199,50 @@ void* escuchar_peticiones_cpu(void) {
             case HEADER_write:
                 buffer_unpack(buffer, &marco, sizeof(marco));
                 buffer_unpack(buffer, &valor, sizeof(valor));
+            
+                //TODO: hacer funcion: actualizarPaginaEscritura;
+
+                int entradaNivel1 = obtener_indice_nivel_uno(pagina); 
+                int entradaNivel2 = obtener_indice_nivel_dos(pagina);
+                int nroTabla2 = tablasDeNivel1[tablaNivel1].nroTablaNivel2[entradaNivel1];
+                bool bitPresencia = tablasDeNivel2[nroTabla2].entradaNivel2[entradaNivel2].bitPresencia;
+
+                if(!bitPresencia){
+                    log_info(memoriaLogger, "La pagina NO se encuentra en memoria");
+                    //traer pagina a memoria TODO
+
+                }
+                
+                tablasDeNivel2[nroTabla2].entradaNivel2[entradaNivel2].bitUso = 1;
+                tablasDeNivel2[nroTabla2].entradaNivel2[entradaNivel2].bitModificado = 1;
+
                 memcpy(memoriaPrincipal + marco, &valor, sizeof(valor));
 
+                // ver de mandar mensaje de que se escribio OK
                 break;
-
             case HEADER_copy:
                 buffer_unpack(buffer, &marco, sizeof(marco));
                 uint32_t marcoOrigen;
                 buffer_unpack(buffer, &marcoOrigen, sizeof(marcoOrigen));
+
+                //TODO: funcion actualizarPaginaLectura y actualizarPaginaEscritura
+                
+                int entradaNivel1Origen = obtener_indice_nivel_uno(paginaOrigen); 
+                int entradaNivel2Origen = obtener_indice_nivel_dos(paginaOrigen);
+                int nroTabla2Origen = tablasDeNivel1[tablaNivel1Origen].nroTablaNivel2[entradaNivel1Origen];
+            
+
+                int entradaNivel1 = obtener_indice_nivel_uno(pagina); 
+                int entradaNivel2 = obtener_indice_nivel_dos(pagina);
+                int nroTabla2 = tablasDeNivel1[tablaNivel1].nroTablaNivel2[entradaNivel1];
+
+
+                tablasDeNivel2[nroTabla2Origen].entradaNivel2[entradaNivel2Origen].bitUso = 1;
+                tablasDeNivel2[nroTabla2].entradaNivel2[entradaNivel2].bitUso = 1;
+                tablasDeNivel2[nroTabla2].entradaNivel2[entradaNivel2].bitModificado = 1;
+
                 memcpy(memoriaPrincipal + marco, memoriaPrincipal + marcoOrigen, sizeof(uint32_t));
+     
 
                 break;
             case HEADER_tabla_nivel_2: {
@@ -294,10 +343,10 @@ int swap_marco(int nroDeTabla2ToSwap, int entradaDeTabla2ToSwap, uint32_t nroDeT
 
     // Escribir en archivo
     sleep(tiempoDeEspera);
-    memcpy(inicio_archivo + sizeof(uint32_t) * paginaToSwap, memoriaPrincipal + marco * tamanioPagina, sizeof(uint32_t));
+    memcpy(inicio_archivo + tamanioPagina * paginaToSwap, memoriaPrincipal + marco * tamanioPagina, tamanioPagina);
     // Leer de archivo
     sleep(tiempoDeEspera);
-    memcpy(memoriaPrincipal + marco * tamanioPagina, inicio_archivo + sizeof(uint32_t) * pagina, sizeof(uint32_t));
+    memcpy(memoriaPrincipal + marco * tamanioPagina, inicio_archivo + tamanioPagina * pagina, tamanioPagina);
 
     tablasDeNivel2[nroDeTabla2].entradaNivel2[entradaDeTabla2].indiceMarco = marco;
     tablasDeNivel2[nroDeTabla2].entradaNivel2[entradaDeTabla2].bitPresencia = 1;
@@ -527,7 +576,7 @@ int seleccionar_victima_clock(int paginaPuntero, uint32_t nroDeTabla1) {
             if (bitPresencia && !bitUso) {
                 log_trace(memoriaLogger, "Se elige la pagina victima");
                 int pagina_victima = obtener_pagina(i, j);
-                mover_puntero(pagina_victima);  // TODO
+                paginaPuntero++; // TODO: ver donde guardar
                 return pagina_victima;
             }
 
@@ -546,7 +595,7 @@ int seleccionar_victima_clock(int paginaPuntero, uint32_t nroDeTabla1) {
 }
 
 int seleccionar_victima_clock_modificado(int paginaPuntero, uint32_t nroDeTabla1) {
-    int cantidad_paginas_proceso = obtener_paginas_proceso();  // TODO
+    int cantidad_paginas_proceso = obtener_paginas_proceso(); 
     int paginas_leidas = 0;
 
     int indiceNivel1 = obtener_indice_nivel_uno(paginaPuntero);
@@ -564,7 +613,7 @@ int seleccionar_victima_clock_modificado(int paginaPuntero, uint32_t nroDeTabla1
             if (bitPresencia && !bitUso && !bitModificado) {
                 log_trace(memoriaLogger, "Se elige la pagina victima");
                 int pagina_victima = obtener_pagina(i, j);
-                mover_puntero(pagina_victima);
+                paginaPuntero++; //TODO: guardar este valor en la estructura que corresponda
                 return pagina_victima;
             }
 
@@ -597,7 +646,7 @@ int seleccionar_victima_clock_modificado(int paginaPuntero, uint32_t nroDeTabla1
             if (bitPresencia && !bitUso && bitModificado) {
                 log_trace(memoriaLogger, "Se elige la pagina victima");
                 int pagina_victima = obtener_pagina(i, j);
-                mover_puntero(pagina_victima);  // TODO
+                paginaPuntero++; //TODO: ver donde guardar este valor
                 return pagina_victima;
             }
 
@@ -628,7 +677,11 @@ int obtener_pagina(int indiceNivel1, int indiceNivel2) {
     return pagina;
 }
 
-int obtener_indice_nivel_uno(int pagina) {
+int obtener_indice_tabla_uno(int paginaGlobal){
+    return paginaGlobal / cantidadProcesosMax;
+}
+
+int obtener_indice_tabla_dos(int pagina) {
     int entradaNivel1;
     int residuo = pagina % entradasPorTabla;
     int entero = pagina / entradasPorTabla;
@@ -636,19 +689,32 @@ int obtener_indice_nivel_uno(int pagina) {
     return entradaNivel1;
 }
 
-int obtener_indice_nivel_dos(int pagina) {
+int obtener_indice_entrada(int pagina) {
     int entradaNivel2;
 
-    int entero = obtener_indice_nivel_uno(pagina);
+    int entero = obtener_indice_tabla_dos(pagina);
     entradaNivel2 = pagina - (entero * entradasPorTabla);
     return entradaNivel2;
 }
+
+int obtener_paginas_proceso(){
+    int paginas_proceso;
+
+    paginas_proceso = entradasPorTabla * entradasPorTabla;
+
+    return paginas_proceso;
+}
+
+
 
 //-----------------------------SUSPENSION PROCESO-------------------------------
 
 void suspender_proceso(uint32_t nroDeTabla1) {
     int contPagSuspend = 0;
     abrir_archivo(nroDeTabla1);
+
+    // TODO guardar tamaño y pid en tabla suspendidos. Si es lista crear. Si es array buscar vacio y colocar
+    // TODO crear la cantidad de entradasPorTabla*entradasPorTabla  de paginas para la suspension.
     for (int i = 0; i < entradasPorTabla; i++) {
         int nroDeTabla2 = tablasDeNivel1[nroDeTabla1].nroTablaNivel2[i];
 
@@ -658,15 +724,16 @@ void suspender_proceso(uint32_t nroDeTabla1) {
             bool bitModificado = tablasDeNivel2[nroDeTabla2].entradaNivel2[j].bitModificado;
             int marco = tablasDeNivel2[nroDeTabla2].entradaNivel2[j].indiceMarco;
 
-            tabla_suspendidos[nroDeTabla1].paginas_suspendidas[contPagSuspend].bitPresencia = bitPresencia;
-            tabla_suspendidos[nroDeTabla1].paginas_suspendidas[contPagSuspend].bitUso = bitUso;
-            tabla_suspendidos[nroDeTabla1].paginas_suspendidas[contPagSuspend].bitModificado = bitModificado;
+            // TODO lista de paginas suspendidas
+            tablaSuspendidos[nroDeTabla1].paginasSuspendidas[contPagSuspend].bitPresencia = bitPresencia;
+            tablaSuspendidos[nroDeTabla1].paginasSuspendidas[contPagSuspend].bitUso = bitUso;
+            tablaSuspendidos[nroDeTabla1].paginasSuspendidas[contPagSuspend].bitModificado = bitModificado;
             contPagSuspend++;
 
-            if (bitPresencia && bitModificado) { //TODO bitmodificado entonces aunque tengamos algoritmo de clock hay que cambiar el bit de modificado cuando corresponda.
+            if (bitPresencia && bitModificado) {  // TODO bitmodificado entonces aunque tengamos algoritmo de clock hay que cambiar el bit de modificado cuando corresponda.
                 log_trace(memoriaLogger, "La pagina esta en memoria");
                 int pagina = nroDeTabla2 * entradasPorTabla + j;
-                memcpy(inicio_archivo + sizeof(uint32_t) * pagina, memoriaPrincipal + marco * tamanioPagina, sizeof(uint32_t));
+                memcpy(inicio_archivo + tamanioPagina * pagina, memoriaPrincipal + marco * tamanioPagina, tamanioPagina);
                 memset(memoriaPrincipal + marco * tamanioPagina, 0, tamanioPagina);
             }
         }
@@ -677,6 +744,6 @@ void suspender_proceso(uint32_t nroDeTabla1) {
     cerrar_archivo();
 }
 
-// ---------------------------- RECUPERACION PROCESO -----------------------------
-// TODO usuar crear proceso, y luego pisar los bits con los de la tabla de suspendidos y luego liberar la tabla de suspendidos.
+// ---------------------------- DESPERTAR PROCESO -----------------------------
+// TODO usuar crear proceso, y luego pisar en la tabla recibida por crear proceso los bits con los de la tabla de suspendidos y luego liberar la tabla de suspendidos.
 // TODO asigna los marcos a los bit de presencia 1 trayendo del archivo la pagina correspondiente.
