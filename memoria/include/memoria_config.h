@@ -18,5 +18,7 @@ int memoria_config_set_kernel_socket(t_memoria_config* self, int socket);
 char* memoria_config_get_path_swap(t_memoria_config* self);
 t_memoria_config* memoria_config_create(char* memoriaConfigPath, t_log* memoriaLogger);
 int memoria_config_get_retardo_swap(t_memoria_config* self);
+int memoria_config_get_marcos_totales(t_memoria_config* self);
+int memoria_config_get_procesos_totales(t_memoria_config* self);
 
 #endif
