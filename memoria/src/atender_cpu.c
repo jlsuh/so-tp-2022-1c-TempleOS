@@ -80,7 +80,7 @@ void* escuchar_peticiones_cpu(void* socketCpu) {
 
                 break;
             }
-            case HEADER_marco: {
+            case HEADER_marco: { //TODO
                 uint32_t nroDeTabla2, entradaDeTabla2;
                 buffer_unpack(buffer, &nroDeTabla2, sizeof(nroDeTabla2));
                 buffer_unpack(buffer, &entradaDeTabla2, sizeof(entradaDeTabla2));
@@ -114,8 +114,11 @@ void __actualizar_pagina(uint32_t direccionFisica, bool esEscritura, int tamanio
 }
 
 int __obtener_marco(uint32_t nroDeTabla2, uint32_t entradaDeTabla2, t_tabla_nivel_2* tablasDeNivel2, int cantidadProcesosMax, int entradasPorTabla) {
-    int marco = obtener_marco(nroDeTabla2, entradaDeTabla2, tablasDeNivel2);
+    int marco = obtener_marco(nroDeTabla2, entradaDeTabla2, tablasDeNivel2); //TODO capaz usar el bit de presencia, para darle el sentido que corresponde
     if (marco == -1) {
+        //TODO disponible? asignación directo sin swap sino swap, con la tabla de nivel 1 ver si hay algun marco con bool enUso en false.
+
+
         // TODO ver con cami el algoritmo para seleccionar la victima
         int nroDeTabla2Victima = 0, entradaDeTabla2Victima = 0;
 

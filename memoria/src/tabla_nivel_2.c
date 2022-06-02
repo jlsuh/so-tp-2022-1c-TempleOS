@@ -18,7 +18,15 @@ struct t_tabla_nivel_2 {
 };
 
 t_tabla_nivel_2* crear_tablas_de_nivel_2(int cantidadProcesosMax, int entradasPorTabla) {
-    return calloc(cantidadProcesosMax * entradasPorTabla, sizeof(t_tabla_nivel_2));
+    t_tabla_nivel_2* tablasDeNivel2 = malloc(cantidadProcesosMax *  entradasPorTabla * sizeof(t_entrada_nivel_2)); //TODO Revisar que este correcta la reserva
+    for (int i = 0; i < cantidadProcesosMax * entradasPorTabla; i++) {
+        for(int j = 0; j < entradasPorTabla; j++) {
+            tablasDeNivel2[i].entradaNivel2[j].indiceMarco = -1;
+            tablasDeNivel2[i].entradaNivel2[j].bitPresencia = false;
+            tablasDeNivel2[i].entradaNivel2[j].bitUso = false;
+            tablasDeNivel2[i].entradaNivel2[j].bitModificado = false;
+    }
+    return tablasDeNivel2;
 }
 
 void actualizar_escritura_pagina(int nroPagina, int nroTablaNivel2, int entradasPorTabla, t_tabla_nivel_2* tablasDeNivel2) {

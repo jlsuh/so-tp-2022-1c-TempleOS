@@ -32,6 +32,9 @@ bool kernelSinAtender = true;
 int tamanioPagina;
 int entradasPorTabla;
 int cantidadProcesosMax;
+int cantidadMarcosMax;
+int cantidadMarcosProceso;
+char* pathSwap;
 
 int main(int argc, char* argv[]) {
     t_log* memoriaLogger = log_create(MEMORIA_LOG_PATH, MEMORIA_MODULE_NAME, true, LOG_LEVEL_INFO);
@@ -47,11 +50,15 @@ int main(int argc, char* argv[]) {
     cantidadProcesosMax = memoria_config_get_procesos_totales(memoriaConfig);
     entradasPorTabla = memoria_config_get_entradas_por_tabla(memoriaConfig);
     tamanioPagina = memoria_config_get_tamanio_pagina(memoriaConfig);
-    int cantidadMarcos = tamanioMemoria / tamanioPagina;
-
+    cantidadMarcosMax = tamanioMemoria / tamanioPagina;
+    cantidadMarcosProceso = memoria_config_get_marcos_por_proceso(memoriaConfig);
+    inicio_archivo = NULL;
+    archivo_swap = -1;
+    pathSwap = memoria_config_get_path_swap(memoriaConfig);
+    
     tablasDeNivel1 = crear_tablas_de_nivel_1(cantidadProcesosMax, entradasPorTabla);
     tablasDeNivel2 = crear_tablas_de_nivel_2(cantidadProcesosMax, entradasPorTabla);
-    marcos = crear_marcos(cantidadMarcos);
+    marcos = crear_marcos(cantidadMarcosMax);
     tablaSuspendidos = crear_tabla_de_suspendidos();  // TODO que argumento pasar?
 
     __recibir_conexiones(socketEscucha);
