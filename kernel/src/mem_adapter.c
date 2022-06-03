@@ -8,7 +8,7 @@
 #include "stream.h"
 
 int mem_adapter_obtener_tabla_pagina(t_pcb* pcbAIniciar, t_kernel_config* kernelConfig, t_log* kernelLogger) {
-    uint32_t newTamanio = pcb_get_tamanio(pcbAIniciar);
+    /* uint32_t newTamanio = pcb_get_tamanio(pcbAIniciar);
 
     t_buffer* bufferNuevaTablaPagina = buffer_create();
     buffer_pack(bufferNuevaTablaPagina, &newTamanio, sizeof(newTamanio));
@@ -20,7 +20,7 @@ int mem_adapter_obtener_tabla_pagina(t_pcb* pcbAIniciar, t_kernel_config* kernel
     // Esperamos que la Memoria nos devuelva lo necesario
     uint32_t nroTabla = 0;
     uint8_t memoriaResponse = stream_recv_header(kernel_config_get_socket_memoria(kernelConfig));
-    if(memoriaResponse == HEADER_tabla_de_paginas) {
+    if (memoriaResponse == HEADER_tabla_de_paginas) {
         t_buffer* bufferTabla = buffer_create();
         stream_recv_buffer(kernel_config_get_socket_memoria(kernelConfig), bufferTabla);
 
@@ -35,13 +35,13 @@ int mem_adapter_obtener_tabla_pagina(t_pcb* pcbAIniciar, t_kernel_config* kernel
         exit(-1);
     }
 
-    return nroTabla;
+    return nroTabla; */
 
-    //return 1;
+    return 1;
 }
 
 void mem_adapter_finalizar_proceso(t_pcb* pcbAFinalizar, t_kernel_config* kernelConfig, t_log* kernelLogger) {
-    uint32_t tablaATerminar = pcb_get_tabla_pagina_primer_nivel(pcbAFinalizar);
+    /* uint32_t tablaATerminar = pcb_get_tabla_pagina_primer_nivel(pcbAFinalizar);
 
     t_buffer* bufferPcbAFinalizar = buffer_create();
     buffer_pack(bufferPcbAFinalizar, &tablaATerminar, sizeof(tablaATerminar));
@@ -55,12 +55,12 @@ void mem_adapter_finalizar_proceso(t_pcb* pcbAFinalizar, t_kernel_config* kernel
     } else {
         log_error(kernelLogger, "Error al finalizar proceso en Memoria");
         exit(-1);
-    }
+    } */
     return;
 }
 
 void mem_adapter_avisar_suspension(t_pcb* pcbASuspender, t_kernel_config* kernelConfig, t_log* kernelLogger) {
-    uint32_t tablaASuspender = pcb_get_tabla_pagina_primer_nivel(pcbASuspender);
+   /* uint32_t tablaASuspender = pcb_get_tabla_pagina_primer_nivel(pcbASuspender);
     uint32_t pidASuspender = pcb_get_pid(pcbASuspender);
 
     t_buffer* bufferPcbASuspender = buffer_create();
@@ -76,13 +76,13 @@ void mem_adapter_avisar_suspension(t_pcb* pcbASuspender, t_kernel_config* kernel
     } else {
         log_error(kernelLogger, "Error al intentar suspender un proceso en Memoria");
         exit(-1);
-    }
+    } */
 
     return;
 }
 
 int mem_adapter_avisar_reactivacion(t_pcb* pcbAReactivar, t_kernel_config* kernelConfig, t_log* kernelLogger) {
-    uint32_t pidAReactivar = pcb_get_pid(pcbAReactivar);
+    /* uint32_t pidAReactivar = pcb_get_pid(pcbAReactivar);
 
     t_buffer* bufferPcbAReactivar = buffer_create();
     buffer_pack(bufferPcbAReactivar, &tablaAReactivar, sizeof(pidAReactivar));
@@ -107,7 +107,7 @@ int mem_adapter_avisar_reactivacion(t_pcb* pcbAReactivar, t_kernel_config* kerne
         exit(-1);
     }
 
-    return nroTabla;
+    return nroTabla; */
 
-    //return 1;
+    return 1;
 }
