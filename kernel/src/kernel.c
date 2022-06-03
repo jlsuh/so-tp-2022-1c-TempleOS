@@ -24,7 +24,7 @@ extern t_kernel_config* kernelConfig;
 
 static void __crear_hilo_handler_conexion_entrante(int* socket) {
     pthread_t threadSuscripcion;
-    pthread_create(&threadSuscripcion, NULL, encolar_en_new_a_nuevo_pcb_entrante, (void*)socket);  // TODO: modificar puntero a función para que encole en new al nuevo PCB
+    pthread_create(&threadSuscripcion, NULL, encolar_en_new_a_nuevo_pcb_entrante, (void*)socket);
     pthread_detach(threadSuscripcion);
 }
 
@@ -32,7 +32,6 @@ static void noreturn __aceptar_conexiones_kernel(int socketEscucha) {
     struct sockaddr cliente = {0};
     socklen_t len = sizeof(cliente);
     log_info(kernelLogger, "A la escucha de nuevas conexiones en puerto %d", socketEscucha);
-    // int* socketCliente = NULL;
     for (;;) {
         int clienteAceptado = accept(socketEscucha, &cliente, &len);
         if (clienteAceptado > -1) {
@@ -122,7 +121,6 @@ int main(int argc, char* argv[]) {
     }
 
     inicializar_estructuras();
-
     __aceptar_conexiones_kernel(socketEscucha);
 
     return 0;
