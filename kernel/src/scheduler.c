@@ -142,7 +142,7 @@ static void iniciar_contador_blocked_a_suspended_blocked(void* pcbVoid) {
             }
 
             pcb_set_estado_actual(pcb, SUSPENDED_BLOCKED);
-            mem_adapter_avisar_suspension(pcbASuspender, kernelConfig, kernelLogger);
+            mem_adapter_avisar_suspension(pcb, kernelConfig, kernelLogger);
             estado_encolar_pcb_atomic(estadoSuspendedBlocked, pcb);
             log_debug(kernelLogger, "Entra en suspensión PCB <ID %d>", pcb_get_pid(pcb));
             log_transition("BLOCKED", "SUSBLOCKED", pcb_get_pid(pcb));
@@ -426,6 +426,15 @@ void* encolar_en_new_a_nuevo_pcb_entrante(void* socket) {
 }
 
 void inicializar_estructuras(void) {
+    if (kernel_config_es_algoritmo_srt(kernelConfig)) {
+        elegir_pcb = segun_srt;
+    } else if (kernel_config_es_algoritmo_fifo(kernelConfig)) {
+        elegir_pcb = segun_fifo;
+    } else {
+        log_error(kernelLogger, "No se pudo inicializar el planificador, no se encontró un algoritmo de planificación válido");
+        exit(-1);
+    }
+
     nextPid = 0;
     hayQueDesalojar = false;
 
@@ -449,15 +458,6 @@ void inicializar_estructuras(void) {
     estadoSuspendedReady = estado_create(SUSPENDED_READY);
 
     pcbsEsperandoParaIO = estado_create(PCBS_ESPERANDO_PARA_IO);
-
-    if (kernel_config_es_algoritmo_srt(kernelConfig)) {
-        elegir_pcb = segun_srt;
-    } else if (kernel_config_es_algoritmo_fifo(kernelConfig)) {
-        elegir_pcb = segun_fifo;
-    } else {
-        log_error(kernelLogger, "No se pudo inicializar el planificador, no se encontró un algoritmo de planificación válido");
-        exit(-1);
-    }
 
     pthread_t largoPlazoTh;
     pthread_create(&largoPlazoTh, NULL, (void*)planificador_largo_plazo, NULL);
