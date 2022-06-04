@@ -321,7 +321,7 @@ static void noreturn atender_pcb(void) {
         uint64_t realEjecutado = 0;
         if (kernel_config_es_algoritmo_srt(kernelConfig)) {
             realEjecutado = obtener_diferencial_de_tiempo(end, start);
-            log_debug(kernelLogger, "PCB <ID %d> estuvo en ejecución por %ld miliseconds", pcb_get_pid(pcb), realEjecutado);
+            log_debug(kernelLogger, "PCB <ID %d> estuvo en ejecución por %lu miliseconds", pcb_get_pid(pcb), realEjecutado);
         }
 
         switch (cpuResponse) {
