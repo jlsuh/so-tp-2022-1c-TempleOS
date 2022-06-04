@@ -77,7 +77,6 @@ uint32_t obtener_marco(uint32_t direccion, uint32_t nroDeTabla1) {
     socket = cpu_config_get_socket_memoria(cpuConfig);
     int tamPagina = cpu_config_get_tamanio_pagina(cpuConfig);
     int entradasPorTabla = cpu_config_get_entradas_por_tabla(cpuConfig);
-    uint32_t header;
 
     uint32_t nroPag = direccion / tamPagina;
     uint32_t entradaTablaNivel1 = nroPag / entradasPorTabla;
