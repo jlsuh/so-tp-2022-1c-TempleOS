@@ -12,7 +12,7 @@
 struct t_pcb {
     uint32_t pid;
     uint32_t tamanio;
-    uint64_t programCounter;
+    uint32_t programCounter;
     uint32_t tablaPaginaPrimerNivel;
     double estimacionActual;
     double realAnterior;
@@ -98,11 +98,11 @@ uint32_t pcb_get_tamanio(t_pcb* self) {
     return self->tamanio;
 }
 
-uint64_t pcb_get_program_counter(t_pcb* self) {
+uint32_t pcb_get_program_counter(t_pcb* self) {
     return self->programCounter;
 }
 
-void pcb_set_program_counter(t_pcb* self, uint64_t programCounter) {
+void pcb_set_program_counter(t_pcb* self, uint32_t programCounter) {
     self->programCounter = programCounter;
 }
 

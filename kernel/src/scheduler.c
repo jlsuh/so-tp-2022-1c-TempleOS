@@ -287,7 +287,7 @@ void establecer_timespec(struct timespec* timespec) {
     }
 }
 
-uint64_t obtener_diferencial_de_tiempo(struct timespec end, struct timespec start) {
+uint32_t obtener_diferencial_de_tiempo(struct timespec end, struct timespec start) {
     return (end.tv_sec - start.tv_sec) * 1000 + (end.tv_nsec - start.tv_nsec) / 1000000;
 }
 
@@ -318,10 +318,10 @@ static void noreturn atender_pcb(void) {
         list_remove(estado_get_list(estadoExec), 0);
         pthread_mutex_unlock(estado_get_mutex(estadoExec));
 
-        uint64_t realEjecutado = 0;
+        uint32_t realEjecutado = 0;
         if (kernel_config_es_algoritmo_srt(kernelConfig)) {
             realEjecutado = obtener_diferencial_de_tiempo(end, start);
-            log_debug(kernelLogger, "PCB <ID %d> estuvo en ejecución por %lu miliseconds", pcb_get_pid(pcb), realEjecutado);
+            log_debug(kernelLogger, "PCB <ID %d> estuvo en ejecución por %d miliseconds", pcb_get_pid(pcb), realEjecutado);
         }
 
         switch (cpuResponse) {
