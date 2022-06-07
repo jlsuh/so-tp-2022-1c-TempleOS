@@ -236,20 +236,14 @@ static void noreturn planificador_mediano_plazo(void) {
         pthread_mutex_lock(estado_get_mutex(estadoSuspendedReady));
         t_pcb* pcbQuePasaAReady = list_remove(estado_get_list(estadoSuspendedReady), 0);
         pthread_mutex_unlock(estado_get_mutex(estadoSuspendedReady));
-
-        int nuevaTablaPagina = mem_adapter_avisar_reactivacion(pcbQuePasaAReady, kernelConfig, kernelLogger);
-        pcb_set_tabla_pagina_primer_nivel(pcbQuePasaAReady, nuevaTablaPagina);
-        if (nuevaTablaPagina == -1) {
-            responder_no_hay_lugar_en_memoria(pcbQuePasaAReady);
-        } else {
-            pcb_set_estado_actual(pcbQuePasaAReady, READY);
-            estado_encolar_pcb_atomic(estadoReady, pcbQuePasaAReady);
-            pthread_mutex_lock(&hayQueDesalojarMutex);
-            hayQueDesalojar = true;
-            pthread_mutex_unlock(&hayQueDesalojarMutex);
-            log_transition("SUSREADY", "READY", pcb_get_pid(pcbQuePasaAReady));
-            sem_post(estado_get_sem(estadoReady));
-        }
+        
+        pcb_set_estado_actual(pcbQuePasaAReady, READY);
+        estado_encolar_pcb_atomic(estadoReady, pcbQuePasaAReady);
+        pthread_mutex_lock(&hayQueDesalojarMutex);
+        hayQueDesalojar = true;
+        pthread_mutex_unlock(&hayQueDesalojarMutex);
+        log_transition("SUSREADY", "READY", pcb_get_pid(pcbQuePasaAReady));
+        sem_post(estado_get_sem(estadoReady));
 
         pcbQuePasaAReady = NULL;
     }
