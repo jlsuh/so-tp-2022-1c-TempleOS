@@ -46,8 +46,8 @@ int list_get_index(t_list* list, bool (*cutting_condition)(void*, void*), void* 
 }
 
 void intervalo_de_pausa(uint32_t duracionEnMilisegundos) {
-    const int SECS_MILISECS = 1000;        /* 1 seg == 1000 miliseg */
-    const int MILISECS_NANOSECS = 1000000; /* 1 miliseg == 1000000 nanoseg */
+    const uint32_t SECS_MILISECS = 1000;        /* 1 seg == 1000 miliseg */
+    const uint32_t MILISECS_NANOSECS = 1000000; /* 1 miliseg == 1000000 nanoseg */
     struct timespec timeSpec;
     timeSpec.tv_sec = duracionEnMilisegundos / SECS_MILISECS;
     timeSpec.tv_nsec = (duracionEnMilisegundos % SECS_MILISECS) * MILISECS_NANOSECS;
