@@ -55,7 +55,7 @@ static void log_transition(const char* prev, const char* post, int pid) {
     free(transicion);
 }
 
-static void responder_no_hay_lugar_en_memoria(t_pcb* pcb) {
+static void responder_memoria_insuficiente(t_pcb* pcb) {
     estado_encolar_pcb_atomic(estadoExit, pcb);
     log_transition("NEW", "EXIT", pcb_get_pid(pcb));
     log_info(kernelLogger, "Memoria insuficiente para alojar el proceso %d", pcb_get_pid(pcb));
@@ -214,9 +214,8 @@ static void noreturn planificador_largo_plazo(void) {
             pthread_mutex_unlock(estado_get_mutex(estadoNew));
             int nuevaTablaPagina = mem_adapter_obtener_tabla_pagina(pcbQuePasaAReady, kernelConfig, kernelLogger);
             pcb_set_tabla_pagina_primer_nivel(pcbQuePasaAReady, nuevaTablaPagina);
-
             if (nuevaTablaPagina == -1) {
-                responder_no_hay_lugar_en_memoria(pcbQuePasaAReady);
+                responder_memoria_insuficiente(pcbQuePasaAReady);
             } else {
                 estado_encolar_pcb_atomic(estadoReady, pcbQuePasaAReady);
                 pthread_mutex_lock(&hayQueDesalojarMutex);
@@ -236,7 +235,6 @@ static void noreturn planificador_mediano_plazo(void) {
         pthread_mutex_lock(estado_get_mutex(estadoSuspendedReady));
         t_pcb* pcbQuePasaAReady = list_remove(estado_get_list(estadoSuspendedReady), 0);
         pthread_mutex_unlock(estado_get_mutex(estadoSuspendedReady));
-        
         pcb_set_estado_actual(pcbQuePasaAReady, READY);
         estado_encolar_pcb_atomic(estadoReady, pcbQuePasaAReady);
         pthread_mutex_lock(&hayQueDesalojarMutex);
@@ -244,7 +242,6 @@ static void noreturn planificador_mediano_plazo(void) {
         pthread_mutex_unlock(&hayQueDesalojarMutex);
         log_transition("SUSREADY", "READY", pcb_get_pid(pcbQuePasaAReady));
         sem_post(estado_get_sem(estadoReady));
-
         pcbQuePasaAReady = NULL;
     }
 }
@@ -281,8 +278,10 @@ void establecer_timespec(struct timespec* timespec) {
     }
 }
 
-uint32_t obtener_diferencial_de_tiempo(struct timespec end, struct timespec start) {
-    return (end.tv_sec - start.tv_sec) * 1000 + (end.tv_nsec - start.tv_nsec) / 1000000;
+uint32_t obtener_diferencial_de_tiempo_en_milisegundos(struct timespec end, struct timespec start) {
+    const uint32_t MILISECS_PER_SEC = 1000;
+    const uint32_t MILISECS_PER_NANOSEC = 1000000;
+    return (end.tv_sec - start.tv_sec) * MILISECS_PER_SEC + (end.tv_nsec - start.tv_nsec) / MILISECS_PER_NANOSEC;
 }
 
 static void noreturn atender_pcb(void) {
@@ -314,7 +313,7 @@ static void noreturn atender_pcb(void) {
 
         uint32_t realEjecutado = 0;
         if (kernel_config_es_algoritmo_srt(kernelConfig)) {
-            realEjecutado = obtener_diferencial_de_tiempo(end, start);
+            realEjecutado = obtener_diferencial_de_tiempo_en_milisegundos(end, start);
             log_debug(kernelLogger, "PCB <ID %d> estuvo en ejecución por %d miliseconds", pcb_get_pid(pcb), realEjecutado);
         }
 
@@ -392,7 +391,7 @@ void* encolar_en_new_a_nuevo_pcb_entrante(void* socket) {
         stream_recv_buffer(*socketProceso, bufferHandshakeInicial);
         buffer_unpack(bufferHandshakeInicial, &tamanio, sizeof(tamanio));
         buffer_destroy(bufferHandshakeInicial);
-        stream_send_empty_buffer(*socketProceso, HANDSHAKE_ok_continue);  // TODO: Descomentarlo en consola.c luego en producción
+        pcb_responder_a_consola(*socketProceso, HANDSHAKE_ok_continue);  // TODO: Descomentarlo en consola.c luego en producción
 
         uint8_t consolaResponse = stream_recv_header(*socketProceso);
         if (consolaResponse != HEADER_lista_instrucciones) {
