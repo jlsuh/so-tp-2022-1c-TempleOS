@@ -391,7 +391,7 @@ void* encolar_en_new_a_nuevo_pcb_entrante(void* socket) {
         stream_recv_buffer(*socketProceso, bufferHandshakeInicial);
         buffer_unpack(bufferHandshakeInicial, &tamanio, sizeof(tamanio));
         buffer_destroy(bufferHandshakeInicial);
-        pcb_responder_a_consola(*socketProceso, HANDSHAKE_ok_continue);  // TODO: Descomentarlo en consola.c luego en producción
+        stream_send_empty_buffer(*socketProceso, HANDSHAKE_ok_continue);  // TODO: Descomentarlo en consola.c luego en producción
 
         uint8_t consolaResponse = stream_recv_header(*socketProceso);
         if (consolaResponse != HEADER_lista_instrucciones) {
