@@ -1,6 +1,8 @@
 #ifndef MARCOS_H_INCLUDED
 #define MARCOS_H_INCLUDED
 
+#include <stdint.h>
+
 typedef struct t_marcos t_marcos;
 
 t_marcos* crear_marcos(int cantTotalMarcos);

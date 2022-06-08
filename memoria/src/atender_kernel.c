@@ -17,6 +17,7 @@ extern int cantidadProcesosMax;
 extern int cantidadMarcosMax;
 extern int cantidadMarcosProceso;
 extern char* pathSwap;
+extern int contadorTabla1;
 
 void* escuchar_peticiones_kernel(void* socketKernel) {
     int socket = *(int*)socketKernel;
@@ -64,19 +65,12 @@ void* escuchar_peticiones_kernel(void* socketKernel) {
 }
 
 uint32_t __crear_nuevo_proceso(char* pathSwap, uint32_t tamanio, int entradasPorTabla, int tamanioPagina, int cantidadProcesosMax, int cantidadMarcosMax, int cantidadMarcosProceso, t_tabla_nivel_1* tablasDeNivel1, t_marcos* marcos) {
-    int cantPaginasMaxima = entradasPorTabla * entradasPorTabla;
-    int tamanioMaximoAdmitido = cantPaginasMaxima * tamanioPagina;
-
-    int* indiceMarco = reservar_marcos_libres(cantidadMarcosMax, cantidadMarcosProceso, marcos);
-    if (indiceMarco == NULL) {
-        return -1;  // TODO error informar kernel
-    } else if (0 < tamanio > tamanioMaximoAdmitido) {
-        return -1;  // TODO error informar kernel
-    }
-
-    int nroTablaNivel1 = obtener_tabla_libre_de_nivel_1(cantidadProcesosMax, tablasDeNivel1);
-    asignar_tamanio_tabla_nivel_1(nroTablaNivel1, tamanio, tablasDeNivel1);
+    
+    uint32_t indiceTablaNivel1 = obtener_tabla_libre_de_nivel_1(cantidadProcesosMax, tablasDeNivel1);
+    uint32_t nroTablaNivel1 = asignar_tabla_nivel_1(indiceTablaNivel1, tamanio, tablasDeNivel1, contadorTabla1);
     crear_archivo_de_proceso(tamanio, pathSwap, nroTablaNivel1);
 
-    return (uint32_t)nroTablaNivel1;
+    //TODO cachear errores? Como que haya mas procesos en mulitprogramación y supere la cantidad admitida en memoria o que el tamanio del proceso sea mayor al que se le puede asginar 
+
+    return nroTablaNivel1;
 }

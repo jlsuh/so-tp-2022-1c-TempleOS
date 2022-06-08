@@ -71,16 +71,22 @@ void* escuchar_peticiones_cpu(void* socketCpu) {
                 buffer_unpack(buffer, &nroDeTabla1, sizeof(nroDeTabla1));
                 buffer_unpack(buffer, &entradaDeTabla1, sizeof(entradaDeTabla1));
 
-                uint32_t nroDeTabla2 = obtener_tabla_de_nivel_2(nroDeTabla1, entradaDeTabla1, tablasDeNivel1);
+                int nroDeTabla2 = obtener_tabla_de_nivel_2(nroDeTabla1, entradaDeTabla1, cantidadProcesosMax, tablasDeNivel1);
+                if (nroDeTabla2 == -1) {
+                    traer_de_suspendidos(nroDeTabla1);  // TODO
+                    nroDeTabla2 = obtener_tabla_de_nivel_2(nroDeTabla1, entradaDeTabla1, cantidadProcesosMax, tablasDeNivel1);
+                }
+
+                uint32_t nroDeTabla2send = nroDeTabla2;
 
                 t_buffer* buffer_rta = buffer_create();
-                buffer_pack(buffer_rta, &nroDeTabla2, sizeof(nroDeTabla2));
+                buffer_pack(buffer_rta, &nroDeTabla2send, sizeof(nroDeTabla2send));
                 stream_send_buffer(socket, HEADER_tabla_nivel_2, buffer_rta);
                 buffer_destroy(buffer_rta);
 
                 break;
             }
-            case HEADER_marco: { //TODO
+            case HEADER_marco: {  // TODO
                 uint32_t nroDeTabla2, entradaDeTabla2;
                 buffer_unpack(buffer, &nroDeTabla2, sizeof(nroDeTabla2));
                 buffer_unpack(buffer, &entradaDeTabla2, sizeof(entradaDeTabla2));
@@ -114,10 +120,12 @@ void __actualizar_pagina(uint32_t direccionFisica, bool esEscritura, int tamanio
 }
 
 int __obtener_marco(uint32_t nroDeTabla2, uint32_t entradaDeTabla2, t_tabla_nivel_2* tablasDeNivel2, int cantidadProcesosMax, int entradasPorTabla) {
-    int marco = obtener_marco(nroDeTabla2, entradaDeTabla2, tablasDeNivel2); //TODO capaz usar el bit de presencia, para darle el sentido que corresponde
-    if (marco == -1) {
-        //TODO disponible? asignación directo sin swap sino swap, con la tabla de nivel 1 ver si hay algun marco con bool enUso en false.
+    uint32_t nroTablaNivel1 = obtener_tabla_de_nivel_1(nroDeTabla2, cantidadProcesosMax, entradasPorTabla, tablasDeNivel1);
+    int marco = obtener_marco_libre(nroTablaNivel1, tablasDeNivel1);
 
+    marco = obtener_marco(nroDeTabla2, entradaDeTabla2, tablasDeNivel2);  // TODO capaz usar el bit de presencia, para darle el sentido que corresponde
+    if (marco == -1) {
+        // TODO disponible? asignación directo sin swap sino swap, con la tabla de nivel 1 ver si hay algun marco con bool enUso en false.
 
         // TODO ver con cami el algoritmo para seleccionar la victima
         int nroDeTabla2Victima = 0, entradaDeTabla2Victima = 0;

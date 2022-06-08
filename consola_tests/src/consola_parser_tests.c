@@ -9,6 +9,7 @@
 
 static t_buffer* buffer = NULL;
 static t_log* consolaParserTestLogger = NULL;
+int tamanioPagina;
 
 // @Before
 void test_consola_parser_setup(void) {
