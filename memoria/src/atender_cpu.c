@@ -69,7 +69,7 @@ void* escuchar_peticiones_cpu(void* socketCpu) {
 
                 int nroDeTabla2 = obtener_tabla_de_nivel_2(nroDeTabla1, entradaDeTabla1, memoriaData);
                 if (nroDeTabla2 == -1) {
-                    traer_de_suspendidos(nroDeTabla1);  // TODO
+                    //traer_de_suspendidos(nroDeTabla1);  // TODO
                     nroDeTabla2 = obtener_tabla_de_nivel_2(nroDeTabla1, entradaDeTabla1, memoriaData);
                 }
 

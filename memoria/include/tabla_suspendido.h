@@ -2,6 +2,7 @@
 #define TABLA_SUSPENDIDO_H_INCLUDED
 
 #include <commons/collections/list.h>
+#include "memoria_data_holder.h"
 
 typedef struct t_proceso_suspendido t_proceso_suspendido;
 

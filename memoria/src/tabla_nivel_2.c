@@ -62,7 +62,17 @@ void swap_in(int nroDeTabla2, int entradaDeTabla2, int marco, t_memoria_data_hol
     memoriaData.tablasDeNivel2[nroDeTabla2].entradaNivel2[entradaDeTabla2].bitPresencia = 1;
 }
 
+void limpiar_tabla_nivel_2(int nroDeTabla2, t_memoria_data_holder memoriaData){
+    int entradasPorTabla = memoriaData.entradasPorTabla;
+    t_tabla_nivel_2* tablasDeNivel2 = memoriaData.tablasDeNivel2;
 
+    for (int i = 0; i < entradasPorTabla; i++) {
+        tablasDeNivel2[nroDeTabla2].entradaNivel2[i].indiceMarco = -1;
+        tablasDeNivel2[nroDeTabla2].entradaNivel2[i].bitPresencia = false;
+        tablasDeNivel2[nroDeTabla2].entradaNivel2[i].bitUso = false;
+        tablasDeNivel2[nroDeTabla2].entradaNivel2[i].bitModificado = false;
+    }
+}
 
 int obtener_marco(uint32_t nroDeTabla2, uint32_t entradaDeTabla2, t_memoria_data_holder memoriaData) {
     t_tabla_nivel_2* tablasDeNivel2 = memoriaData.tablasDeNivel2;
