@@ -279,9 +279,9 @@ void establecer_timespec(struct timespec* timespec) {
 }
 
 uint32_t obtener_diferencial_de_tiempo_en_milisegundos(struct timespec end, struct timespec start) {
-    const uint32_t MILISECS_PER_SEC = 1000;
-    const uint32_t MILISECS_PER_NANOSEC = 1000000;
-    return (end.tv_sec - start.tv_sec) * MILISECS_PER_SEC + (end.tv_nsec - start.tv_nsec) / MILISECS_PER_NANOSEC;
+    const uint32_t SECS_TO_MILISECS = 1000;
+    const uint32_t NANOSECS_TO_MILISECS = 1000000;
+    return (end.tv_sec - start.tv_sec) * SECS_TO_MILISECS + (end.tv_nsec - start.tv_nsec) / NANOSECS_TO_MILISECS;
 }
 
 static void noreturn atender_pcb(void) {
