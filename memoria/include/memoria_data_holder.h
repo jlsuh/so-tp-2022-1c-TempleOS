@@ -1,4 +1,5 @@
 #include <commons/log.h>
+#include <commons/collections/list.h>
 
 typedef struct t_tabla_nivel_1 t_tabla_nivel_1;
 typedef struct t_tabla_nivel_2 t_tabla_nivel_2;
@@ -14,7 +15,7 @@ typedef struct t_memoria_data_holder {
     int archivo_swap;
     t_tabla_nivel_1* tablasDeNivel1;
     t_tabla_nivel_2* tablasDeNivel2;
-    t_proceso_suspendido* tablaSuspendidos;
+    t_list* tablaSuspendidos;
     t_marcos* marcos;
     int tamanioPagina;
     int entradasPorTabla;
@@ -23,4 +24,5 @@ typedef struct t_memoria_data_holder {
     int cantidadMarcosProceso;
     char* pathSwap;
     int contadorTabla1;
+    int retardoSwap;
 } t_memoria_data_holder;

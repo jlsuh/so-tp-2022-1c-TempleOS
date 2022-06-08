@@ -4,7 +4,9 @@
 #include <stdint.h>
 #include <stdlib.h>
 
-int __obtener_entrada(int nroPagina, int entradasPorTabla);
+#include "memoria_data_holder.h"
+
+int __obtener_entrada(int nroPagina, t_memoria_data_holder memoriaData);
 
 typedef struct
 {
@@ -18,7 +20,10 @@ struct t_tabla_nivel_2 {
     t_entrada_nivel_2* entradaNivel2;
 };
 
-t_tabla_nivel_2* crear_tablas_de_nivel_2(int cantidadProcesosMax, int entradasPorTabla) {
+t_tabla_nivel_2* crear_tablas_de_nivel_2(t_memoria_data_holder memoriaData) {
+    int cantidadProcesosMax = memoriaData.cantidadProcesosMax;
+    int entradasPorTabla = memoriaData.entradasPorTabla;
+
     t_tabla_nivel_2* tablasDeNivel2 = malloc(cantidadProcesosMax * entradasPorTabla * sizeof(t_entrada_nivel_2));  // TODO Revisar que este correcta la reserva
     for (int i = 0; i < cantidadProcesosMax * entradasPorTabla; i++) {
         for (int j = 0; j < entradasPorTabla; j++) {
@@ -31,24 +36,48 @@ t_tabla_nivel_2* crear_tablas_de_nivel_2(int cantidadProcesosMax, int entradasPo
     return tablasDeNivel2;
 }
 
-void actualizar_escritura_pagina(int nroPagina, int nroTablaNivel2, int entradasPorTabla, t_tabla_nivel_2* tablasDeNivel2) {
-    int entrada = __obtener_entrada(nroPagina, entradasPorTabla);
+void actualizar_escritura_pagina(int nroPagina, int nroTablaNivel2, t_memoria_data_holder memoriaData) {
+    int entradasPorTabla = memoriaData.entradasPorTabla;
+    t_tabla_nivel_2* tablasDeNivel2 = memoriaData.tablasDeNivel2;
+
+    int entrada = __obtener_entrada(nroPagina, memoriaData);
     tablasDeNivel2[nroTablaNivel2].entradaNivel2[entrada].bitUso = true;
     tablasDeNivel2[nroTablaNivel2].entradaNivel2[entrada].bitModificado = true;
 }
 
-void actualizar_lectura_pagina(int nroPagina, int nroTablaNivel2, int entradasPorTabla, t_tabla_nivel_2* tablasDeNivel2) {
-    int entrada = __obtener_entrada(nroPagina, entradasPorTabla);
+void actualizar_lectura_pagina(int nroPagina, int nroTablaNivel2, t_memoria_data_holder memoriaData) {
+    int entradasPorTabla = memoriaData.entradasPorTabla;
+    t_tabla_nivel_2* tablasDeNivel2 = memoriaData.tablasDeNivel2;
+
+    int entrada = __obtener_entrada(nroPagina, memoriaData);
     tablasDeNivel2[nroTablaNivel2].entradaNivel2[entrada].bitUso = true;
 }
 
-void actualizar_swap_out() {
+void swap_out(int nroDeTabla2, int entradaDeTabla2, t_memoria_data_holder memoriaData) {
+    memoriaData.tablasDeNivel2[nroDeTabla2].entradaNivel2[entradaDeTabla2].bitPresencia = 0;
 }
 
-int obtener_marco(uint32_t nroDeTabla2, uint32_t entradaDeTabla2, t_tabla_nivel_2* tablasDeNivel2) {
+void swap_in(int nroDeTabla2, int entradaDeTabla2, int marco, t_memoria_data_holder memoriaData) {
+    memoriaData.tablasDeNivel2[nroDeTabla2].entradaNivel2[entradaDeTabla2].indiceMarco = marco;
+    memoriaData.tablasDeNivel2[nroDeTabla2].entradaNivel2[entradaDeTabla2].bitPresencia = 1;
+}
+
+
+
+int obtener_marco(uint32_t nroDeTabla2, uint32_t entradaDeTabla2, t_memoria_data_holder memoriaData) {
+    t_tabla_nivel_2* tablasDeNivel2 = memoriaData.tablasDeNivel2;
+    
     return tablasDeNivel2[nroDeTabla2].entradaNivel2[entradaDeTabla2].indiceMarco;
 }
 
-int __obtener_entrada(int nroPagina, int entradasPorTabla) {
+bool pagina_en_memoria(uint32_t nroDeTabla2, uint32_t entradaDeTabla2, t_memoria_data_holder memoriaData){
+    t_tabla_nivel_2* tablasDeNivel2 = memoriaData.tablasDeNivel2;
+    
+    return tablasDeNivel2[nroDeTabla2].entradaNivel2[entradaDeTabla2].bitPresencia;
+}
+
+int __obtener_entrada(int nroPagina,  t_memoria_data_holder memoriaData) {
+    int entradasPorTabla = memoriaData.entradasPorTabla;
+    
     return (nroPagina % (entradasPorTabla * entradasPorTabla)) % entradasPorTabla;
 }

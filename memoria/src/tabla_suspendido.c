@@ -2,21 +2,15 @@
 
 #include <stdbool.h>
 #include <stdint.h>
-
-typedef struct
-{
-    bool bitPresencia;
-    bool bitUso;
-    bool bitModificado;
-} t_entrada_pagina_suspendida;
+#include <commons/collections/list.h>
 
 struct t_proceso_suspendido {
-    uint32_t pid;
+    uint32_t id;
     uint32_t tamanio;
-    t_entrada_pagina_suspendida* paginasSuspendidas;
 };
 
-t_proceso_suspendido* crear_tabla_de_suspendidos(void){
-//TODO implementar
-    return ;
+t_list* crear_tabla_de_suspendidos(void){
+    t_list* tablaSuspendidos = list_create();
+    return tablaSuspendidos;
 }
+

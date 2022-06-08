@@ -4,22 +4,18 @@
 
 #include "common_flags.h"
 #include "marcos.h"
+#include "memoria_data_holder.h"
 #include "stream.h"
 #include "tabla_nivel_1.h"
 #include "tabla_nivel_2.h"
 
-extern void* memoriaPrincipal;
-extern t_tabla_nivel_1* tablasDeNivel1;
-extern t_tabla_nivel_2* tablasDeNivel2;
-extern t_marcos* marcos;
-extern int tamanioPagina;
-extern int entradasPorTabla;
-extern int cantidadProcesosMax;
+extern t_memoria_data_holder memoriaData;
 
-void __actualizar_pagina(uint32_t direccionFisica, bool esEscritura, int tamanioPagina, int entradasPorTabla, t_marcos* marcos, t_tabla_nivel_1* tablasDeNivel1, t_tabla_nivel_2* tablasDeNivel2);
-int __obtener_marco(uint32_t nroDeTabla2, uint32_t entradaDeTabla2, t_tabla_nivel_2* tablasDeNivel2, int cantidadProcesosMax, int entradasPorTabla);
-
+void __actualizar_pagina(uint32_t direccionFisica, bool esEscritura, t_memoria_data_holder memoriaData);
+int __obtener_marco(uint32_t nroDeTabla2, uint32_t entradaDeTabla2, t_memoria_data_holder memoriaData);
+int __swap_marco(int nroDeTabla2Victima, int entradaDeTabla2Victima, uint32_t nroDeTabla2, uint32_t entradaDeTabla2, t_memoria_data_holder memoriaData);
 void* escuchar_peticiones_cpu(void* socketCpu) {
+    void* memoriaPrincipal = memoriaData.memoriaPrincipal;
     int socket = *(int*)socketCpu;
     free(socketCpu);
 
@@ -42,7 +38,7 @@ void* escuchar_peticiones_cpu(void* socketCpu) {
                 stream_send_buffer(socket, HEADER_read, buffer_rta);
                 buffer_destroy(buffer_rta);
 
-                __actualizar_pagina(direccionFisica, false, tamanioPagina, entradasPorTabla, marcos, tablasDeNivel1, tablasDeNivel2);
+                __actualizar_pagina(direccionFisica, false, memoriaData);
 
                 break;
             case HEADER_write:
@@ -51,7 +47,7 @@ void* escuchar_peticiones_cpu(void* socketCpu) {
 
                 memcpy(memoriaPrincipal + direccionFisica, &valor, sizeof(valor));
 
-                __actualizar_pagina(direccionFisica, true, tamanioPagina, entradasPorTabla, marcos, tablasDeNivel1, tablasDeNivel2);
+                __actualizar_pagina(direccionFisica, true, memoriaData);
 
                 // TODO send ok?
                 break;
@@ -61,8 +57,8 @@ void* escuchar_peticiones_cpu(void* socketCpu) {
 
                 memcpy(memoriaPrincipal + direccionFisica, memoriaPrincipal + direccionFisicaOrigen, sizeof(uint32_t));
 
-                __actualizar_pagina(direccionFisica, true, tamanioPagina, entradasPorTabla, marcos, tablasDeNivel1, tablasDeNivel2);
-                __actualizar_pagina(direccionFisicaOrigen, false, tamanioPagina, entradasPorTabla, marcos, tablasDeNivel1, tablasDeNivel2);
+                __actualizar_pagina(direccionFisica, true, memoriaData);
+                __actualizar_pagina(direccionFisicaOrigen, false, memoriaData);
 
                 // TODO send ok?
                 break;
@@ -71,10 +67,10 @@ void* escuchar_peticiones_cpu(void* socketCpu) {
                 buffer_unpack(buffer, &nroDeTabla1, sizeof(nroDeTabla1));
                 buffer_unpack(buffer, &entradaDeTabla1, sizeof(entradaDeTabla1));
 
-                int nroDeTabla2 = obtener_tabla_de_nivel_2(nroDeTabla1, entradaDeTabla1, cantidadProcesosMax, tablasDeNivel1);
+                int nroDeTabla2 = obtener_tabla_de_nivel_2(nroDeTabla1, entradaDeTabla1, memoriaData);
                 if (nroDeTabla2 == -1) {
                     traer_de_suspendidos(nroDeTabla1);  // TODO
-                    nroDeTabla2 = obtener_tabla_de_nivel_2(nroDeTabla1, entradaDeTabla1, cantidadProcesosMax, tablasDeNivel1);
+                    nroDeTabla2 = obtener_tabla_de_nivel_2(nroDeTabla1, entradaDeTabla1, memoriaData);
                 }
 
                 uint32_t nroDeTabla2send = nroDeTabla2;
@@ -86,13 +82,13 @@ void* escuchar_peticiones_cpu(void* socketCpu) {
 
                 break;
             }
-            case HEADER_marco: {  // TODO
+            case HEADER_marco: {
                 uint32_t nroDeTabla2, entradaDeTabla2;
                 buffer_unpack(buffer, &nroDeTabla2, sizeof(nroDeTabla2));
                 buffer_unpack(buffer, &entradaDeTabla2, sizeof(entradaDeTabla2));
 
-                int indiceMarco = __obtener_marco(nroDeTabla2, entradaDeTabla2, tablasDeNivel2, cantidadProcesosMax, entradasPorTabla);
-                uint32_t marco = indiceMarco * tamanioPagina;
+                int indiceMarco = __obtener_marco(nroDeTabla2, entradaDeTabla2, memoriaData);
+                uint32_t marco = indiceMarco * memoriaData.tamanioPagina;
 
                 t_buffer* buffer_rta = buffer_create();
                 buffer_pack(buffer_rta, &marco, sizeof(marco));
@@ -110,52 +106,54 @@ void* escuchar_peticiones_cpu(void* socketCpu) {
     return NULL;
 }
 
-void __actualizar_pagina(uint32_t direccionFisica, bool esEscritura, int tamanioPagina, int entradasPorTabla, t_marcos* marcos, t_tabla_nivel_1* tablasDeNivel1, t_tabla_nivel_2* tablasDeNivel2) {
-    int nroPagina = obtener_pagina_de_un_marco(direccionFisica, tamanioPagina, marcos);
-    int nroTablaNivel2 = obtener_tabla_de_nivel_2_pagina(nroPagina, entradasPorTabla, tablasDeNivel1);
+void __actualizar_pagina(uint32_t direccionFisica, bool esEscritura, t_memoria_data_holder memoriaData) {
+    int nroPagina = obtener_pagina_de_un_marco(direccionFisica, memoriaData);
+    int nroTablaNivel2 = obtener_tabla_de_nivel_2_pagina(nroPagina, memoriaData);
     if (esEscritura)
-        actualizar_escritura_pagina(nroPagina, nroTablaNivel2, entradasPorTabla, tablasDeNivel2);
+        actualizar_escritura_pagina(nroPagina, nroTablaNivel2, memoriaData);
     else
-        actualizar_lectura_pagina(nroPagina, nroTablaNivel2, entradasPorTabla, tablasDeNivel2);
+        actualizar_lectura_pagina(nroPagina, nroTablaNivel2, memoriaData);
 }
 
-int __obtener_marco(uint32_t nroDeTabla2, uint32_t entradaDeTabla2, t_tabla_nivel_2* tablasDeNivel2, int cantidadProcesosMax, int entradasPorTabla) {
-    uint32_t nroTablaNivel1 = obtener_tabla_de_nivel_1(nroDeTabla2, cantidadProcesosMax, entradasPorTabla, tablasDeNivel1);
-    int marco = obtener_marco_libre(nroTablaNivel1, tablasDeNivel1);
+int __obtener_marco(uint32_t nroDeTabla2, uint32_t entradaDeTabla2, t_memoria_data_holder memoriaData) {
+    int marco;
+    if (pagina_en_memoria(nroDeTabla2, entradaDeTabla2, memoriaData)) {
+        marco = obtener_marco(nroDeTabla2, entradaDeTabla2, memoriaData);
+        return marco;
+    }
 
-    marco = obtener_marco(nroDeTabla2, entradaDeTabla2, tablasDeNivel2);  // TODO capaz usar el bit de presencia, para darle el sentido que corresponde
+    uint32_t nroTablaNivel1 = obtener_tabla_de_nivel_1(nroDeTabla2, memoriaData);
+    int* marcos = obtener_marcos(nroTablaNivel1, memoriaData);
+    int marco = obtener_marco_libre(marcos, memoriaData);
+
     if (marco == -1) {
-        // TODO disponible? asignación directo sin swap sino swap, con la tabla de nivel 1 ver si hay algun marco con bool enUso en false.
-
         // TODO ver con cami el algoritmo para seleccionar la victima
         int nroDeTabla2Victima = 0, entradaDeTabla2Victima = 0;
 
-        int nroDeTabla1 = obtener_tabla_de_nivel_1(nroDeTabla2, cantidadProcesosMax, entradasPorTabla, tablasDeNivel2);
-        abrir_archivo(nroDeTabla1);
-        marco = __swap_marco(nroDeTabla2Victima, entradaDeTabla2Victima, nroDeTabla2, entradaDeTabla2);
+        abrir_archivo(nroTablaNivel1);
+        marco = __swap_marco(nroDeTabla2Victima, entradaDeTabla2Victima, nroDeTabla2, entradaDeTabla2, memoriaData);
         cerrar_archivo();
     }
 
     return marco;
 }
-int __swap_marco(int nroDeTabla2Victima, int entradaDeTabla2Victima, uint32_t nroDeTabla2, uint32_t entradaDeTabla2) {
-    int marco = obtener_marco(nroDeTabla2Victima, entradaDeTabla2Victima, tablasDeNivel2);
-    actualizar_swap_out(nroDeTabla2Victima, entradaDeTabla2Victima, tablasDeNivel2);
-    tablasDeNivel2[nroDeTabla2ToSwap].entradaNivel2[entradaDeTabla2ToSwap].bitPresencia = 0;
-
-    int paginaToSwap = nroDeTabla2ToSwap * entradasPorTabla + entradaDeTabla2ToSwap;
-    int pagina = nroDeTabla2 * entradasPorTabla + entradaDeTabla2;
-    int tiempoDeEspera = memoria_config_get_retardo_swap(memoriaConfig);
+int __swap_marco(int nroDeTabla2Victima, int entradaDeTabla2Victima, uint32_t nroDeTabla2, uint32_t entradaDeTabla2, t_memoria_data_holder memoriaData) {
+    int marco = obtener_marco(nroDeTabla2Victima, entradaDeTabla2Victima, memoriaData);
+    // actualizar_swap_out(nroDeTabla2Victima, entradaDeTabla2Victima, tablasDeNivel2); //TODO que es?
+    swap_out(nroDeTabla2Victima, entradaDeTabla2Victima, memoriaData);
+    
+    int paginaVictima = nroDeTabla2Victima * memoriaData.entradasPorTabla + entradaDeTabla2Victima;
+    int pagina = nroDeTabla2 * memoriaData.entradasPorTabla + entradaDeTabla2;
+    int tiempoDeEspera = memoriaData.retardoSwap;
 
     // Escribir en archivo
     sleep(tiempoDeEspera);
-    memcpy(inicio_archivo + tamanioPagina * paginaToSwap, memoriaPrincipal + marco * tamanioPagina, tamanioPagina);
+    memcpy(memoriaData.inicio_archivo + memoriaData.tamanioPagina * paginaVictima, memoriaData.memoriaPrincipal + marco * memoriaData.tamanioPagina, memoriaData.tamanioPagina);
     // Leer de archivo
     sleep(tiempoDeEspera);
-    memcpy(memoriaPrincipal + marco * tamanioPagina, inicio_archivo + tamanioPagina * pagina, tamanioPagina);
+    memcpy(memoriaData.memoriaPrincipal + marco * memoriaData.tamanioPagina, memoriaData.inicio_archivo + memoriaData.tamanioPagina * pagina, memoriaData.tamanioPagina);
 
-    tablasDeNivel2[nroDeTabla2].entradaNivel2[entradaDeTabla2].indiceMarco = marco;
-    tablasDeNivel2[nroDeTabla2].entradaNivel2[entradaDeTabla2].bitPresencia = 1;
+    swap_in(nroDeTabla2, entradaDeTabla2, marco, memoriaData);
 
     return marco;
 }

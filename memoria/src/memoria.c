@@ -48,11 +48,12 @@ int main(int argc, char* argv[]) {
     memoriaData.archivo_swap = -1;
     memoriaData.pathSwap = memoria_config_get_path_swap(memoriaData.memoriaConfig);
     memoriaData.contadorTabla1 = 1;
+    memoriaData.retardoSwap = memoria_config_get_retardo_swap(memoriaData.memoriaConfig);
 
     memoriaData.tablasDeNivel1 = crear_tablas_de_nivel_1(memoriaData);
     memoriaData.tablasDeNivel2 = crear_tablas_de_nivel_2(memoriaData);
     memoriaData.marcos = crear_marcos(memoriaData);
-    memoriaData.tablaSuspendidos = crear_tabla_de_suspendidos();  // TODO que argumento pasar?
+    memoriaData.tablaSuspendidos = crear_tabla_de_suspendidos();
 
     __recibir_conexiones(socketEscucha);
 
