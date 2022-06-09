@@ -21,7 +21,7 @@ static pthread_mutex_t mutexInterrupcion;
 
 static t_instruccion* cpu_fetch_instruction(t_cpu_pcb* pcb) {
     t_list* instructionsList = cpu_pcb_get_instrucciones(pcb);
-    uint64_t programCounter = cpu_pcb_get_program_counter(pcb);
+    uint32_t programCounter = cpu_pcb_get_program_counter(pcb);
     t_instruccion* nextInstruction = list_get(instructionsList, programCounter);
     return nextInstruction;
 }
@@ -41,7 +41,7 @@ static uint32_t instruccion_fetch_operands(t_instruccion* nextInstruction, t_cpu
 
 static bool cpu_exec_instruction(t_cpu_pcb* pcb, t_tipo_instruccion tipoInstruccion, uint32_t operando1, uint32_t operando2) {
     cpu_pcb_set_program_counter(pcb, cpu_pcb_get_program_counter(pcb) + 1);
-    uint64_t programCounterActualizado = cpu_pcb_get_program_counter(pcb);
+    uint32_t programCounterActualizado = cpu_pcb_get_program_counter(pcb);
 
     bool stopExec = false;
     bool shouldWrite = false;
@@ -65,7 +65,7 @@ static bool cpu_exec_instruction(t_cpu_pcb* pcb, t_tipo_instruccion tipoInstrucc
         stream_send_buffer(cpu_config_get_socket_dispatch(cpuConfig), HEADER_proceso_bloqueado, bufferIO);
         buffer_destroy(bufferIO);
 
-        log_info(cpuLogger, "INSTRUCCION_io: Se envía a Kernel <PID %d> con <PC %ld> con <TP1erNivel %d> con <Tiempo de bloqueo %d>", pid, programCounterActualizado, tablaPaginaPrimerNivelActualizado, tiempoDeBloqueo);
+        log_info(cpuLogger, "INSTRUCCION_io: Se envía a Kernel <PID %d> con <PC %d> con <TP1erNivel %d> con <Tiempo de bloqueo %d>", pid, programCounterActualizado, tablaPaginaPrimerNivelActualizado, tiempoDeBloqueo);
 
         stopExec = true;
     } else if (tipoInstruccion == INSTRUCCION_read) {
@@ -89,7 +89,7 @@ static bool cpu_exec_instruction(t_cpu_pcb* pcb, t_tipo_instruccion tipoInstrucc
         stream_send_buffer(cpu_config_get_socket_dispatch(cpuConfig), HEADER_proceso_terminado, bufferExit);
         buffer_destroy(bufferExit);
 
-        log_info(cpuLogger, "INSTRUCCION_exit: Se envía a Kernel <PID %d> con <PC %ld> con <TP1erNivel %d>", pid, programCounterActualizado, tablaPaginaPrimerNivelActualizado);
+        log_info(cpuLogger, "INSTRUCCION_exit: Se envía a Kernel <PID %d> con <PC %d> con <TP1erNivel %d>", pid, programCounterActualizado, tablaPaginaPrimerNivelActualizado);
 
         stopExec = true;
     }
@@ -133,7 +133,7 @@ static bool cpu_hay_interrupcion(t_cpu_pcb* pcb) {
     bool stopExec = false;
     if (hayInterrupcion) {
         uint32_t pid = cpu_pcb_get_pid(pcb);
-        uint64_t programCounterActualizado = cpu_pcb_get_program_counter(pcb);
+        uint32_t programCounterActualizado = cpu_pcb_get_program_counter(pcb);
         uint32_t tablaPaginaPrimerNivelActualizado = cpu_pcb_get_tabla_pagina_primer_nivel(pcb);
 
         t_buffer* bufferInt = buffer_create();
@@ -147,7 +147,7 @@ static bool cpu_hay_interrupcion(t_cpu_pcb* pcb) {
         stopExec = true;
 
         log_info(cpuLogger, "INT: Se interrumpe la ejecución del programa");
-        log_info(cpuLogger, "INT: Se envía a Kernel <PID %d> con <PC %ld> con <TP1erNivel %d>", pid, programCounterActualizado, tablaPaginaPrimerNivelActualizado);
+        log_info(cpuLogger, "INT: Se envía a Kernel <PID %d> con <PC %d> con <TP1erNivel %d>", pid, programCounterActualizado, tablaPaginaPrimerNivelActualizado);
     }
     pthread_mutex_unlock(&mutexInterrupcion);
     return stopExec;
@@ -155,7 +155,7 @@ static bool cpu_hay_interrupcion(t_cpu_pcb* pcb) {
 
 static void noreturn dispatch_peticiones_de_kernel(void) {
     uint32_t pidRecibido = 0, tablaPags = 0;
-    uint64_t programCounter = 0;
+    uint32_t programCounter = 0;
     for (;;) {
         // Recibir PCB de Kernel
         uint8_t kernelResponse = stream_recv_header(cpu_config_get_socket_dispatch(cpuConfig));

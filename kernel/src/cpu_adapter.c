@@ -9,7 +9,7 @@
 
 void cpu_adapter_enviar_pcb_a_cpu(t_pcb* pcbAEnviar, t_kernel_config* kernelConfig, t_log* kernelLogger) {
     uint32_t pidAEnviar = pcb_get_pid(pcbAEnviar);
-    uint64_t pcAEnviar = pcb_get_program_counter(pcbAEnviar);
+    uint32_t pcAEnviar = pcb_get_program_counter(pcbAEnviar);
     uint32_t tablaPagsAEnviar = pcb_get_tabla_pagina_primer_nivel(pcbAEnviar);
 
     t_buffer* bufferPcbAEjecutar = buffer_create();
@@ -25,7 +25,7 @@ void cpu_adapter_enviar_pcb_a_cpu(t_pcb* pcbAEnviar, t_kernel_config* kernelConf
 
 t_pcb* cpu_adapter_recibir_pcb_actualizado_de_cpu(t_pcb* pcbAActualizar, uint8_t cpuResponse, t_kernel_config* kernelConfig, t_log* kernelLogger) {
     uint32_t pidRecibido = 0;
-    uint64_t programCounterActualizado = 0;
+    uint32_t programCounterActualizado = 0;
     uint32_t tablaPagsActualizada = 0;
     uint32_t tiempoDeBloqActualizado = 0;
 

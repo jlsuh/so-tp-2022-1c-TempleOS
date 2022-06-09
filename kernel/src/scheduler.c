@@ -55,7 +55,7 @@ static void log_transition(const char* prev, const char* post, int pid) {
     free(transicion);
 }
 
-static void responder_no_hay_lugar_en_memoria(t_pcb* pcb) {
+static void responder_memoria_insuficiente(t_pcb* pcb) {
     estado_encolar_pcb_atomic(estadoExit, pcb);
     log_transition("NEW", "EXIT", pcb_get_pid(pcb));
     log_info(kernelLogger, "Memoria insuficiente para alojar el proceso %d", pcb_get_pid(pcb));
@@ -214,9 +214,8 @@ static void noreturn planificador_largo_plazo(void) {
             pthread_mutex_unlock(estado_get_mutex(estadoNew));
             int nuevaTablaPagina = mem_adapter_obtener_tabla_pagina(pcbQuePasaAReady, kernelConfig, kernelLogger);
             pcb_set_tabla_pagina_primer_nivel(pcbQuePasaAReady, nuevaTablaPagina);
-
             if (nuevaTablaPagina == -1) {
-                responder_no_hay_lugar_en_memoria(pcbQuePasaAReady);
+                responder_memoria_insuficiente(pcbQuePasaAReady);
             } else {
                 estado_encolar_pcb_atomic(estadoReady, pcbQuePasaAReady);
                 pthread_mutex_lock(&hayQueDesalojarMutex);
@@ -236,21 +235,13 @@ static void noreturn planificador_mediano_plazo(void) {
         pthread_mutex_lock(estado_get_mutex(estadoSuspendedReady));
         t_pcb* pcbQuePasaAReady = list_remove(estado_get_list(estadoSuspendedReady), 0);
         pthread_mutex_unlock(estado_get_mutex(estadoSuspendedReady));
-
-        int nuevaTablaPagina = mem_adapter_avisar_reactivacion(pcbQuePasaAReady, kernelConfig, kernelLogger);
-        pcb_set_tabla_pagina_primer_nivel(pcbQuePasaAReady, nuevaTablaPagina);
-        if (nuevaTablaPagina == -1) {
-            responder_no_hay_lugar_en_memoria(pcbQuePasaAReady);
-        } else {
-            pcb_set_estado_actual(pcbQuePasaAReady, READY);
-            estado_encolar_pcb_atomic(estadoReady, pcbQuePasaAReady);
-            pthread_mutex_lock(&hayQueDesalojarMutex);
-            hayQueDesalojar = true;
-            pthread_mutex_unlock(&hayQueDesalojarMutex);
-            log_transition("SUSREADY", "READY", pcb_get_pid(pcbQuePasaAReady));
-            sem_post(estado_get_sem(estadoReady));
-        }
-
+        pcb_set_estado_actual(pcbQuePasaAReady, READY);
+        estado_encolar_pcb_atomic(estadoReady, pcbQuePasaAReady);
+        pthread_mutex_lock(&hayQueDesalojarMutex);
+        hayQueDesalojar = true;
+        pthread_mutex_unlock(&hayQueDesalojarMutex);
+        log_transition("SUSREADY", "READY", pcb_get_pid(pcbQuePasaAReady));
+        sem_post(estado_get_sem(estadoReady));
         pcbQuePasaAReady = NULL;
     }
 }
@@ -287,8 +278,10 @@ void establecer_timespec(struct timespec* timespec) {
     }
 }
 
-uint64_t obtener_diferencial_de_tiempo(struct timespec end, struct timespec start) {
-    return (end.tv_sec - start.tv_sec) * 1000 + (end.tv_nsec - start.tv_nsec) / 1000000;
+uint32_t obtener_diferencial_de_tiempo_en_milisegundos(struct timespec end, struct timespec start) {
+    const uint32_t SECS_TO_MILISECS = 1000;
+    const uint32_t NANOSECS_TO_MILISECS = 1000000;
+    return (end.tv_sec - start.tv_sec) * SECS_TO_MILISECS + (end.tv_nsec - start.tv_nsec) / NANOSECS_TO_MILISECS;
 }
 
 static void noreturn atender_pcb(void) {
@@ -318,10 +311,10 @@ static void noreturn atender_pcb(void) {
         list_remove(estado_get_list(estadoExec), 0);
         pthread_mutex_unlock(estado_get_mutex(estadoExec));
 
-        uint64_t realEjecutado = 0;
+        uint32_t realEjecutado = 0;
         if (kernel_config_es_algoritmo_srt(kernelConfig)) {
-            realEjecutado = obtener_diferencial_de_tiempo(end, start);
-            log_debug(kernelLogger, "PCB <ID %d> estuvo en ejecución por %ld miliseconds", pcb_get_pid(pcb), realEjecutado);
+            realEjecutado = obtener_diferencial_de_tiempo_en_milisegundos(end, start);
+            log_debug(kernelLogger, "PCB <ID %d> estuvo en ejecución por %d miliseconds", pcb_get_pid(pcb), realEjecutado);
         }
 
         switch (cpuResponse) {
