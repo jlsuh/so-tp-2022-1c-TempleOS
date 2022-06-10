@@ -1,4 +1,5 @@
-#!/bin/sh
+#!/usr/bin/env bash
+
 # Actividades:
 # 1) Iniciar los módulos
 # 2) Ejecutar 3 módulos consola con los siguientes scripts en el orden indicado:
@@ -15,4 +16,4 @@ export LD_LIBRARY_PATH=./../utils/bin
 # *) En el caso de SRT, la de-suspensión de los mismos forzarán una re-planificación y los scripts finalizarán en el orden que fueron ejecutados
 
 # Ejemplo de uso:
-# Ubicado en subdirectorio consola, ejecutar: sh ./ejecuciones-de-prueba/kernel_planificacion.sh 200 400 350
+# Ubicado en subdirectorio consola, ejecutar: bash ./ejecuciones-de-prueba/kernel_planificacion.sh 200 400 350
