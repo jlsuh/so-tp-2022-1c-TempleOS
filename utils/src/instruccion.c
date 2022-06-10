@@ -2,6 +2,7 @@
 
 #include <commons/collections/list.h>
 #include <commons/log.h>
+#include <commons/string.h>
 #include <stdlib.h>
 
 #include "buffer.h"
@@ -63,6 +64,18 @@ t_list* instruccion_list_create_from_buffer(t_buffer* bufferConInstrucciones, t_
     }
     log_info(logger, "Se desempaquetan %d instrucciones", list_size(instrucciones));
     return instrucciones;
+}
+
+char* instruccion_to_string(t_instruccion* self) {
+    uint32_t operando1 = self->operando1;
+    uint32_t operando2 = self->operando2;
+    return self->tipoInstruccion == INSTRUCCION_no_op   ? string_from_format("NO_OP")
+           : self->tipoInstruccion == INSTRUCCION_io    ? string_from_format("I/O %d", operando1)
+           : self->tipoInstruccion == INSTRUCCION_read  ? string_from_format("READ %d", operando1)
+           : self->tipoInstruccion == INSTRUCCION_write ? string_from_format("WRITE %d %d", operando1, operando2)
+           : self->tipoInstruccion == INSTRUCCION_copy  ? string_from_format("COPY %d %d", operando1, operando2)
+           : self->tipoInstruccion == INSTRUCCION_exit  ? string_from_format("EXIT")
+                                                        : string_from_format("UNKNOWN");
 }
 
 t_tipo_instruccion instruccion_get_tipo_instruccion(t_instruccion* instruccion) {
