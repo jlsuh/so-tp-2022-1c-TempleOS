@@ -23,39 +23,45 @@ static t_instruccion* cpu_fetch_instruction(t_cpu_pcb* pcb) {
     t_list* instructionsList = cpu_pcb_get_instrucciones(pcb);
     uint32_t programCounter = cpu_pcb_get_program_counter(pcb);
     t_instruccion* nextInstruction = list_get(instructionsList, programCounter);
+    log_info(cpuLogger, "FETCH INSTRUCTION: PCB <ID %d>", cpu_pcb_get_pid(pcb));
     return nextInstruction;
 }
 
-static bool cpu_decode_instruction(t_instruccion* instruction) {
+static bool cpu_decode_instruction(uint32_t pid, t_instruccion* instruction) {
+    char* strDecodedInstruction = instruccion_to_string(instruction);
+    log_info(cpuLogger, "DECODE INSTRUCTION: PCB <ID %d> Decoded Instruction: %s", pid, strDecodedInstruction);
+    free(strDecodedInstruction);
     return instruccion_get_tipo_instruccion(instruction) == INSTRUCCION_copy;
 }
 
-static uint32_t instruccion_fetch_operands(t_instruccion* nextInstruction, t_cpu_pcb* pcb) {
+static uint32_t cpu_fetch_operands(t_instruccion* nextInstruction, t_cpu_pcb* pcb) {
     // Llegamos acá solamente en caso de INSTRUCCION_copy
     uint32_t direccionLogicaOrigen = instruccion_get_operando2(nextInstruction);
-    // uint32_t readValue = leer_en_memoria(direccionLogicaOrigen, cpu_pcb_get_tabla_pagina_primer_nivel(pcb)); Se abstrae de memoria por ahora
-    uint32_t readValue = 2;
-    log_info(cpuLogger, "INSTRUCCION_copy: Se lee el valor %d de memoria de la dirección lógica %d", readValue, direccionLogicaOrigen);
-    return readValue;
+    // TODO: Descomentar esto cuando se acople memoria
+    // uint32_t fetchedValue = leer_en_memoria(direccionLogicaOrigen, cpu_pcb_get_tabla_pagina_primer_nivel(pcb)); Se abstrae de memoria por ahora
+    // Entonces, ahora la INSTRUCCION_copy se degrada en una INSTRUCCION_write, debido a que ya tenemos el valor a escribir en la dirección destino en operando2
+    uint32_t fetchedValue = 2;
+    log_info(cpuLogger, "FETCH OPERANDS: PCB <ID %d> COPY <DL Destino: %d> <DL Origen: %d> => Fetched Value: %d", cpu_pcb_get_pid(pcb), instruccion_get_operando1(nextInstruction), direccionLogicaOrigen, fetchedValue);
+    return fetchedValue;
 }
 
 static bool cpu_exec_instruction(t_cpu_pcb* pcb, t_tipo_instruccion tipoInstruccion, uint32_t operando1, uint32_t operando2) {
     cpu_pcb_set_program_counter(pcb, cpu_pcb_get_program_counter(pcb) + 1);
     uint32_t programCounterActualizado = cpu_pcb_get_program_counter(pcb);
 
-    bool stopExec = false;
+    bool shouldStopExec = false;
     bool shouldWrite = false;
     char* logMsg = NULL;
 
     if (tipoInstruccion == INSTRUCCION_no_op) {
-        log_info(cpuLogger, "INSTRUCCION_no_op: Ejecución NO_OP durante %d milisegundos", cpu_config_get_retardo_no_op(cpuConfig));
-        intervalo_de_pausa(cpu_config_get_retardo_no_op(cpuConfig));
-        log_info(cpuLogger, "Fin de la ejecución de la instrucción NO_OP");
+        uint32_t retardoNoOp = cpu_config_get_retardo_no_op(cpuConfig);
+        log_info(cpuLogger, "EXEC: PCB <ID %d> NO_OP <%d milisegundos>", cpu_pcb_get_pid(pcb), retardoNoOp);
+        intervalo_de_pausa(retardoNoOp);
     } else if (tipoInstruccion == INSTRUCCION_io) {
         uint32_t tiempoDeBloqueo = operando1;
-        log_info(cpuLogger, "INSTRUCCION_io: Tiempo de bloqueo de %d milisegundos", tiempoDeBloqueo);
         uint32_t pid = cpu_pcb_get_pid(pcb);
         uint32_t tablaPaginaPrimerNivelActualizado = cpu_pcb_get_tabla_pagina_primer_nivel(pcb);
+        log_info(cpuLogger, "EXEC: PCB <ID %d> I/O <%d milisegundos>", pid, tiempoDeBloqueo);
 
         t_buffer* bufferIO = buffer_create();
         buffer_pack(bufferIO, &pid, sizeof(pid));
@@ -65,21 +71,20 @@ static bool cpu_exec_instruction(t_cpu_pcb* pcb, t_tipo_instruccion tipoInstrucc
         stream_send_buffer(cpu_config_get_socket_dispatch(cpuConfig), HEADER_proceso_bloqueado, bufferIO);
         buffer_destroy(bufferIO);
 
-        log_info(cpuLogger, "INSTRUCCION_io: Se envía a Kernel <PID %d> con <PC %d> con <TP1erNivel %d> con <Tiempo de bloqueo %d>", pid, programCounterActualizado, tablaPaginaPrimerNivelActualizado, tiempoDeBloqueo);
-
-        stopExec = true;
+        shouldStopExec = true;
     } else if (tipoInstruccion == INSTRUCCION_read) {
+        // TODO: Descomentar esto cuando se acople memoria
         // uint32_t readValue = leer_en_memoria(operando1, cpu_pcb_get_tabla_pagina_primer_nivel(pcb)); Se abstrae de memoria por ahora
         uint32_t readValue = 3;
-        log_info(cpuLogger, "INSTRUCCION_read: Se lee %d de la dirección lógica %d", readValue, operando1);
+        log_info(cpuLogger, "EXEC: PCB <ID %d> READ <DL: %d> => Read Value: %d", cpu_pcb_get_pid(pcb), operando1, readValue);
     } else if (tipoInstruccion == INSTRUCCION_write) {
         shouldWrite = true;
-        logMsg = string_from_format("INSTRUCCION_write: Se escribe %d en la dirección lógica %d", operando1, operando2);
+        logMsg = string_from_format("EXEC: PCB <ID %d> WRITE <DL: %d> <Write Value: %d>", cpu_pcb_get_pid(pcb), operando1, operando2);
     } else if (tipoInstruccion == INSTRUCCION_copy) {
         shouldWrite = true;
-        logMsg = string_from_format("INSTRUCCION_copy: Se escribe %d en la dirección lógica %d", operando1, operando2);
+        logMsg = string_from_format("EXEC: PCB <ID %d> COPY <DL: %d> <Copy Value: %d>", cpu_pcb_get_pid(pcb), operando1, operando2);
     } else if (tipoInstruccion == INSTRUCCION_exit) {
-        log_info(cpuLogger, "INSTRUCCION_exit: Se termina la ejecución del programa");
+        log_info(cpuLogger, "EXEC: PCB <ID %d> EXIT", cpu_pcb_get_pid(pcb));
         uint32_t pid = cpu_pcb_get_pid(pcb);
         uint32_t tablaPaginaPrimerNivelActualizado = cpu_pcb_get_tabla_pagina_primer_nivel(pcb);
         t_buffer* bufferExit = buffer_create();
@@ -89,48 +94,46 @@ static bool cpu_exec_instruction(t_cpu_pcb* pcb, t_tipo_instruccion tipoInstrucc
         stream_send_buffer(cpu_config_get_socket_dispatch(cpuConfig), HEADER_proceso_terminado, bufferExit);
         buffer_destroy(bufferExit);
 
-        log_info(cpuLogger, "INSTRUCCION_exit: Se envía a Kernel <PID %d> con <PC %d> con <TP1erNivel %d>", pid, programCounterActualizado, tablaPaginaPrimerNivelActualizado);
-
-        stopExec = true;
+        shouldStopExec = true;
     }
 
     if (shouldWrite) {
+        // TODO: Descomentar esto cuando se acople memoria
         // escribir_en_memoria(operando1, cpu_pcb_get_tabla_pagina_primer_nivel(pcb), operando2); Se abstrae de memoria por ahora
         log_info(cpuLogger, "%s", logMsg);
         free(logMsg);
     }
 
-    return stopExec;
+    return shouldStopExec;
 }
 
 static bool cpu_ejecutar_ciclos_de_instruccion(t_cpu_pcb* pcb) {
     // Fetch Instruction
     t_instruccion* nextInstruction = cpu_fetch_instruction(pcb);
-    log_info(cpuLogger, "Fetch Instruction: Se obtiene la siguiente instrucción");
 
     // Decode
-    bool shouldFetchOperands = cpu_decode_instruction(nextInstruction);
-    log_info(cpuLogger, "Decode: Se decodifica la siguiente instrucción");
+    bool shouldFetchOperands = cpu_decode_instruction(cpu_pcb_get_pid(pcb), nextInstruction);
 
     // Fetch Operands
     t_tipo_instruccion tipoInstruccion = instruccion_get_tipo_instruccion(nextInstruction);
     uint32_t operando1 = instruccion_get_operando1(nextInstruction);
     uint32_t operando2 = instruccion_get_operando2(nextInstruction);
-    if (shouldFetchOperands) {  // Hace que la instrucción copy o write sean lo mismo
-        operando2 = instruccion_fetch_operands(nextInstruction, pcb);
-        log_info(cpuLogger, "Fetch Operands: Se obtienen los operandos de la siguiente instrucción");
+    if (shouldFetchOperands) {
+        // Inicialmente COPY viene con 2 parámetros: <DL Destino, DL Origen>
+        operando2 = cpu_fetch_operands(nextInstruction, pcb);
+        // Ahora COPY tendrá los operandos de la misma forma que una instrucción WRITE: <DL, Valor>
+        // Entonces desde ahora en más COPY es lo mismo que un WRITE
     }
 
     // Exec Instruction
-    bool stopExec = cpu_exec_instruction(pcb, tipoInstruccion, operando1, operando2);
-    log_info(cpuLogger, "Exec Instruction: Se ejecuta la siguiente instrucción");
+    bool shouldStopExec = cpu_exec_instruction(pcb, tipoInstruccion, operando1, operando2);
 
-    return stopExec;
+    return shouldStopExec;
 }
 
-static bool cpu_hay_interrupcion(t_cpu_pcb* pcb) {
+static bool cpu_atender_interrupcion(t_cpu_pcb* pcb) {
     pthread_mutex_lock(&mutexInterrupcion);
-    bool stopExec = false;
+    bool shouldStopExec = false;
     if (hayInterrupcion) {
         uint32_t pid = cpu_pcb_get_pid(pcb);
         uint32_t programCounterActualizado = cpu_pcb_get_program_counter(pcb);
@@ -144,23 +147,21 @@ static bool cpu_hay_interrupcion(t_cpu_pcb* pcb) {
         buffer_destroy(bufferInt);
 
         hayInterrupcion = false;
-        stopExec = true;
+        shouldStopExec = true;
 
-        log_info(cpuLogger, "INT: Se interrumpe la ejecución del programa");
-        log_info(cpuLogger, "INT: Se envía a Kernel <PID %d> con <PC %d> con <TP1erNivel %d>", pid, programCounterActualizado, tablaPaginaPrimerNivelActualizado);
+        log_info(cpuLogger, "INT: Se envía a Kernel <PID %d> con <PC %d> <TP1erNivel %d>", pid, programCounterActualizado, tablaPaginaPrimerNivelActualizado);
     }
     pthread_mutex_unlock(&mutexInterrupcion);
-    return stopExec;
+    return shouldStopExec;
 }
 
 static void noreturn dispatch_peticiones_de_kernel(void) {
     uint32_t pidRecibido = 0, tablaPags = 0;
     uint32_t programCounter = 0;
     for (;;) {
-        // Recibir PCB de Kernel
         uint8_t kernelResponse = stream_recv_header(cpu_config_get_socket_dispatch(cpuConfig));
         t_buffer* bufferPcb = NULL;
-        t_cpu_pcb* newPcb = NULL;
+        t_cpu_pcb* pcb = NULL;
         if (kernelResponse == HEADER_pcb_a_ejecutar) {
             bufferPcb = buffer_create();
             stream_recv_buffer(cpu_config_get_socket_dispatch(cpuConfig), bufferPcb);
@@ -169,28 +170,26 @@ static void noreturn dispatch_peticiones_de_kernel(void) {
             buffer_unpack(bufferPcb, &tablaPags, sizeof(tablaPags));
             buffer_destroy(bufferPcb);
 
-            newPcb = cpu_pcb_create(pidRecibido, programCounter, tablaPags);
+            pcb = cpu_pcb_create(pidRecibido, programCounter, tablaPags);
             kernelResponse = stream_recv_header(cpu_config_get_socket_dispatch(cpuConfig));
-            t_buffer* bufferInstrucciones = NULL;
             if (kernelResponse == HEADER_lista_instrucciones) {
-                bufferInstrucciones = buffer_create();
+                t_buffer* bufferInstrucciones = buffer_create();
                 stream_recv_buffer(cpu_config_get_socket_dispatch(cpuConfig), bufferInstrucciones);
-
                 t_list* listaInstrucciones = instruccion_list_create_from_buffer(bufferInstrucciones, cpuLogger);
-                cpu_pcb_set_instrucciones(newPcb, listaInstrucciones);
+                cpu_pcb_set_instrucciones(pcb, listaInstrucciones);
+                buffer_destroy(bufferInstrucciones);
             } else {
                 log_error(cpuLogger, "Error al intentar recibir las instrucciones de Kernel");
                 exit(-1);
             }
-
-            bool stopExec = false;
-            while (!stopExec) {
-                stopExec = cpu_ejecutar_ciclos_de_instruccion(newPcb);
-
-                if (!stopExec) {
-                    stopExec = cpu_hay_interrupcion(newPcb);
+            bool shouldStopExec = false;
+            while (!shouldStopExec) {
+                shouldStopExec = cpu_ejecutar_ciclos_de_instruccion(pcb);
+                if (!shouldStopExec) {
+                    shouldStopExec = cpu_atender_interrupcion(pcb);
                 }
             }
+            cpu_pcb_destroy(pcb);
         } else {
             log_error(cpuLogger, "Error al intentar recibir el PCB de Kernel");
             exit(-1);
