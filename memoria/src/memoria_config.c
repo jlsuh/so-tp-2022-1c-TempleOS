@@ -98,3 +98,11 @@ char* memoria_config_get_path_swap(t_memoria_config* self){
 int memoria_config_get_retardo_swap(t_memoria_config* self){
     return self->RETARDO_SWAP;
 }
+
+int memoria_config_get_marcos_totales(t_memoria_config* self){
+    return self->TAM_MEMORIA / self->TAM_PAGINA;
+}
+
+int memoria_config_get_procesos_totales(t_memoria_config* self){
+    return self->TAM_MEMORIA / (self->TAM_PAGINA * self->MARCOS_POR_PROCESO);
+}
