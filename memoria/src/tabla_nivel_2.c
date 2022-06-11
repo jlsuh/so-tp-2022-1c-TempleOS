@@ -21,9 +21,12 @@ struct t_tabla_nivel_2 {
 t_tabla_nivel_2* crear_tablas_de_nivel_2(t_memoria_data_holder memoriaData) {
     int cantidadProcesosMax = memoriaData.cantidadProcesosMax;
     int entradasPorTabla = memoriaData.entradasPorTabla;
+    int cantidadTablasNivel2Max = cantidadProcesosMax * entradasPorTabla;
 
-    t_tabla_nivel_2* tablasDeNivel2 = malloc(cantidadProcesosMax * entradasPorTabla * sizeof(t_entrada_nivel_2));  // TODO Revisar que este correcta la reserva
-    for (int i = 0; i < cantidadProcesosMax * entradasPorTabla; i++) {
+    t_tabla_nivel_2* tablasDeNivel2 = malloc(cantidadTablasNivel2Max * sizeof(*tablasDeNivel2));
+
+    for (int i = 0; i < cantidadTablasNivel2Max; i++) {
+        tablasDeNivel2[i].entradaNivel2 = malloc(entradasPorTabla * sizeof(t_entrada_nivel_2));
         for (int j = 0; j < entradasPorTabla; j++) {
             tablasDeNivel2[i].entradaNivel2[j].indiceMarco = -1;
             tablasDeNivel2[i].entradaNivel2[j].bitPresencia = false;
@@ -58,7 +61,7 @@ void swap_in(int nroDeTabla2, int entradaDeTabla2, int marco, t_memoria_data_hol
     memoriaData.tablasDeNivel2[nroDeTabla2].entradaNivel2[entradaDeTabla2].bitPresencia = 1;
 }
 
-void limpiar_tabla_nivel_2(int nroDeTabla2, t_memoria_data_holder memoriaData){
+void limpiar_tabla_nivel_2(int nroDeTabla2, t_memoria_data_holder memoriaData) {
     int entradasPorTabla = memoriaData.entradasPorTabla;
     t_tabla_nivel_2* tablasDeNivel2 = memoriaData.tablasDeNivel2;
 
@@ -72,18 +75,18 @@ void limpiar_tabla_nivel_2(int nroDeTabla2, t_memoria_data_holder memoriaData){
 
 int obtener_marco(uint32_t nroDeTabla2, uint32_t entradaDeTabla2, t_memoria_data_holder memoriaData) {
     t_tabla_nivel_2* tablasDeNivel2 = memoriaData.tablasDeNivel2;
-    
+
     return tablasDeNivel2[nroDeTabla2].entradaNivel2[entradaDeTabla2].indiceMarco;
 }
 
-bool pagina_en_memoria(uint32_t nroDeTabla2, uint32_t entradaDeTabla2, t_memoria_data_holder memoriaData){
+bool pagina_en_memoria(uint32_t nroDeTabla2, uint32_t entradaDeTabla2, t_memoria_data_holder memoriaData) {
     t_tabla_nivel_2* tablasDeNivel2 = memoriaData.tablasDeNivel2;
-    
+
     return tablasDeNivel2[nroDeTabla2].entradaNivel2[entradaDeTabla2].bitPresencia;
 }
 
-int __obtener_entrada(int nroPagina,  t_memoria_data_holder memoriaData) {
+int __obtener_entrada(int nroPagina, t_memoria_data_holder memoriaData) {
     int entradasPorTabla = memoriaData.entradasPorTabla;
-    
+
     return (nroPagina % (entradasPorTabla * entradasPorTabla)) % entradasPorTabla;
 }
