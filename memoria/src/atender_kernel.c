@@ -61,6 +61,7 @@ void* escuchar_peticiones_kernel(void* socketKernel) {
                 // Liberar memoria del proceso con swap... //TODO
 
                 stream_send_empty_buffer(socket, HANDSHAKE_ok_continue);
+                buffer_destroy(buffer);
                 break;
             case HEADER_proceso_terminado:
                 buffer_unpack(buffer, &tablaNivel1, sizeof(tablaNivel1));
@@ -68,6 +69,7 @@ void* escuchar_peticiones_kernel(void* socketKernel) {
                 // Liberar al proceso de memoria y de swap... //TODO
 
                 stream_send_empty_buffer(socket, HANDSHAKE_ok_continue);
+                buffer_destroy(buffer);
                 break;
             default:
                 break;
