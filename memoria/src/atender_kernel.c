@@ -39,6 +39,7 @@ void* escuchar_peticiones_kernel(void* socketKernel) {
                 buffer_pack(buffer_rta, &nroTablaNivel1, sizeof(nroTablaNivel1));
                 stream_send_buffer(socket, HANDSHAKE_ok_continue, buffer_rta);
                 buffer_destroy(buffer_rta);
+                log_info(memoriaData.memoriaLogger, "Kernel: Se ha solicitado una tabla de páginas de %d bytes, asignando la tabla %d", tamanio, nroTablaNivel1);
 
                 // if (__se_puede_crear_proceso(tamanio, memoriaData)) {  // TODO funcion que analize si por tamaño entra y si hay tabla libre de lvl1
                 //     uint32_t nroTablaNivel1 = __crear_nuevo_proceso(tamanio, memoriaData);
