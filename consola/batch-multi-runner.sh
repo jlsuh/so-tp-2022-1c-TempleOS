@@ -14,40 +14,38 @@
 # En dicho caso ejecutar (desde subdirectorio Consola):
 # chmod -v u+x batch-multi-runner.sh
 
-pick_random_element() {
-  local array=("$@")
-  local index=$((RANDOM % ${#array[@]}))
-  echo "${array[$index]}"
+declare -r utils_path="./../utils/bin/"
+declare -r opts=":n:s:p:"
+
+function pick_random_element() {
+  local elems=("$@")
+  local index=$((RANDOM % ${#elems[@]}))
+  echo "${elems[$index]}"
 }
 
-main() {
-  local OPTS=":n:s:p:"
+function main() {
+  local processes
+  local sizes
+  local paths
 
-  local PROCESSES
-  local SIZES
-  local PATHS
-
-  while getopts $OPTS opt
-  do
+  while getopts $opts opt; do
     case $opt in
-      n) PROCESSES+=("$OPTARG") ;;
-      s) SIZES+=("$OPTARG") ;;
-      p) PATHS+=("$OPTARG") ;;
+    n) processes="$OPTARG" ;;
+    s) sizes+=("$OPTARG") ;;
+    p) paths+=("$OPTARG") ;;
     esac
   done
 
-  PROCESSES=($PROCESSES)
-  SIZES=($SIZES)
-  PATHS=($PATHS)
+  read -r -a sizes <<<"${sizes[@]}"
+  read -r -a paths <<<"${paths[@]}"
 
-  export LD_LIBRARY_PATH="./../utils/bin/"
+  export LD_LIBRARY_PATH=$utils_path
 
-  for ((i = 0; i < $PROCESSES; i++))
-  do
-    random_size=$(pick_random_element "${SIZES[@]}")
-    random_path=$(pick_random_element "${PATHS[@]}")
+  for ((i = 0; i < processes; i++)); do
+    random_size=$(pick_random_element "${sizes[@]}")
+    random_path=$(pick_random_element "${paths[@]}")
     echo "Running: ./batch-multi-runner.sh $random_size $random_path"
-    ./bin/consola.out $random_size $random_path
+    ./bin/consola.out "$random_size" "$random_path"
   done
 }
 
