@@ -45,8 +45,16 @@ static void __assert_opCode_with_two_args(t_buffer* buffer, uint8_t expectedInst
 
 void test_es_posible_parsear_un_archivo_valido_de_instrucciones(void) {
     CU_ASSERT_TRUE(consola_parser_parse_instructions(buffer, "./instrucciones/i0", consolaParserTestLogger));
-    // NO_OP 5
-    __assert_opCode_with_one_args(buffer, 0, 5);
+    // NO_OP
+    __assert_opCode_with_no_args(buffer, 0);
+    // NO_OP
+    __assert_opCode_with_no_args(buffer, 0);
+    // NO_OP
+    __assert_opCode_with_no_args(buffer, 0);
+    // NO_OP
+    __assert_opCode_with_no_args(buffer, 0);
+    // NO_OP
+    __assert_opCode_with_no_args(buffer, 0);
     // I/O 3000
     __assert_opCode_with_one_args(buffer, 1, 3000);
     // READ 0
@@ -61,8 +69,16 @@ void test_es_posible_parsear_un_archivo_valido_de_instrucciones(void) {
 
 void test_es_posible_parsear_un_archivo_valido_de_instrucciones_con_lineas_vacias(void) {
     CU_ASSERT_TRUE(consola_parser_parse_instructions(buffer, "./instrucciones/i1", consolaParserTestLogger));
-    // NO_OP 5
-    __assert_opCode_with_one_args(buffer, 0, 5);
+    // NO_OP
+    __assert_opCode_with_no_args(buffer, 0);
+    // NO_OP
+    __assert_opCode_with_no_args(buffer, 0);
+    // NO_OP
+    __assert_opCode_with_no_args(buffer, 0);
+    // NO_OP
+    __assert_opCode_with_no_args(buffer, 0);
+    // NO_OP
+    __assert_opCode_with_no_args(buffer, 0);
     // I/O 3000
     __assert_opCode_with_one_args(buffer, 1, 3000);
     // READ 0
@@ -81,15 +97,31 @@ void test_no_es_posible_parsear_un_archivo_invalido_de_instrucciones_debido_a_la
 
 void test_no_es_posible_parsear_un_archivo_invalido_de_instrucciones_debido_a_la_segunda_instruccion(void) {
     CU_ASSERT_FALSE(consola_parser_parse_instructions(buffer, "./instrucciones/i3", consolaParserTestLogger));
-    // NO_OP 5
-    __assert_opCode_with_one_args(buffer, 0, 5);
+    // NO_OP
+    __assert_opCode_with_no_args(buffer, 0);
+    // NO_OP
+    __assert_opCode_with_no_args(buffer, 0);
+    // NO_OP
+    __assert_opCode_with_no_args(buffer, 0);
+    // NO_OP
+    __assert_opCode_with_no_args(buffer, 0);
+    // NO_OP
+    __assert_opCode_with_no_args(buffer, 0);
     CU_ASSERT_EQUAL(buffer->size, 0);
 }
 
 void test_no_es_posible_parsear_un_archivo_invalido_de_instrucciones_debido_a_la_ultima_instruccion(void) {
     CU_ASSERT_FALSE(consola_parser_parse_instructions(buffer, "./instrucciones/i4", consolaParserTestLogger));
-    // NO_OP 5
-    __assert_opCode_with_one_args(buffer, 0, 5);
+    // NO_OP
+    __assert_opCode_with_no_args(buffer, 0);
+    // NO_OP
+    __assert_opCode_with_no_args(buffer, 0);
+    // NO_OP
+    __assert_opCode_with_no_args(buffer, 0);
+    // NO_OP
+    __assert_opCode_with_no_args(buffer, 0);
+    // NO_OP
+    __assert_opCode_with_no_args(buffer, 0);
     // I/O 3000
     __assert_opCode_with_one_args(buffer, 1, 3000);
     // READ 0
@@ -103,8 +135,16 @@ void test_no_es_posible_parsear_un_archivo_invalido_de_instrucciones_debido_a_la
 
 void test_no_es_posible_parsear_un_archivo_invalido_de_instrucciones_con_lineas_vacias_debido_a_la_ultima_instruccion(void) {
     CU_ASSERT_FALSE(consola_parser_parse_instructions(buffer, "./instrucciones/i5", consolaParserTestLogger));
-    // NO_OP 5
-    __assert_opCode_with_one_args(buffer, 0, 5);
+    // NO_OP
+    __assert_opCode_with_no_args(buffer, 0);
+    // NO_OP
+    __assert_opCode_with_no_args(buffer, 0);
+    // NO_OP
+    __assert_opCode_with_no_args(buffer, 0);
+    // NO_OP
+    __assert_opCode_with_no_args(buffer, 0);
+    // NO_OP
+    __assert_opCode_with_no_args(buffer, 0);
     // I/O 3000
     __assert_opCode_with_one_args(buffer, 1, 3000);
     // READ 0

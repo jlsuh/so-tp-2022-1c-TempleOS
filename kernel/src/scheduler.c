@@ -22,10 +22,14 @@
 #include "pcb.h"
 #include "stream.h"
 
+typedef void (*t_suspension_handler)(void);
+
 extern t_log* kernelLogger;
 extern t_kernel_config* kernelConfig;
 
-static t_algoritmo elegir_pcb;
+static t_dispatch_handler elegir_pcb;
+static t_suspension_handler evaluar_suspension;
+static t_onBlocked_handler actualizar_pcb_por_bloqueo;
 
 static uint32_t nextPid;
 static pthread_mutex_t nextPidMutex;
@@ -55,7 +59,7 @@ static void log_transition(const char* prev, const char* post, int pid) {
     free(transicion);
 }
 
-static void responder_no_hay_lugar_en_memoria(t_pcb* pcb) {
+static void responder_memoria_insuficiente(t_pcb* pcb) {
     estado_encolar_pcb_atomic(estadoExit, pcb);
     log_transition("NEW", "EXIT", pcb_get_pid(pcb));
     log_info(kernelLogger, "Memoria insuficiente para alojar el proceso %d", pcb_get_pid(pcb));
@@ -69,9 +73,35 @@ static uint32_t obtener_siguiente_pid(void) {
     return newNextPid;
 }
 
-//////////////////////////////////////// Algorithms ////////////////////////////////////////
-t_pcb* segun_fifo(t_estado* estado, double _) {
+//////////////////////////////////////// Scheduling Algorithms ////////////////////////////////////////
+//////////////////// FIFO ////////////////////
+t_pcb* elegir_pcb_segun_fifo(t_estado* estado, double _) {
     return estado_desencolar_primer_pcb_atomic(estado);
+}
+
+static void __evaluar_suspension_segun_fifo(void) {}
+
+static void __actualizar_pcb_por_bloqueo_segun_fifo(t_pcb* _, uint32_t __, double ___) {}
+
+//////////////////// SRT ////////////////////
+static void __evaluar_suspension_segun_srt(void) {
+    pthread_mutex_lock(&hayQueDesalojarMutex);
+    if (hayQueDesalojar) {
+        hayQueDesalojar = false;
+        pthread_mutex_lock(estado_get_mutex(estadoExec));
+        if (list_size(estado_get_list(estadoExec)) == 1) {
+            cpu_adapter_interrumpir_cpu(kernelConfig, kernelLogger);
+        }
+        pthread_mutex_unlock(estado_get_mutex(estadoExec));
+    }
+    pthread_mutex_unlock(&hayQueDesalojarMutex);
+}
+
+void actualizar_pcb_por_bloqueo_segun_srt(t_pcb* pcb, uint32_t realEjecutado, double alfa) {
+    pcb_set_real_anterior(pcb, pcb_get_reales_ejecutados_hasta_ahora(pcb) + realEjecutado);  // Digo que el real anterior es la sumatoria de los reales ejecutados hasta ahora, antes de bloquearse
+    pcb_set_reales_ejecutados_hasta_ahora(pcb, 0);                                           // Resetear reales ejecutados debido a que ya ejecutaron toda su ráfaga de CPU
+    double siguienteEstimacion = calcular_siguiente_estimacion(pcb, alfa);
+    pcb_set_estimacion_actual(pcb, siguienteEstimacion);  // Establezco la nueva estimación para cuando me desbloquee (estimamos antes por conveniencia)
 }
 
 double calcular_estimacion_restante(t_pcb* pcb) {
@@ -81,8 +111,8 @@ double calcular_estimacion_restante(t_pcb* pcb) {
 t_pcb* menor_rafaga_restante(t_pcb* unPcb, t_pcb* otroPcb) {
     double unaRafagaRestante = calcular_estimacion_restante(unPcb);
     double otraRafagaRestante = calcular_estimacion_restante(otroPcb);
-    log_debug(kernelLogger, "PCB <ID %d> RAFAGA DE %lf miliseconds", pcb_get_pid(unPcb), unaRafagaRestante);
-    log_debug(kernelLogger, "PCB <ID %d> RAFAGA DE %lf miliseconds", pcb_get_pid(otroPcb), otraRafagaRestante);
+    // log_debug(kernelLogger, "PCB <ID %d> RAFAGA DE %lf miliseconds", pcb_get_pid(unPcb), unaRafagaRestante);
+    // log_debug(kernelLogger, "PCB <ID %d> RAFAGA DE %lf miliseconds", pcb_get_pid(otroPcb), otraRafagaRestante);
     return unaRafagaRestante <= otraRafagaRestante
                ? unPcb
                : otroPcb;
@@ -100,13 +130,13 @@ double calcular_siguiente_estimacion(t_pcb* pcb, double alfa) {
     );
 }
 
-t_pcb* segun_srt(t_estado* estado, double alfa) {
+t_pcb* elegir_pcb_segun_srt(t_estado* estado, double alfa) {
     t_pcb* pcbElecto = NULL;
     pthread_mutex_lock(estado_get_mutex(estado));
     int cantidadPcbsEnLista = list_size(estado_get_list(estado));
     if (cantidadPcbsEnLista == 1) {
         pcbElecto = estado_desencolar_primer_pcb(estado);
-        log_debug(kernelLogger, "PCB <ID %d> ESTÁ SOLO EN READY", pcb_get_pid(pcbElecto));
+        // log_debug(kernelLogger, "PCB <ID %d> ESTÁ SOLO EN READY", pcb_get_pid(pcbElecto));
     } else if (cantidadPcbsEnLista > 1) {
         pcbElecto = list_get_minimum(estado_get_list(estado), (void*)menor_rafaga_restante);
         estado_remover_pcb_de_cola(estado, pcbElecto);
@@ -142,7 +172,7 @@ static void iniciar_contador_blocked_a_suspended_blocked(void* pcbVoid) {
             }
 
             pcb_set_estado_actual(pcb, SUSPENDED_BLOCKED);
-            // TODO: mem_adapter_avisar_suspension(pcbASuspender, kernelConfig, kernelLogger);
+            mem_adapter_avisar_suspension(pcb, kernelConfig, kernelLogger);
             estado_encolar_pcb_atomic(estadoSuspendedBlocked, pcb);
             log_debug(kernelLogger, "Entra en suspensión PCB <ID %d>", pcb_get_pid(pcb));
             log_transition("BLOCKED", "SUSBLOCKED", pcb_get_pid(pcb));
@@ -191,7 +221,7 @@ static void noreturn hilo_que_libera_pcbs_en_exit(void) {
     for (;;) {
         sem_wait(estado_get_sem(estadoExit));
         t_pcb* pcbALiberar = estado_desencolar_primer_pcb_atomic(estadoExit);
-        // TODO: mem_adapter_finalizar_proceso(pcbALiberar, kernelConfig, kernelLogger);
+        mem_adapter_finalizar_proceso(pcbALiberar, kernelConfig, kernelLogger);
         log_info(kernelLogger, "Se finaliza PCB <ID %d> de tamaño %d", pcb_get_pid(pcbALiberar), pcb_get_tamanio(pcbALiberar));
         pcb_destroy(pcbALiberar);
         sem_post(&gradoMultiprog);
@@ -214,9 +244,8 @@ static void noreturn planificador_largo_plazo(void) {
             pthread_mutex_unlock(estado_get_mutex(estadoNew));
             int nuevaTablaPagina = mem_adapter_obtener_tabla_pagina(pcbQuePasaAReady, kernelConfig, kernelLogger);
             pcb_set_tabla_pagina_primer_nivel(pcbQuePasaAReady, nuevaTablaPagina);
-
             if (nuevaTablaPagina == -1) {
-                responder_no_hay_lugar_en_memoria(pcbQuePasaAReady);
+                responder_memoria_insuficiente(pcbQuePasaAReady);
             } else {
                 estado_encolar_pcb_atomic(estadoReady, pcbQuePasaAReady);
                 pthread_mutex_lock(&hayQueDesalojarMutex);
@@ -236,34 +265,19 @@ static void noreturn planificador_mediano_plazo(void) {
         pthread_mutex_lock(estado_get_mutex(estadoSuspendedReady));
         t_pcb* pcbQuePasaAReady = list_remove(estado_get_list(estadoSuspendedReady), 0);
         pthread_mutex_unlock(estado_get_mutex(estadoSuspendedReady));
-
-        int nuevaTablaPagina = mem_adapter_avisar_reactivacion(pcbQuePasaAReady, kernelConfig, kernelLogger);
-        pcb_set_tabla_pagina_primer_nivel(pcbQuePasaAReady, nuevaTablaPagina);
-        if (nuevaTablaPagina == -1) {
-            responder_no_hay_lugar_en_memoria(pcbQuePasaAReady);
-        } else {
-            pcb_set_estado_actual(pcbQuePasaAReady, READY);
-            estado_encolar_pcb_atomic(estadoReady, pcbQuePasaAReady);
-            pthread_mutex_lock(&hayQueDesalojarMutex);
-            hayQueDesalojar = true;
-            pthread_mutex_unlock(&hayQueDesalojarMutex);
-            log_transition("SUSREADY", "READY", pcb_get_pid(pcbQuePasaAReady));
-            sem_post(estado_get_sem(estadoReady));
-        }
-
+        pcb_set_estado_actual(pcbQuePasaAReady, READY);
+        estado_encolar_pcb_atomic(estadoReady, pcbQuePasaAReady);
+        pthread_mutex_lock(&hayQueDesalojarMutex);
+        hayQueDesalojar = true;
+        pthread_mutex_unlock(&hayQueDesalojarMutex);
+        log_transition("SUSREADY", "READY", pcb_get_pid(pcbQuePasaAReady));
+        sem_post(estado_get_sem(estadoReady));
         pcbQuePasaAReady = NULL;
     }
 }
 
 void actualizar_pcb_por_desalojo(t_pcb* pcb, double realEjecutado) {
     pcb_set_reales_ejecutados_hasta_ahora(pcb, pcb_get_reales_ejecutados_hasta_ahora(pcb) + realEjecutado);
-}
-
-void actualizar_pcb_por_bloqueo(t_pcb* pcb, double realEjecutado, double alfa) {
-    pcb_set_real_anterior(pcb, pcb_get_reales_ejecutados_hasta_ahora(pcb) + realEjecutado);  // Digo que el real anterior es la sumatoria de los reales ejecutados hasta ahora, antes de bloquearse
-    pcb_set_reales_ejecutados_hasta_ahora(pcb, 0);                                           // Resetear reales ejecutados debido a que ya ejecutaron toda su ráfaga de CPU
-    double siguienteEstimacion = calcular_siguiente_estimacion(pcb, alfa);
-    pcb_set_estimacion_actual(pcb, siguienteEstimacion);  // Establezco la nueva estimación para cuando me desbloquee (estimamos antes por conveniencia)
 }
 
 static void atender_bloqueo(t_pcb* pcb) {
@@ -279,7 +293,7 @@ static void atender_bloqueo(t_pcb* pcb) {
     pthread_detach(contadorASuspendedBlocked);
 }
 
-void establecer_timespec(struct timespec* timespec) {
+void set_timespec(struct timespec* timespec) {
     int retVal = clock_gettime(CLOCK_REALTIME, timespec);
     if (retVal == -1) {
         perror("clock_gettime");
@@ -287,8 +301,10 @@ void establecer_timespec(struct timespec* timespec) {
     }
 }
 
-uint64_t obtener_diferencial_de_tiempo(struct timespec end, struct timespec start) {
-    return (end.tv_sec - start.tv_sec) * 1000 + (end.tv_nsec - start.tv_nsec) / 1000000;
+uint32_t obtener_diferencial_de_tiempo_en_milisegundos(struct timespec end, struct timespec start) {
+    const uint32_t SECS_TO_MILISECS = 1000;
+    const uint32_t NANOSECS_TO_MILISECS = 1000000;
+    return (end.tv_sec - start.tv_sec) * SECS_TO_MILISECS + (end.tv_nsec - start.tv_nsec) / NANOSECS_TO_MILISECS;
 }
 
 static void noreturn atender_pcb(void) {
@@ -301,28 +317,22 @@ static void noreturn atender_pcb(void) {
         pthread_mutex_unlock(estado_get_mutex(estadoExec));
 
         struct timespec start;
-        if (kernel_config_es_algoritmo_srt(kernelConfig)) {
-            establecer_timespec(&start);
-        }
+        set_timespec(&start);
 
         cpu_adapter_enviar_pcb_a_cpu(pcb, kernelConfig, kernelLogger);
         uint8_t cpuResponse = stream_recv_header(kernel_config_get_socket_dispatch_cpu(kernelConfig));
 
         struct timespec end;
-        if (kernel_config_es_algoritmo_srt(kernelConfig)) {
-            establecer_timespec(&end);
-        }
+        set_timespec(&end);
 
         pthread_mutex_lock(estado_get_mutex(estadoExec));
         pcb = cpu_adapter_recibir_pcb_actualizado_de_cpu(pcb, cpuResponse, kernelConfig, kernelLogger);
         list_remove(estado_get_list(estadoExec), 0);
         pthread_mutex_unlock(estado_get_mutex(estadoExec));
 
-        uint64_t realEjecutado = 0;
-        if (kernel_config_es_algoritmo_srt(kernelConfig)) {
-            realEjecutado = obtener_diferencial_de_tiempo(end, start);
-            log_debug(kernelLogger, "PCB <ID %d> estuvo en ejecución por %ld miliseconds", pcb_get_pid(pcb), realEjecutado);
-        }
+        uint32_t realEjecutado = 0;
+        realEjecutado = obtener_diferencial_de_tiempo_en_milisegundos(end, start);
+        log_debug(kernelLogger, "PCB <ID %d> estuvo en ejecución por %d miliseconds", pcb_get_pid(pcb), realEjecutado);
 
         switch (cpuResponse) {
             case HEADER_proceso_desalojado:
@@ -336,14 +346,11 @@ static void noreturn atender_pcb(void) {
                 pcb_set_estado_actual(pcb, EXIT);
                 estado_encolar_pcb_atomic(estadoExit, pcb);
                 log_transition("EXEC", "EXIT", pcb_get_pid(pcb));
-                // TODO: mem_adapter_finalizar_proceso(pcb, kernelConfig, kernelLogger);
                 pcb_responder_a_consola(pcb, HEADER_proceso_terminado);
                 sem_post(estado_get_sem(estadoExit));
                 break;
             case HEADER_proceso_bloqueado:
-                if (kernel_config_es_algoritmo_srt(kernelConfig)) {
-                    actualizar_pcb_por_bloqueo(pcb, realEjecutado, kernel_config_get_alfa(kernelConfig));
-                }
+                actualizar_pcb_por_bloqueo(pcb, realEjecutado, kernel_config_get_alfa(kernelConfig));
                 atender_bloqueo(pcb);
                 break;
             default:
@@ -364,18 +371,7 @@ static void noreturn planificador_corto_plazo(void) {
         sem_wait(estado_get_sem(estadoReady));
         log_info(kernelLogger, "Se toma una instancia de READY");
 
-        if (kernel_config_es_algoritmo_srt(kernelConfig)) {
-            pthread_mutex_lock(&hayQueDesalojarMutex);
-            if (hayQueDesalojar) {
-                hayQueDesalojar = false;
-                pthread_mutex_lock(estado_get_mutex(estadoExec));
-                if (list_size(estado_get_list(estadoExec)) == 1) {
-                    cpu_adapter_interrumpir_cpu(kernelConfig, kernelLogger);
-                }
-                pthread_mutex_unlock(estado_get_mutex(estadoExec));
-            }
-            pthread_mutex_unlock(&hayQueDesalojarMutex);
-        }
+        evaluar_suspension();
 
         sem_wait(&dispatchPermitido);
         log_info(kernelLogger, "Se permite dispatch");
@@ -427,6 +423,19 @@ void* encolar_en_new_a_nuevo_pcb_entrante(void* socket) {
 }
 
 void inicializar_estructuras(void) {
+    if (kernel_config_es_algoritmo_srt(kernelConfig)) {
+        elegir_pcb = elegir_pcb_segun_srt;
+        evaluar_suspension = __evaluar_suspension_segun_srt;
+        actualizar_pcb_por_bloqueo = actualizar_pcb_por_bloqueo_segun_srt;
+    } else if (kernel_config_es_algoritmo_fifo(kernelConfig)) {
+        elegir_pcb = elegir_pcb_segun_fifo;
+        evaluar_suspension = __evaluar_suspension_segun_fifo;
+        actualizar_pcb_por_bloqueo = __actualizar_pcb_por_bloqueo_segun_fifo;
+    } else {
+        log_error(kernelLogger, "No se pudo inicializar el planificador, no se encontró un algoritmo de planificación válido");
+        exit(-1);
+    }
+
     nextPid = 0;
     hayQueDesalojar = false;
 
@@ -450,15 +459,6 @@ void inicializar_estructuras(void) {
     estadoSuspendedReady = estado_create(SUSPENDED_READY);
 
     pcbsEsperandoParaIO = estado_create(PCBS_ESPERANDO_PARA_IO);
-
-    if (kernel_config_es_algoritmo_srt(kernelConfig)) {
-        elegir_pcb = segun_srt;
-    } else if (kernel_config_es_algoritmo_fifo(kernelConfig)) {
-        elegir_pcb = segun_fifo;
-    } else {
-        log_error(kernelLogger, "No se pudo inicializar el planificador, no se encontró un algoritmo de planificación válido");
-        exit(-1);
-    }
 
     pthread_t largoPlazoTh;
     pthread_create(&largoPlazoTh, NULL, (void*)planificador_largo_plazo, NULL);
