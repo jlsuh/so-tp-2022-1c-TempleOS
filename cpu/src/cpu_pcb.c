@@ -4,6 +4,8 @@
 #include <stdint.h>
 #include <stdlib.h>
 
+#include "instruccion.h"
+
 struct t_cpu_pcb {
     uint32_t pid;
     uint32_t programCounter;
@@ -18,6 +20,11 @@ t_cpu_pcb* cpu_pcb_create(uint32_t pid, uint32_t programCounter, uint32_t tablaP
     self->tablaPaginaPrimerNivel = tablaPaginaPrimerNivel;
     self->instrucciones = NULL;
     return self;
+}
+
+void cpu_pcb_destroy(t_cpu_pcb* self) {
+    list_destroy_and_destroy_elements(self->instrucciones, instruccion_destroy);
+    free(self);
 }
 
 uint32_t cpu_pcb_get_pid(t_cpu_pcb* self) {

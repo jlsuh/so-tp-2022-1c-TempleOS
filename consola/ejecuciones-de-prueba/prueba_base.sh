@@ -1,4 +1,5 @@
-#!/bin/sh
+#!/usr/bin/env bash
+
 # Actividades:
 # 1) Iniciar los módulos
 # 2) Ejecutar 3 módulos consola con los siguientes scripts en el orden indicado:
@@ -12,4 +13,4 @@ export LD_LIBRARY_PATH=./../utils/bin
 # *) Todos los procesos finalizan correctamente
 
 # Ejemplo de uso:
-# Ubicado en subdirectorio consola, ejecutar: sh ./ejecuciones-de-prueba/prueba_base.sh 200 400 350
+# Ubicado en subdirectorio consola, ejecutar: bash ./ejecuciones-de-prueba/prueba_base.sh 200 400 350
