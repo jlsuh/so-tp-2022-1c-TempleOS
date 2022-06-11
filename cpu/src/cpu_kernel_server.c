@@ -28,9 +28,7 @@ static t_instruccion* cpu_fetch_instruction(t_cpu_pcb* pcb) {
 }
 
 static bool cpu_decode_instruction(uint32_t pid, t_instruccion* instruction) {
-    char* strDecodedInstruction = instruccion_to_string(instruction);
-    log_info(cpuLogger, "DECODE INSTRUCTION: PCB <ID %d> Decoded Instruction: %s", pid, strDecodedInstruction);
-    free(strDecodedInstruction);
+    log_info(cpuLogger, "DECODE INSTRUCTION: PCB <ID %d> Decoded Instruction: %s", pid, instruccion_to_string(instruction));
     return instruccion_get_tipo_instruccion(instruction) == INSTRUCCION_copy;
 }
 
