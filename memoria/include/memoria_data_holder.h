@@ -1,5 +1,8 @@
-#include <commons/log.h>
+#ifndef MEMORIA_DATA_HOLDER_H_INCLUDED
+#define MEMORIA_DATA_HOLDER_H_INCLUDED
+
 #include <commons/collections/list.h>
+#include <commons/log.h>
 
 typedef struct t_tabla_nivel_1 t_tabla_nivel_1;
 typedef struct t_tabla_nivel_2 t_tabla_nivel_2;
@@ -7,7 +10,7 @@ typedef struct t_proceso_suspendido t_proceso_suspendido;
 typedef struct t_marcos t_marcos;
 typedef struct t_memoria_config t_memoria_config;
 
-typedef struct t_memoria_data_holder {
+typedef struct {
     t_log* memoriaLogger;
     t_memoria_config* memoriaConfig;
     void* memoriaPrincipal;
@@ -26,3 +29,5 @@ typedef struct t_memoria_data_holder {
     int contadorTabla1;
     int retardoSwap;
 } t_memoria_data_holder;
+
+#endif

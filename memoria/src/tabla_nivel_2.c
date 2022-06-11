@@ -4,8 +4,6 @@
 #include <stdint.h>
 #include <stdlib.h>
 
-#include "memoria_data_holder.h"
-
 int __obtener_entrada(int nroPagina, t_memoria_data_holder memoriaData);
 
 typedef struct
@@ -37,7 +35,6 @@ t_tabla_nivel_2* crear_tablas_de_nivel_2(t_memoria_data_holder memoriaData) {
 }
 
 void actualizar_escritura_pagina(int nroPagina, int nroTablaNivel2, t_memoria_data_holder memoriaData) {
-    int entradasPorTabla = memoriaData.entradasPorTabla;
     t_tabla_nivel_2* tablasDeNivel2 = memoriaData.tablasDeNivel2;
 
     int entrada = __obtener_entrada(nroPagina, memoriaData);
@@ -46,7 +43,6 @@ void actualizar_escritura_pagina(int nroPagina, int nroTablaNivel2, t_memoria_da
 }
 
 void actualizar_lectura_pagina(int nroPagina, int nroTablaNivel2, t_memoria_data_holder memoriaData) {
-    int entradasPorTabla = memoriaData.entradasPorTabla;
     t_tabla_nivel_2* tablasDeNivel2 = memoriaData.tablasDeNivel2;
 
     int entrada = __obtener_entrada(nroPagina, memoriaData);

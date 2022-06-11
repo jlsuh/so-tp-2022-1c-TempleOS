@@ -4,6 +4,7 @@
 #include <stdint.h>
 #include <stdlib.h>
 #include <sys/socket.h>
+#include <string.h>
 
 #include "atender_cpu.h"
 #include "atender_kernel.h"
@@ -79,23 +80,23 @@ void* __recibir_conexion(int socketEscucha, int* socketCliente, pthread_t* threa
     socklen_t len = sizeof(cliente);
     *socketCliente = accept(socketEscucha, &cliente, &len);
 
-    if (socket == -1) {
+    if (*socketCliente == -1) {
         log_error(memoriaData.memoriaLogger, "Error al aceptar conexion de cliente: %s", strerror(errno));
         exit(-1);
     }
 
-    uint8_t handshake = stream_recv_header(socket);
-    stream_recv_empty_buffer(socket);
+    uint8_t handshake = stream_recv_header(*socketCliente);
+    stream_recv_empty_buffer(*socketCliente);
 
-    void* (*funcion_suscripcion)(void) = NULL;
+    void* (*funcion_suscripcion)(void*) = NULL;
     if (handshake == HANDSHAKE_cpu && cpuSinAtender) {
-        log_info(memoriaData.memoriaLogger, "Se acepta conexión de CPU en socket %d", socket);
-        stream_send_empty_buffer(socket, HANDSHAKE_ok_continue);
+        log_info(memoriaData.memoriaLogger, "Se acepta conexión de CPU en socket %d", *socketCliente);
+        stream_send_empty_buffer(*socketCliente, HANDSHAKE_ok_continue);
         funcion_suscripcion = escuchar_peticiones_cpu;
         cpuSinAtender = false;
     } else if (handshake == HANDSHAKE_kernel && kernelSinAtender) {
-        log_info(memoriaData.memoriaLogger, "Se acepta conexión de Kernel en socket %d", socket);
-        stream_send_empty_buffer(socket, HANDSHAKE_ok_continue);
+        log_info(memoriaData.memoriaLogger, "Se acepta conexión de Kernel en socket %d", *socketCliente);
+        stream_send_empty_buffer(*socketCliente, HANDSHAKE_ok_continue);
         funcion_suscripcion = escuchar_peticiones_kernel;
         kernelSinAtender = false;
     } else {

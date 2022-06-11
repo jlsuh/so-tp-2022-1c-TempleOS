@@ -85,7 +85,6 @@ uint32_t obtener_tabla_libre_de_nivel_1(t_memoria_data_holder memoriaData) {
 
 uint32_t asignar_tabla_nivel_1(int indiceTablaNivel1, uint32_t tamanio, t_memoria_data_holder memoriaData) {
     t_tabla_nivel_1* tablasDeNivel1 = memoriaData.tablasDeNivel1;
-    memoriaData.contadorTabla1;
 
     tablasDeNivel1[indiceTablaNivel1].tamanio = tamanio;
     tablasDeNivel1[indiceTablaNivel1].id = memoriaData.contadorTabla1++;  // TODO mutex?
@@ -93,7 +92,6 @@ uint32_t asignar_tabla_nivel_1(int indiceTablaNivel1, uint32_t tamanio, t_memori
 }
 
 int* obtener_marcos(uint32_t nroTablaNivel1, t_memoria_data_holder memoriaData) {
-    int cantidadMarcosProceso = memoriaData.cantidadMarcosProceso;
     t_tabla_nivel_1* tablasDeNivel1 = memoriaData.tablasDeNivel1;
 
     int indiceTablaNivel1 = obtener_indice_tabla_nivel_1(nroTablaNivel1, memoriaData);
@@ -103,10 +101,20 @@ int* obtener_marcos(uint32_t nroTablaNivel1, t_memoria_data_holder memoriaData) 
 uint32_t obtener_indice_tabla_nivel_1(uint32_t nroTablaNivel1, t_memoria_data_holder memoriaData) {
     int cantidadProcesosMax = memoriaData.cantidadProcesosMax;
     t_tabla_nivel_1* tablasDeNivel1 = memoriaData.tablasDeNivel1;
+    uint32_t indice;
 
     for (int i = 0; i < cantidadProcesosMax; i++) {
         if (tablasDeNivel1[i].id == nroTablaNivel1) {
-            return i;
+            indice = i;
         }
     }
+
+    return indice;
+}
+
+uint32_t obtener_tamanio (uint32_t nroTablaNivel1, t_memoria_data_holder memoriaData){
+    t_tabla_nivel_1* tablasDeNivel1 = memoriaData.tablasDeNivel1;
+
+    int indiceTablaNivel1 = obtener_indice_tabla_nivel_1(nroTablaNivel1, memoriaData);
+    return tablasDeNivel1[indiceTablaNivel1].tamanio;
 }

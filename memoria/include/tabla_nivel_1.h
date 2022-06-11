@@ -14,7 +14,7 @@ uint32_t asignar_tabla_nivel_1(int indiceTablaNivel1,uint32_t tamanio,t_memoria_
 uint32_t obtener_indice_tabla_nivel_1(uint32_t nroTablaNivel1,t_memoria_data_holder memoriaData);
 uint32_t obtener_tabla_de_nivel_1(uint32_t nroDeTabla2,t_memoria_data_holder memoriaData);
 uint32_t obtener_tabla_libre_de_nivel_1(t_memoria_data_holder memoriaData);
-
+uint32_t obtener_tamanio (uint32_t nroTablaNivel1, t_memoria_data_holder memoriaData);
 
 
 #endif /* TABLA_NIVEL_1_H_INCLUDED */

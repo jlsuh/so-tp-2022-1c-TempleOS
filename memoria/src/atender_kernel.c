@@ -10,13 +10,19 @@
 
 extern t_memoria_data_holder memoriaData;
 
-uint32_t __crear_nuevo_proceso(uint32_t tamanio, t_memoria_data_holder memoriaData);
+static uint32_t __crear_nuevo_proceso(uint32_t tamanio, t_memoria_data_holder memoriaData) {
+    uint32_t indiceTablaNivel1 = obtener_tabla_libre_de_nivel_1(memoriaData);
+    uint32_t nroTablaNivel1 = asignar_tabla_nivel_1(indiceTablaNivel1, tamanio, memoriaData);
+    crear_archivo_de_proceso(tamanio, nroTablaNivel1, memoriaData);
+
+    return nroTablaNivel1;
+}
 
 void* escuchar_peticiones_kernel(void* socketKernel) {
     int socket = *(int*)socketKernel;
     free(socketKernel);
 
-    uint32_t header;
+    uint32_t header, tablaNivel1;
     for (;;) {
         header = stream_recv_header(socket);
         t_buffer* buffer = buffer_create();
@@ -27,20 +33,39 @@ void* escuchar_peticiones_kernel(void* socketKernel) {
                 uint32_t tamanio;
                 buffer_unpack(buffer, &tamanio, sizeof(tamanio));
 
-                int procesoNuevo = __crear_nuevo_proceso(tamanio, memoriaData);
-                uint32_t nroTablaNivel1 = procesoNuevo;
+                // FIX: Mock
+                uint32_t nroTablaNivel1 = tamanio / 5;
                 t_buffer* buffer_rta = buffer_create();
                 buffer_pack(buffer_rta, &nroTablaNivel1, sizeof(nroTablaNivel1));
-                stream_send_buffer(socket, HEADER_tabla_de_paginas, buffer_rta);
-                // TODO cachear errores?
+                stream_send_buffer(socket, HANDSHAKE_ok_continue, buffer_rta);
+                buffer_destroy(buffer_rta);
+
+                // if (__se_puede_crear_proceso(tamanio, memoriaData)) {  // TODO funcion que analize si por tamaño entra y si hay tabla libre de lvl1
+                //     uint32_t nroTablaNivel1 = __crear_nuevo_proceso(tamanio, memoriaData);
+                //     t_buffer* buffer_rta = buffer_create();
+                //     buffer_pack(buffer_rta, &nroTablaNivel1, sizeof(nroTablaNivel1));
+                //     stream_send_buffer(socket, HANDSHAKE_ok_continue, buffer_rta);
+                //     buffer_destroy(buffer_rta);
+                // } else {
+                //     stream_send_empty_buffer(socket, HEADER_error);
+                // }
+
+                buffer_destroy(buffer);
+
                 break;
             }
             case HEADER_proceso_suspendido:
+                buffer_unpack(buffer, &tablaNivel1, sizeof(tablaNivel1));
+
                 // Liberar memoria del proceso con swap... //TODO
+
                 stream_send_empty_buffer(socket, HANDSHAKE_ok_continue);
                 break;
             case HEADER_proceso_terminado:
+                buffer_unpack(buffer, &tablaNivel1, sizeof(tablaNivel1));
+
                 // Liberar al proceso de memoria y de swap... //TODO
+
                 stream_send_empty_buffer(socket, HANDSHAKE_ok_continue);
                 break;
             default:
@@ -49,14 +74,4 @@ void* escuchar_peticiones_kernel(void* socketKernel) {
     }
 
     return NULL;
-}
-
-uint32_t __crear_nuevo_proceso(uint32_t tamanio, t_memoria_data_holder memoriaData) {
-    uint32_t indiceTablaNivel1 = obtener_tabla_libre_de_nivel_1(memoriaData);
-    uint32_t nroTablaNivel1 = asignar_tabla_nivel_1(indiceTablaNivel1, tamanio, memoriaData);
-    crear_archivo_de_proceso(tamanio, memoriaData.pathSwap, nroTablaNivel1);
-
-    // TODO cachear errores? Como que haya mas procesos en mulitprogramación y supere la cantidad admitida en memoria o que el tamanio del proceso sea mayor al que se le puede asginar
-
-    return nroTablaNivel1;
 }

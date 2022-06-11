@@ -1,7 +1,10 @@
 #include <stdbool.h>
 #include <stdint.h>
+#include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 
+#include "archivo.h"
 #include "common_flags.h"
 #include "marcos.h"
 #include "memoria_data_holder.h"
@@ -69,7 +72,7 @@ void* escuchar_peticiones_cpu(void* socketCpu) {
 
                 int nroDeTabla2 = obtener_tabla_de_nivel_2(nroDeTabla1, entradaDeTabla1, memoriaData);
                 if (nroDeTabla2 == -1) {
-                    //traer_de_suspendidos(nroDeTabla1);  // TODO
+                    // traer_de_suspendidos(nroDeTabla1);  // TODO
                     nroDeTabla2 = obtener_tabla_de_nivel_2(nroDeTabla1, entradaDeTabla1, memoriaData);
                 }
 
@@ -116,7 +119,7 @@ void __actualizar_pagina(uint32_t direccionFisica, bool esEscritura, t_memoria_d
 }
 
 int __obtener_marco(uint32_t nroDeTabla2, uint32_t entradaDeTabla2, t_memoria_data_holder memoriaData) {
-    int marco;
+    int marco = -1;
     if (pagina_en_memoria(nroDeTabla2, entradaDeTabla2, memoriaData)) {
         marco = obtener_marco(nroDeTabla2, entradaDeTabla2, memoriaData);
         return marco;
@@ -124,15 +127,15 @@ int __obtener_marco(uint32_t nroDeTabla2, uint32_t entradaDeTabla2, t_memoria_da
 
     uint32_t nroTablaNivel1 = obtener_tabla_de_nivel_1(nroDeTabla2, memoriaData);
     int* marcos = obtener_marcos(nroTablaNivel1, memoriaData);
-    int marco = obtener_marco_libre(marcos, memoriaData);
+    marco = obtener_marco_libre(marcos, memoriaData);
 
     if (marco == -1) {
         // TODO ver con cami el algoritmo para seleccionar la victima
         int nroDeTabla2Victima = 0, entradaDeTabla2Victima = 0;
-
-        abrir_archivo(nroTablaNivel1);
+        uint32_t tamanio = obtener_tamanio(nroTablaNivel1, memoriaData);
+        abrir_archivo(tamanio, nroTablaNivel1, memoriaData);
         marco = __swap_marco(nroDeTabla2Victima, entradaDeTabla2Victima, nroDeTabla2, entradaDeTabla2, memoriaData);
-        cerrar_archivo();
+        cerrar_archivo(memoriaData);
     }
 
     return marco;
@@ -141,7 +144,7 @@ int __swap_marco(int nroDeTabla2Victima, int entradaDeTabla2Victima, uint32_t nr
     int marco = obtener_marco(nroDeTabla2Victima, entradaDeTabla2Victima, memoriaData);
     // actualizar_swap_out(nroDeTabla2Victima, entradaDeTabla2Victima, tablasDeNivel2); //TODO que es?
     swap_out(nroDeTabla2Victima, entradaDeTabla2Victima, memoriaData);
-    
+
     int paginaVictima = nroDeTabla2Victima * memoriaData.entradasPorTabla + entradaDeTabla2Victima;
     int pagina = nroDeTabla2 * memoriaData.entradasPorTabla + entradaDeTabla2;
     int tiempoDeEspera = memoriaData.retardoSwap;

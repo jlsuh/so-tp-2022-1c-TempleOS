@@ -1,8 +1,11 @@
 #include "tabla_suspendido.h"
 
+#include <commons/collections/list.h>
 #include <stdbool.h>
 #include <stdint.h>
-#include <commons/collections/list.h>
+#include <string.h>
+
+#include "archivo.h"
 #include "tabla_nivel_1.h"
 #include "tabla_nivel_2.h"
 struct t_proceso_suspendido {
@@ -10,7 +13,7 @@ struct t_proceso_suspendido {
     uint32_t tamanio;
 };
 
-t_list* crear_tabla_de_suspendidos(void){
+t_list* crear_tabla_de_suspendidos(void) {
     t_list* tablaSuspendidos = list_create();
     return tablaSuspendidos;
 }
@@ -18,10 +21,10 @@ t_list* crear_tabla_de_suspendidos(void){
 //-----------------------------SUSPENSION PROCESO-------------------------------
 
 void suspender_proceso(uint32_t nroDeTabla1, t_memoria_data_holder memoriaData) {
-    int contPagSuspend = 0;
-    abrir_archivo(nroDeTabla1);
-    int entradasPorTabla = memoriaData.entradasPorTabla;
+    uint32_t tamanioNroDeTabla1 = obtener_tamanio(nroDeTabla1, memoriaData);
 
+    abrir_archivo(tamanioNroDeTabla1, nroDeTabla1, memoriaData);
+    int entradasPorTabla = memoriaData.entradasPorTabla;
 
     for (int i = 0; i < entradasPorTabla; i++) {
         int nroDeTabla2 = obtener_tabla_de_nivel_2(nroDeTabla1, i, memoriaData);
@@ -37,8 +40,8 @@ void suspender_proceso(uint32_t nroDeTabla1, t_memoria_data_holder memoriaData) 
         }
         limpiar_tabla_nivel_2(nroDeTabla2, memoriaData);
     }
-    
-    cerrar_archivo();
+
+    cerrar_archivo(memoriaData);
 }
 
 // ---------------------------- DESPERTAR PROCESO -----------------------------
