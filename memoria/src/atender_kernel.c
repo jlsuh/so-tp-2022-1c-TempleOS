@@ -20,11 +20,11 @@ static uint32_t __crear_nuevo_proceso(uint32_t tamanio, t_memoria_data_holder me
 
 void* escuchar_peticiones_kernel(void* socketKernel) {
     int socket = *(int*)socketKernel;
-    free(socketKernel);
+    // free(socketKernel);
 
     uint32_t header, tablaNivel1;
     for (;;) {
-        header = stream_recv_header(socket);
+        header = stream_recv_header(socket);  // NEW -> READY // BLOCKED -> SUSBLOCKED
         t_buffer* buffer = buffer_create();
         stream_recv_buffer(socket, buffer);
 
@@ -39,7 +39,6 @@ void* escuchar_peticiones_kernel(void* socketKernel) {
                 buffer_pack(buffer_rta, &nroTablaNivel1, sizeof(nroTablaNivel1));
                 stream_send_buffer(socket, HANDSHAKE_ok_continue, buffer_rta);
                 buffer_destroy(buffer_rta);
-                log_info(memoriaData.memoriaLogger, "Kernel: Se ha solicitado una tabla de páginas de %d bytes, asignando la tabla %d", tamanio, nroTablaNivel1);
 
                 // if (__se_puede_crear_proceso(tamanio, memoriaData)) {  // TODO funcion que analize si por tamaño entra y si hay tabla libre de lvl1
                 //     uint32_t nroTablaNivel1 = __crear_nuevo_proceso(tamanio, memoriaData);
@@ -59,7 +58,6 @@ void* escuchar_peticiones_kernel(void* socketKernel) {
                 buffer_unpack(buffer, &tablaNivel1, sizeof(tablaNivel1));
 
                 // Liberar memoria del proceso con swap... //TODO
-
                 stream_send_empty_buffer(socket, HANDSHAKE_ok_continue);
                 buffer_destroy(buffer);
                 break;
@@ -72,6 +70,7 @@ void* escuchar_peticiones_kernel(void* socketKernel) {
                 buffer_destroy(buffer);
                 break;
             default:
+                exit(-1);
                 break;
         }
     }
