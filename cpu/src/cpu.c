@@ -22,7 +22,6 @@ int main(int argc, char* argv[]) {
     cpuLogger = log_create(CPU_LOG_PATH, CPU_MODULE_NAME, true, LOG_LEVEL_INFO);
     cpuConfig = cpu_config_create(CPU_CONFIG_PATH, cpuLogger);
 
-    /*
     // Conexión con Memoria
     const int memoriaSocket = conectar_a_servidor(cpu_config_get_ip_memoria(cpuConfig), cpu_config_get_puerto_memoria(cpuConfig));
     if (memoriaSocket == -1) {
@@ -41,7 +40,6 @@ int main(int argc, char* argv[]) {
         return -1;
     }
     log_info(cpuLogger, "Conexión con Memoria establecida");
-    */
 
     // Servidor de Kernel
     int socketEscuchaDispatch = iniciar_servidor(cpu_config_get_ip_cpu(cpuConfig), cpu_config_get_puerto_dispatch(cpuConfig));

@@ -11,7 +11,8 @@
 #include "pcb.h"
 #include "scheduler.h"
 
-static t_algoritmo elegir_pcb;
+static t_dispatch_handler elegir_pcb;
+static t_onBlocked_handler actualizar_pcb_por_bloqueo;
 
 static t_estado* estadoReady = NULL;
 static t_pcb* pcb1 = NULL;
@@ -37,7 +38,7 @@ void test_scheduler_tear_down(void) {
 
 ////////////////////////////// FIFO //////////////////////////////
 void test_planificar_segun_fifo(void) {
-    elegir_pcb = segun_fifo;
+    elegir_pcb = elegir_pcb_segun_fifo;
 
     estado_encolar_pcb_atomic(estadoReady, pcb3);
     estado_encolar_pcb_atomic(estadoReady, pcb1);
@@ -58,7 +59,7 @@ void test_planificar_segun_fifo(void) {
 
 ////////////////////////////// SRT //////////////////////////////
 void test_empates_en_srt_degradan_en_un_fifo(void) {
-    elegir_pcb = segun_srt;
+    elegir_pcb = elegir_pcb_segun_srt;
 
     estado_encolar_pcb_atomic(estadoReady, pcb2);
     estado_encolar_pcb_atomic(estadoReady, pcb1);
@@ -79,7 +80,7 @@ void test_empates_en_srt_degradan_en_un_fifo(void) {
 
 //////////////////// Desalojos ////////////////////
 void test_actualizar_un_pcb_por_desalojo_no_actualiza_estimacion_actual(void) {
-    elegir_pcb = segun_srt;
+    elegir_pcb = elegir_pcb_segun_srt;
 
     estado_encolar_pcb_atomic(estadoReady, pcb2);
     estado_encolar_pcb_atomic(estadoReady, pcb1);
@@ -95,7 +96,7 @@ void test_actualizar_un_pcb_por_desalojo_no_actualiza_estimacion_actual(void) {
 }
 
 void test_actualizar_un_pcb_por_desalojo_actualiza_reales_ejecutados_hasta_ahora(void) {
-    elegir_pcb = segun_srt;
+    elegir_pcb = elegir_pcb_segun_srt;
 
     estado_encolar_pcb_atomic(estadoReady, pcb1);
     estado_encolar_pcb_atomic(estadoReady, pcb2);
@@ -111,7 +112,7 @@ void test_actualizar_un_pcb_por_desalojo_actualiza_reales_ejecutados_hasta_ahora
 }
 
 void test_actualizar_un_pcb_por_varios_desalojos_actualiza_reales_ejecutados_hasta_ahora_como_la_sumatoria(void) {
-    elegir_pcb = segun_srt;
+    elegir_pcb = elegir_pcb_segun_srt;
 
     estado_encolar_pcb_atomic(estadoReady, pcb1);
     estado_encolar_pcb_atomic(estadoReady, pcb2);
@@ -135,7 +136,7 @@ void test_actualizar_un_pcb_por_varios_desalojos_actualiza_reales_ejecutados_has
 }
 
 void test_actualizar_un_pcb_por_varios_desalojos_disminuye_rafaga_restante(void) {
-    elegir_pcb = segun_srt;
+    elegir_pcb = elegir_pcb_segun_srt;
 
     estado_encolar_pcb_atomic(estadoReady, pcb1);
     estado_encolar_pcb_atomic(estadoReady, pcb2);
@@ -158,7 +159,8 @@ void test_actualizar_un_pcb_por_varios_desalojos_disminuye_rafaga_restante(void)
 
 //////////////////// Bloqueos ////////////////////
 void test_actualizar_un_pcb_por_bloqueo_actualiza_real_anterior_como_sumatoria_de_reales_ejecutados_hasta_ahora(void) {
-    elegir_pcb = segun_srt;
+    elegir_pcb = elegir_pcb_segun_srt;
+    actualizar_pcb_por_bloqueo = actualizar_pcb_por_bloqueo_segun_srt;
 
     estado_encolar_pcb_atomic(estadoReady, pcb3);
     estado_encolar_pcb_atomic(estadoReady, pcb1);
@@ -188,7 +190,8 @@ void test_actualizar_un_pcb_por_bloqueo_actualiza_real_anterior_como_sumatoria_d
 }
 
 void test_actualizar_un_pcb_por_bloqueo_actualiza_reales_ejecutados_hasta_ahora_en_cero(void) {
-    elegir_pcb = segun_srt;
+    elegir_pcb = elegir_pcb_segun_srt;
+    actualizar_pcb_por_bloqueo = actualizar_pcb_por_bloqueo_segun_srt;
 
     estado_encolar_pcb_atomic(estadoReady, pcb3);
     estado_encolar_pcb_atomic(estadoReady, pcb1);
@@ -218,7 +221,8 @@ void test_actualizar_un_pcb_por_bloqueo_actualiza_reales_ejecutados_hasta_ahora_
 }
 
 void test_actualizar_un_pcb_por_bloqueo_actualiza_estimacion_actual(void) {
-    elegir_pcb = segun_srt;
+    elegir_pcb = elegir_pcb_segun_srt;
+    actualizar_pcb_por_bloqueo = actualizar_pcb_por_bloqueo_segun_srt;
 
     estado_encolar_pcb_atomic(estadoReady, pcb3);
     estado_encolar_pcb_atomic(estadoReady, pcb1);
