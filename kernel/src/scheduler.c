@@ -24,6 +24,8 @@
 
 typedef void (*t_suspension_handler)(void);
 
+extern pthread_mutex_t mutexSocketMemoria;
+
 extern t_log* kernelLogger;
 extern t_kernel_config* kernelConfig;
 
@@ -441,6 +443,7 @@ void inicializar_estructuras(void) {
 
     pthread_mutex_init(&nextPidMutex, NULL);
     pthread_mutex_init(&hayQueDesalojarMutex, NULL);
+    pthread_mutex_init(&mutexSocketMemoria, NULL);
 
     int valorInicialGradoMultiprog = kernel_config_get_grado_multiprogramacion(kernelConfig);
 
