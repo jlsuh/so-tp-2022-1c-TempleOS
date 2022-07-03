@@ -37,3 +37,8 @@ int obtener_marco_libre(int* marcos, t_memoria_data_holder memoriaData){
     }
     return -1;
 }
+
+void limpiar_marco(int indice, t_memoria_data_holder memoriaData){
+    memoriaData.marcos[indice].enUso = false;
+    memoriaData.marcos[indice].pagina = -1;
+}

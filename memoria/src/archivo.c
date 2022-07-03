@@ -33,3 +33,9 @@ void cerrar_archivo(t_memoria_data_holder memoriaData) {
     free(memoriaData.inicio_archivo);
     close(memoriaData.archivo_swap);
 }
+
+void eliminar_archivo_de_proceso(int nroTablaNivel1, t_memoria_data_holder memoriaData){
+    char* pathArchivo = string_from_format("%s/%d.swap", memoriaData.pathSwap, nroTablaNivel1);
+    if(remove(pathArchivo) == -1)
+        perror("Error in deleting a file");
+}

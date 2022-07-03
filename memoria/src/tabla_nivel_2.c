@@ -74,15 +74,11 @@ void limpiar_tabla_nivel_2(int nroDeTabla2, t_memoria_data_holder memoriaData) {
 }
 
 int obtener_marco(uint32_t nroDeTabla2, uint32_t entradaDeTabla2, t_memoria_data_holder memoriaData) {
-    t_tabla_nivel_2* tablasDeNivel2 = memoriaData.tablasDeNivel2;
-
-    return tablasDeNivel2[nroDeTabla2].entradaNivel2[entradaDeTabla2].indiceMarco;
+    return memoriaData.tablasDeNivel2[nroDeTabla2].entradaNivel2[entradaDeTabla2].indiceMarco;
 }
 
 bool pagina_en_memoria(uint32_t nroDeTabla2, uint32_t entradaDeTabla2, t_memoria_data_holder memoriaData) {
-    t_tabla_nivel_2* tablasDeNivel2 = memoriaData.tablasDeNivel2;
-
-    return tablasDeNivel2[nroDeTabla2].entradaNivel2[entradaDeTabla2].bitPresencia;
+    return memoriaData.tablasDeNivel2[nroDeTabla2].entradaNivel2[entradaDeTabla2].bitPresencia;
 }
 
 int __obtener_entrada(int nroPagina, t_memoria_data_holder memoriaData) {

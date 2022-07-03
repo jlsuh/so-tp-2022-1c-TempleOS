@@ -1,7 +1,7 @@
 #ifndef MEMORIA_DATA_HOLDER_H_INCLUDED
 #define MEMORIA_DATA_HOLDER_H_INCLUDED
 
-#include <commons/collections/list.h>
+#include <commons/collections/dictionary.h>
 #include <commons/log.h>
 
 typedef struct t_tabla_nivel_1 t_tabla_nivel_1;
@@ -18,7 +18,7 @@ typedef struct {
     int archivo_swap;
     t_tabla_nivel_1* tablasDeNivel1;
     t_tabla_nivel_2* tablasDeNivel2;
-    t_list* tablaSuspendidos;
+    t_dictionary* tablaSuspendidos;
     t_marcos* marcos;
     int tamanioPagina;
     int entradasPorTabla;
@@ -28,6 +28,7 @@ typedef struct {
     char* pathSwap;
     int contadorTabla1;
     int retardoSwap;
+    int tamanioMaxArchivo;
 } t_memoria_data_holder;
 
 #endif
