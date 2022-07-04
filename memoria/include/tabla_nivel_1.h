@@ -19,5 +19,6 @@ uint32_t obtener_tamanio (uint32_t nroTablaNivel1, t_memoria_data_holder memoria
 void limpiar_tabla_nivel_1(uint32_t nroTablaNivel1, t_memoria_data_holder memoriaData);
 bool hay_tabla_nivel_1_disponible(t_memoria_data_holder memoriaData);
 void asignar_tabla_nivel_1_with_id(int indiceTablaNivel1, uint32_t nroTablaNivel1, uint32_t tamanio, t_memoria_data_holder memoriaData);
+int obtener_puntero(uint32_t nroTablaNivel1, t_memoria_data_holder memoriaData);
 
 #endif /* TABLA_NIVEL_1_H_INCLUDED */

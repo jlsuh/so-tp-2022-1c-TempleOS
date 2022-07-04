@@ -24,7 +24,7 @@ static void __actualizar_pagina(uint32_t direccionFisica, bool esEscritura, t_me
         actualizar_lectura_pagina(nroPagina, nroTablaNivel2, memoriaData);
 }
 
-static int __swap_marco(int nroDeTabla2Victima, int entradaDeTabla2Victima, uint32_t nroDeTabla2, uint32_t entradaDeTabla2, t_memoria_data_holder memoriaData) {
+static int __swap_marco(uint32_t nroDeTabla2Victima, uint32_t entradaDeTabla2Victima, uint32_t nroDeTabla2, uint32_t entradaDeTabla2, t_memoria_data_holder memoriaData) {
     int marco = obtener_marco(nroDeTabla2Victima, entradaDeTabla2Victima, memoriaData);
     // actualizar_swap_out(nroDeTabla2Victima, entradaDeTabla2Victima, tablasDeNivel2); //TODO que es?
     swap_out(nroDeTabla2Victima, entradaDeTabla2Victima, memoriaData);
@@ -55,18 +55,19 @@ int __obtener_marco(uint32_t nroDeTabla2, uint32_t entradaDeTabla2, t_memoria_da
     uint32_t nroTablaNivel1 = obtener_tabla_de_nivel_1(nroDeTabla2, memoriaData);
     int* marcos = obtener_marcos(nroTablaNivel1, memoriaData);
     marco = obtener_marco_libre(marcos, memoriaData);
-    // TODO asignarselo a la entrada de tabla (la pagina), marcarlo en uso y asignarle la página.
 
-    if (marco == -1) {  // TODO swap
-
-        marco = obtener_marco(nroDeTabla2, entradaDeTabla2, memoriaData);
-
-        // TODO ver con cami el algoritmo para seleccionar la victima
-        int nroDeTabla2Victima = 0, entradaDeTabla2Victima = 0;
+    if (marco == -1) {  // TODO swap - Esta mal actualmente
+        uint32_t nroDeTabla2Victima = 0, entradaDeTabla2Victima = 0;
         uint32_t tamanio = obtener_tamanio(nroTablaNivel1, memoriaData);
+        nroDeTabla2Victima = memoriaData.seleccionar_victima(nroTablaNivel1, memoriaData);
         abrir_archivo(tamanio, nroTablaNivel1, memoriaData);
         marco = __swap_marco(nroDeTabla2Victima, entradaDeTabla2Victima, nroDeTabla2, entradaDeTabla2, memoriaData);
+        marco = obtener_marco(nroDeTabla2, entradaDeTabla2, memoriaData);
         cerrar_archivo(memoriaData);
+    } else{
+        int pagina = obtener_pagina(nroDeTabla2, entradaDeTabla2, memoriaData);
+        asignar_pagina_a_marco(pagina, marco, memoriaData);
+        asignar_marco_a_pagina(marco, nroDeTabla2, entradaDeTabla2, memoriaData); //TODO poner bit de uso en 1?
     }
 
     return marco;

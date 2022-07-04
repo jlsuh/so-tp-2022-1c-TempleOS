@@ -3,9 +3,6 @@
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdlib.h>
-
-int __obtener_entrada(int nroPagina, t_memoria_data_holder memoriaData);
-
 typedef struct
 {
     int indiceMarco;
@@ -17,6 +14,12 @@ typedef struct
 struct t_tabla_nivel_2 {
     t_entrada_nivel_2* entradaNivel2;
 };
+
+int __obtener_entrada(int nroPagina, t_memoria_data_holder memoriaData) {
+    int entradasPorTabla = memoriaData.entradasPorTabla;
+
+    return (nroPagina % (entradasPorTabla * entradasPorTabla)) % entradasPorTabla;
+}
 
 t_tabla_nivel_2* crear_tablas_de_nivel_2(t_memoria_data_holder memoriaData) {
     int cantidadProcesosMax = memoriaData.cantidadProcesosMax;
@@ -81,8 +84,27 @@ bool pagina_en_memoria(uint32_t nroDeTabla2, uint32_t entradaDeTabla2, t_memoria
     return memoriaData.tablasDeNivel2[nroDeTabla2].entradaNivel2[entradaDeTabla2].bitPresencia;
 }
 
-int __obtener_entrada(int nroPagina, t_memoria_data_holder memoriaData) {
-    int entradasPorTabla = memoriaData.entradasPorTabla;
+int obtener_pagina(uint32_t nroDeTabla2, uint32_t entradaDeTabla2, t_memoria_data_holder memoriaData){
+    return nroDeTabla2 * memoriaData.entradasPorTabla * memoriaData.entradasPorTabla + entradaDeTabla2;
+}
 
-    return (nroPagina % (entradasPorTabla * entradasPorTabla)) % entradasPorTabla;
+void asignar_marco_a_pagina(int marco, uint32_t nroDeTabla2, uint32_t entradaDeTabla2, t_memoria_data_holder memoriaData){
+    memoriaData.tablasDeNivel2[nroDeTabla2].entradaNivel2[entradaDeTabla2].indiceMarco = marco;
+    //TODO por como es la secuencia no es necesario colocar el bit de uso, testear.
+}
+
+int obtener_victima_clock_con_indice_inicial(uint32_t nroDeTabla2, int indicePagina, t_memoria_data_holder memoriaData){
+    for (; indicePagina < memoriaData.entradasPorTabla; indicePagina++) {
+        bool presencia = memoriaData.tablasDeNivel2[nroDeTabla2].entradaNivel2[indicePagina].bitPresencia;
+        if(!presencia){
+            continue;
+        }
+        bool uso = memoriaData.tablasDeNivel2[nroDeTabla2].entradaNivel2[indicePagina].bitUso;
+        if(uso){
+            memoriaData.tablasDeNivel2[nroDeTabla2].entradaNivel2[indicePagina].bitUso = false;
+        } else{
+            return indicePagina;
+        }
+    }
+    return -1;
 }

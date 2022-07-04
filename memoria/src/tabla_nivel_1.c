@@ -1,13 +1,15 @@
 #include "tabla_nivel_1.h"
-#include "marcos.h"
 
 #include <stdint.h>
 #include <stdlib.h>
+
+#include "marcos.h"
 struct t_tabla_nivel_1 {
     uint32_t id;
     uint32_t tamanio;
     int* nroTablaNivel2;
     int* marcos;
+    int puntero;
 };
 
 t_tabla_nivel_1* crear_tablas_de_nivel_1(t_memoria_data_holder memoriaData) {
@@ -23,6 +25,7 @@ t_tabla_nivel_1* crear_tablas_de_nivel_1(t_memoria_data_holder memoriaData) {
         tablasDeNivel1[i].marcos = malloc(cantidadMarcosProceso * sizeof(int));
         tablasDeNivel1[i].tamanio = 0;
         tablasDeNivel1[i].id = 0;
+        tablasDeNivel1[i].puntero = 0;
         for (int j = 0; j < entradasPorTabla; j++) {
             tablasDeNivel1[i].nroTablaNivel2[j] = contadorTablaNivel2;
             contadorTablaNivel2++;
@@ -149,6 +152,7 @@ void limpiar_tabla_nivel_1(uint32_t nroTablaNivel1, t_memoria_data_holder memori
         if (tablasDeNivel1[i].id == nroTablaNivel1) {
             tablasDeNivel1[i].id = 0;
             tablasDeNivel1[i].tamanio = 0;
+            tablasDeNivel1[i].puntero = 0;
             int* marcos = tablasDeNivel1[i].marcos;
             for (int r = 0; r < cantidadMarcosPorProceso; r++) {
                 limpiar_marco(marcos[r], memoriaData);
@@ -156,4 +160,14 @@ void limpiar_tabla_nivel_1(uint32_t nroTablaNivel1, t_memoria_data_holder memori
             break;
         }
     }
+}
+
+int obtener_puntero(uint32_t nroTablaNivel1, t_memoria_data_holder memoriaData) {
+    int puntero = -1;
+    for (int i = 0; i < memoriaData.cantidadProcesosMax; i++) {
+        if (memoriaData.tablasDeNivel1[i].id == nroTablaNivel1) {
+            puntero = memoriaData.tablasDeNivel1[i].puntero;
+        }
+    }
+    return puntero;
 }

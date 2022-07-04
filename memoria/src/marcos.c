@@ -42,3 +42,8 @@ void limpiar_marco(int indice, t_memoria_data_holder memoriaData){
     memoriaData.marcos[indice].enUso = false;
     memoriaData.marcos[indice].pagina = -1;
 }
+
+void asignar_pagina_a_marco(int pagina, int marco, t_memoria_data_holder memoriaData){
+    memoriaData.marcos[marco].enUso = true;
+    memoriaData.marcos[marco].pagina = pagina;
+}

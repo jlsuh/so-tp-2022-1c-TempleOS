@@ -3,8 +3,8 @@
 #include <pthread.h>
 #include <stdint.h>
 #include <stdlib.h>
-#include <sys/socket.h>
 #include <string.h>
+#include <sys/socket.h>
 
 #include "atender_cpu.h"
 #include "atender_kernel.h"
@@ -17,6 +17,7 @@
 #include "tabla_nivel_1.h"
 #include "tabla_nivel_2.h"
 #include "tabla_suspendido.h"
+#include "algoritmos.h"
 
 #define MEMORIA_CONFIG_PATH "cfg/memoria_config.cfg"
 #define MEMORIA_LOG_PATH "bin/memoria.log"
@@ -52,6 +53,15 @@ int main(int argc, char* argv[]) {
     memoriaData.retardoSwap = memoria_config_get_retardo_swap(memoriaData.memoriaConfig);
     int paginasPorProceso = memoriaData.entradasPorTabla * memoriaData.entradasPorTabla;
     memoriaData.tamanioMaxArchivo = paginasPorProceso * memoriaData.tamanioPagina;
+
+    if (memoria_config_es_algoritmo_sustitucion_clock(memoriaData.memoriaConfig)) {
+        memoriaData.seleccionar_victima = seleccionar_victima_clock;
+    } else if (memoria_config_es_algoritmo_sustitucion_clock_modificado(memoriaData.memoriaConfig)) {
+        memoriaData.seleccionar_victima = seleccionar_victima_clock_modificado;
+    } else {
+        log_error(memoriaData.memoriaLogger, "Memoria(%s): No se reconocio el algoritmo de sustitucion", __FILE__);
+        exit(-1);
+    }
 
     memoriaData.tablasDeNivel1 = crear_tablas_de_nivel_1(memoriaData);
     memoriaData.tablasDeNivel2 = crear_tablas_de_nivel_2(memoriaData);
