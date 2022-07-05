@@ -36,6 +36,15 @@ void __cargar_tabla(uint32_t nroTablaNivel1, t_entrada_nivel_2_algoritmo* tablaA
     }
 }
 
+void __descargar_tabla(uint32_t nroTablaNivel1, t_entrada_nivel_2_algoritmo* tablaAlgoritmo, t_memoria_data_holder memoriaData) {
+    int indiceTabla1 = (int)obtener_indice_tabla_nivel_1(nroTablaNivel1, memoriaData);
+    int paginaInicialTabla1 = indiceTabla1 * memoriaData.entradasPorTabla * memoriaData.entradasPorTabla;
+    for (int i = 0; i < memoriaData.cantidadMarcosProceso; i++) {
+        int pagina = paginaInicialTabla1 + tablaAlgoritmo[i].indicePagina;
+        setear_bit_uso(pagina, tablaAlgoritmo[i].bitUso, memoriaData);
+    }
+}
+
 int seleccionar_victima_clock(uint32_t nroTablaNivel1, t_memoria_data_holder memoriaData) {
     int tamanio = memoriaData.cantidadMarcosProceso;
     t_entrada_nivel_2_algoritmo tablaAlgoritmo[tamanio];
@@ -47,12 +56,11 @@ int seleccionar_victima_clock(uint32_t nroTablaNivel1, t_memoria_data_holder mem
                 tablaAlgoritmo[i].bitUso = false;
             } else {
                 actualizar_puntero(nroTablaNivel1, tablaAlgoritmo[i].indicePagina, memoriaData);
+                __descargar_tabla(nroTablaNivel1, tablaAlgoritmo, memoriaData);
                 return tablaAlgoritmo[i].indicePagina;
             }
         }
     }
-
-    __descargar_tabla(nroTablaNivel1, tablaAlgoritmo, memoriaData);  // TODO
 }
 
 int seleccionar_victima_clock_modificado(uint32_t nroTablaNivel1, t_memoria_data_holder memoriaData) {
@@ -64,20 +72,20 @@ int seleccionar_victima_clock_modificado(uint32_t nroTablaNivel1, t_memoria_data
         for (int i = 0; i < tamanio; i++) {
             if (!(tablaAlgoritmo[i].bitUso || tablaAlgoritmo[i].bitModificado)) {
                 actualizar_puntero(nroTablaNivel1, tablaAlgoritmo[i].indicePagina, memoriaData);
+                __descargar_tabla(nroTablaNivel1, tablaAlgoritmo, memoriaData);
                 return tablaAlgoritmo[i].indicePagina;
             }
         }
         for (int i = 0; i < tamanio; i++) {
             if (!tablaAlgoritmo[i].bitUso && tablaAlgoritmo[i].bitModificado) {
                 actualizar_puntero(nroTablaNivel1, tablaAlgoritmo[i].indicePagina, memoriaData);
+                __descargar_tabla(nroTablaNivel1, tablaAlgoritmo, memoriaData);
                 return tablaAlgoritmo[i].indicePagina;
             } else if (tablaAlgoritmo[i].bitUso) {
                 tablaAlgoritmo[i].bitUso = false;
             }
         }
     }
-
-    __descargar_tabla(nroTablaNivel1, tablaAlgoritmo, memoriaData);  // TODO
 }
 
 // void __cargar_tabla(uint32_t nroTablaNivel1, int puntero, t_entrada_nivel_2_algoritmo* tablaAlgoritmo, t_memoria_data_holder memoriaData) {

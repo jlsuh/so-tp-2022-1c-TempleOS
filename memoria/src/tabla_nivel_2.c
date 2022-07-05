@@ -113,6 +113,12 @@ bool obtener_bit_modificado(int nroPagina, t_memoria_data_holder memoriaData){
     return memoriaData.tablasDeNivel2[nroDeTabla2].entradaNivel2[entrada].bitModificado;
 }
 
+void setear_bit_uso(int nroPagina, bool bitUso, t_memoria_data_holder memoriaData){
+    int entrada = __obtener_entrada(nroPagina, memoriaData);
+    int nroDeTabla2 = __obtener_tabla2(nroPagina, memoriaData);
+    memoriaData.tablasDeNivel2[nroDeTabla2].entradaNivel2[entrada].bitUso = bitUso;
+}
+
 
 int obtener_victima_clock_con_indice_inicial(uint32_t nroDeTabla2, int indicePagina, t_memoria_data_holder memoriaData){
     for (; indicePagina < memoriaData.entradasPorTabla; indicePagina++) {
