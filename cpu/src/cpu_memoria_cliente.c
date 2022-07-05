@@ -5,7 +5,9 @@
 #include "common_flags.h"
 #include "cpu_config.h"
 #include "stream.h"
+#include "tlb.h"
 
+extern t_tlb *tlb;
 extern t_cpu_config *cpuConfig;
 extern t_log *cpuLogger;
 
@@ -41,9 +43,12 @@ static uint32_t __obtener_marco(int toSocket, uint32_t direccion, uint32_t numbe
     uint32_t entradaTablaNivel2 = numeroPagina % entradasPorTabla;
     uint32_t offset = direccion - numeroPagina * tamanioPagina;
 
-    uint32_t numeroDeTabla2 = __solicitar(toSocket, numberoDeTabla1, entradaTablaNivel1, HEADER_tabla_nivel_2);
-    uint32_t marco = __solicitar(toSocket, numeroDeTabla2, entradaTablaNivel2, HEADER_marco);
-
+    int marco = tlb_get_marco(tlb, entradaTablaNivel1, entradaTablaNivel2);
+    if (marco < 0) {
+        uint32_t numeroDeTabla2 = __solicitar(toSocket, numberoDeTabla1, entradaTablaNivel1, HEADER_tabla_nivel_2);
+        marco = __solicitar(toSocket, numeroDeTabla2, entradaTablaNivel2, HEADER_marco);
+        tlb_registrar_entrada_en_tlb(tlb, entradaTablaNivel1, entradaTablaNivel2, marco);
+    }
     return marco + offset;
 }
 
