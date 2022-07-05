@@ -114,3 +114,11 @@ int cpu_config_get_tamanio_pagina(t_cpu_config* self) {
 uint32_t cpu_config_get_retardo_no_op(t_cpu_config* self) {
     return self->RETARDO_NOOP;
 }
+
+char* cpu_config_get_reemplazo_tlb(t_cpu_config* self) {
+    return self->REEMPLAZO_TLB;
+}
+
+uint32_t cpu_config_get_entradas_tlb(t_cpu_config* self) {
+    return self->ENTRADAS_TLB;
+}
