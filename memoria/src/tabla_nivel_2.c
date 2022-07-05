@@ -15,6 +15,10 @@ struct t_tabla_nivel_2 {
     t_entrada_nivel_2* entradaNivel2;
 };
 
+int __obtener_tabla2(int nroPagina, t_memoria_data_holder memoriaData) {
+    return nroPagina / (memoriaData.entradasPorTabla * memoriaData.entradasPorTabla);
+}
+
 int __obtener_entrada(int nroPagina, t_memoria_data_holder memoriaData) {
     int entradasPorTabla = memoriaData.entradasPorTabla;
 
@@ -92,6 +96,23 @@ void asignar_marco_a_pagina(int marco, uint32_t nroDeTabla2, uint32_t entradaDeT
     memoriaData.tablasDeNivel2[nroDeTabla2].entradaNivel2[entradaDeTabla2].indiceMarco = marco;
     //TODO por como es la secuencia no es necesario colocar el bit de uso, testear.
 }
+
+int obtener_indice(int nroPagina, t_memoria_data_holder memoriaData) {
+    return __obtener_entrada(nroPagina, memoriaData);
+}
+
+bool obtener_bit_uso(int nroPagina, t_memoria_data_holder memoriaData){
+    int entrada = __obtener_entrada(nroPagina, memoriaData);
+    int nroDeTabla2 = __obtener_tabla2(nroPagina, memoriaData);
+    return memoriaData.tablasDeNivel2[nroDeTabla2].entradaNivel2[entrada].bitUso;
+}
+
+bool obtener_bit_modificado(int nroPagina, t_memoria_data_holder memoriaData){
+    int entrada = __obtener_entrada(nroPagina, memoriaData);
+    int nroDeTabla2 = __obtener_tabla2(nroPagina, memoriaData);
+    return memoriaData.tablasDeNivel2[nroDeTabla2].entradaNivel2[entrada].bitModificado;
+}
+
 
 int obtener_victima_clock_con_indice_inicial(uint32_t nroDeTabla2, int indicePagina, t_memoria_data_holder memoriaData){
     for (; indicePagina < memoriaData.entradasPorTabla; indicePagina++) {

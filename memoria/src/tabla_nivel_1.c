@@ -171,3 +171,11 @@ int obtener_puntero(uint32_t nroTablaNivel1, t_memoria_data_holder memoriaData) 
     }
     return puntero;
 }
+
+void actualizar_puntero(uint32_t nroTablaNivel1, int puntero, t_memoria_data_holder memoriaData){
+    for (int i = 0; i < memoriaData.cantidadProcesosMax; i++) {
+        if (memoriaData.tablasDeNivel1[i].id == nroTablaNivel1) {
+            memoriaData.tablasDeNivel1[i].puntero = puntero;
+        }
+    }
+}
