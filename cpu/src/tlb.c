@@ -31,7 +31,6 @@ struct t_tlb {
     char* algoritmoReemplazo;
     t_entrada_tlb* entradas;
     void (*actualizar_ultima_referencia)(t_tlb*, int indiceEntrada);
-    int (*elegir_entrada_victima)(t_tlb*);
 };
 
 static void __flush_entrada(t_tlb* self, int entrada) {
@@ -90,7 +89,7 @@ void tlb_registrar_entrada_en_tlb(t_tlb* self, uint32_t entradaTablaNivel1, uint
         indiceEntrada = __obtener_primer_entrada_libre(self);
         self->cantidadEntradasLibres -= 1;
     } else {
-        indiceEntrada = self->elegir_entrada_victima(self);
+        indiceEntrada = __elegir_entrada_de_menor_instante_de_tiempo(self);
     }
     self->entradas[indiceEntrada].entradaTablaNivel1 = entradaTablaNivel1;
     self->entradas[indiceEntrada].entradaTablaNivel2 = entradaTablaNivel2;
@@ -105,10 +104,6 @@ t_tlb* tlb_create(uint32_t cantidadDeEntradas, char* algoritmoReemplazo) {
     self->ultimoInstanteDeTiempo = 0;
     self->algoritmoReemplazo = strdup(algoritmoReemplazo);
     self->entradas = calloc(self->cantidadEntradasTotales, sizeof(*self->entradas));
-    for (int i = 0; i < self->cantidadEntradasTotales; i++) {
-        __flush_entrada(self, i);
-    }
-    self->elegir_entrada_victima = __elegir_entrada_de_menor_instante_de_tiempo;
     if (__es_reeemplazo_fifo(self)) {
         self->actualizar_ultima_referencia = __actualizar_instante_fifo;
     } else if (__es_reemplazo_lru(self)) {
