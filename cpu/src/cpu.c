@@ -10,10 +10,13 @@
 #include "cpu_config.h"
 #include "cpu_kernel_server.h"
 #include "stream.h"
+#include "tlb.h"
 
 #define CPU_CONFIG_PATH "cfg/cpu_config.cfg"
 #define CPU_LOG_PATH "bin/cpu.log"
 #define CPU_MODULE_NAME "CPU"
+
+t_tlb* tlb;
 
 extern t_log* cpuLogger;
 extern t_cpu_config* cpuConfig;
@@ -86,7 +89,8 @@ int main(int argc, char* argv[]) {
     stream_send_empty_buffer(kernelInterruptSocket, HANDSHAKE_ok_continue);
     log_info(cpuLogger, "Conexión con Kernel por canal Interrupt establecida");
 
-    // Seguir aquí
+    tlb = tlb_create(cpu_config_get_entradas_tlb(cpuConfig), cpu_config_get_reemplazo_tlb(cpuConfig));
+
     atender_peticiones_de_kernel();
 
     return 0;
