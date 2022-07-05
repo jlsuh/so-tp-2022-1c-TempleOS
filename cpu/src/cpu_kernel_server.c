@@ -12,12 +12,16 @@
 #include "cpu_pcb.h"
 #include "instruccion.h"
 #include "stream.h"
+#include "tlb.h"
+
+extern t_tlb* tlb;
 
 extern t_cpu_config* cpuConfig;
 extern t_log* cpuLogger;
 
 static bool hayInterrupcion;
 static pthread_mutex_t mutexInterrupcion;
+static int pidProcesoEnExec;
 
 static t_instruccion* cpu_fetch_instruction(t_cpu_pcb* pcb) {
     t_list* instructionsList = cpu_pcb_get_instrucciones(pcb);
@@ -168,6 +172,10 @@ static void noreturn dispatch_peticiones_de_kernel(void) {
             buffer_unpack(bufferPcb, &tablaPags, sizeof(tablaPags));
             buffer_destroy(bufferPcb);
 
+            if (pidRecibido != pidProcesoEnExec) {
+                tlb_flush(tlb);
+            }
+
             pcb = cpu_pcb_create(pidRecibido, programCounter, tablaPags);
             kernelResponse = stream_recv_header(cpu_config_get_socket_dispatch(cpuConfig));
             if (kernelResponse == HEADER_lista_instrucciones) {
@@ -208,7 +216,15 @@ static void noreturn interrupt_peticiones_de_kernel(void) {
     }
 }
 
+void __inicializar_kernel_server(void) {
+    hayInterrupcion = false;
+    pthread_mutex_init(&mutexInterrupcion, NULL);
+    pidProcesoEnExec = -1;
+}
+
 void atender_peticiones_de_kernel(void) {
+    __inicializar_kernel_server();
+
     pthread_t interruptTh;
     pthread_create(&interruptTh, NULL, (void*)interrupt_peticiones_de_kernel, NULL);
     pthread_detach(interruptTh);
