@@ -25,7 +25,7 @@ void abrir_archivo(uint32_t tamanio, int nroTablaNivel1, t_memoria_data_holder m
 
 void crear_archivo_de_proceso(uint32_t tamanio, int nroTablaNivel1, t_memoria_data_holder memoriaData) {
     abrir_archivo(tamanio, nroTablaNivel1, memoriaData);
-    memset(memoriaData.inicio_archivo, '\0', tamanio);
+    memset(memoriaData.inicio_archivo, '\0', tamanio); //TODO esta generando problemas en runtime
     cerrar_archivo(memoriaData);
 }
 

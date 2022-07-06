@@ -8,15 +8,6 @@
 
 extern t_tlb* tlb;
 
-/*
-|--------------------|-------|----------|
-| Número página      | marco | instante |
-|--------------------|-------|----------|
-| 1                  | 0     | 0        |
-| -1                 | -1    | -1       |
-|         ...        |  ...  | ...      |
-*/
-
 typedef struct {
     int numeroPagina;
     int marco;
