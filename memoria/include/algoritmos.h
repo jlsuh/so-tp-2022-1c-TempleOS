@@ -1,10 +1,11 @@
-#ifndef INCLUDE_ALGORITMOS_H_
-#define INCLUDE_ALGORITMOS_H_
+#ifndef ALGORITMOS_H_INCLUDED
+#define ALGORITMOS_H_INCLUDED
 
-int seleccionar_victima_clock(int paginaPuntero, uint32_t nroDeTabla1);
-int obtener_pagina(int indiceNivel1, int indiceNivel2);
-int obtener_indice_nivel_uno(int pagina);
-int obtener_indice_nivel_dos(int pagina);
+#include "memoria_data_holder.h"
+#include <stdint.h>
+
+int seleccionar_victima_clock(uint32_t nroTablaNivel1, t_memoria_data_holder memoriaData);
+int seleccionar_victima_clock_modificado(uint32_t nroTablaNivel1, t_memoria_data_holder memoriaData);
 
 
-#endif /* INCLUDE_ALGORITMOS_H_ */
+#endif /* ALGORITMOS_H_INCLUDED */
