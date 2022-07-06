@@ -26,22 +26,8 @@ static void __actualizar_pagina(uint32_t direccionFisica, bool esEscritura, t_me
 
 static int __swap_marco(uint32_t nroDeTabla2Victima, uint32_t entradaDeTabla2Victima, uint32_t nroDeTabla2, uint32_t entradaDeTabla2, t_memoria_data_holder memoriaData) {
     int marco = obtener_marco(nroDeTabla2Victima, entradaDeTabla2Victima, memoriaData);
-    // actualizar_swap_out(nroDeTabla2Victima, entradaDeTabla2Victima, tablasDeNivel2); //TODO que es?
-    swap_out(nroDeTabla2Victima, entradaDeTabla2Victima, memoriaData);
-
-    int paginaVictima = nroDeTabla2Victima * memoriaData.entradasPorTabla + entradaDeTabla2Victima;
-    int pagina = nroDeTabla2 * memoriaData.entradasPorTabla + entradaDeTabla2;
-    int tiempoDeEspera = memoriaData.retardoSwap;
-
-    // Escribir en archivo
-    sleep(tiempoDeEspera);
-    memcpy(memoriaData.inicio_archivo + memoriaData.tamanioPagina * paginaVictima, memoriaData.memoriaPrincipal + marco * memoriaData.tamanioPagina, memoriaData.tamanioPagina);
-    // Leer de archivo
-    sleep(tiempoDeEspera);
-    memcpy(memoriaData.memoriaPrincipal + marco * memoriaData.tamanioPagina, memoriaData.inicio_archivo + memoriaData.tamanioPagina * pagina, memoriaData.tamanioPagina);
-
+    swap_out(nroDeTabla2Victima, entradaDeTabla2Victima, marco, memoriaData);
     swap_in(nroDeTabla2, entradaDeTabla2, marco, memoriaData);
-
     return marco;
 }
 
@@ -56,20 +42,21 @@ int __obtener_marco(uint32_t nroDeTabla2, uint32_t entradaDeTabla2, t_memoria_da
     int* marcos = obtener_marcos(nroTablaNivel1, memoriaData);
     marco = obtener_marco_libre(marcos, memoriaData);
 
-    if (marco == -1) {  // TODO swap - Esta mal actualmente
-        uint32_t nroDeTabla2Victima = 0, entradaDeTabla2Victima = 0;
+    if (marco == -1) {
+        int punteroVictima = memoriaData.seleccionar_victima(nroTablaNivel1, memoriaData);
+        uint32_t indiceTabla2 = punteroVictima / memoriaData.entradasPorTabla;
+        uint32_t nroDeTabla2Victima = obtener_tabla_de_nivel_2(nroTablaNivel1, indiceTabla2, memoriaData);
+        uint32_t entradaDeTabla2Victima = punteroVictima % memoriaData.entradasPorTabla;
+
         uint32_t tamanio = obtener_tamanio(nroTablaNivel1, memoriaData);
-        nroDeTabla2Victima = memoriaData.seleccionar_victima(nroTablaNivel1, memoriaData);
         abrir_archivo(tamanio, nroTablaNivel1, memoriaData);
         marco = __swap_marco(nroDeTabla2Victima, entradaDeTabla2Victima, nroDeTabla2, entradaDeTabla2, memoriaData);
-        marco = obtener_marco(nroDeTabla2, entradaDeTabla2, memoriaData);
         cerrar_archivo(memoriaData);
-    } else{
+    } else {
         int pagina = obtener_pagina(nroDeTabla2, entradaDeTabla2, memoriaData);
         asignar_pagina_a_marco(pagina, marco, memoriaData);
-        asignar_marco_a_pagina(marco, nroDeTabla2, entradaDeTabla2, memoriaData); //TODO poner bit de uso en 1?
+        asignar_marco_a_pagina(marco, nroDeTabla2, entradaDeTabla2, memoriaData);
     }
-
     return marco;
 }
 
