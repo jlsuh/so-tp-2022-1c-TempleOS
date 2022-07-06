@@ -10,9 +10,9 @@
 #include "tabla_nivel_2.h"
 #include "tabla_suspendido.h"
 
-extern t_memoria_data_holder memoriaData;
+extern t_memoria_data_holder* memoriaData;
 
-static uint32_t __crear_nuevo_proceso(uint32_t tamanio, t_memoria_data_holder memoriaData) {
+static uint32_t __crear_nuevo_proceso(uint32_t tamanio, t_memoria_data_holder* memoriaData) {
     uint32_t indiceTablaNivel1 = obtener_tabla_libre_de_nivel_1(memoriaData);
     uint32_t nroTablaNivel1 = asignar_tabla_nivel_1(indiceTablaNivel1, tamanio, memoriaData);
     crear_archivo_de_proceso(tamanio, nroTablaNivel1, memoriaData);
@@ -20,17 +20,17 @@ static uint32_t __crear_nuevo_proceso(uint32_t tamanio, t_memoria_data_holder me
     return nroTablaNivel1;
 }
 
-static void __eliminar_proceso(uint32_t nroTablaNivel1, t_memoria_data_holder memoriaData){
+static void __eliminar_proceso(uint32_t nroTablaNivel1, t_memoria_data_holder* memoriaData){
     eliminar_archivo_de_proceso(nroTablaNivel1, memoriaData);
-    for(int i = 0; i < memoriaData.entradasPorTabla; i++){
+    for(int i = 0; i < memoriaData->entradasPorTabla; i++){
         int nroDeTabla2 = obtener_tabla_de_nivel_2(nroTablaNivel1, i, memoriaData);
         limpiar_tabla_nivel_2(nroDeTabla2, memoriaData);
     }
     limpiar_tabla_nivel_1(nroTablaNivel1, memoriaData);
 }
 
-static bool __se_puede_crear_proceso(uint32_t tamanio, t_memoria_data_holder memoriaData) {
-    return tamanio <= memoriaData.tamanioMaxArchivo && hay_tabla_nivel_1_disponible(memoriaData);
+static bool __se_puede_crear_proceso(uint32_t tamanio, t_memoria_data_holder* memoriaData) {
+    return tamanio <= memoriaData->tamanioMaxArchivo && hay_tabla_nivel_1_disponible(memoriaData);
 }
 
 void* escuchar_peticiones_kernel(void* socketKernel) {

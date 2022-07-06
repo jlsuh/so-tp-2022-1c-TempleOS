@@ -13,9 +13,9 @@
 #include "tabla_nivel_2.h"
 #include "tabla_suspendido.h"
 
-extern t_memoria_data_holder memoriaData;
+extern t_memoria_data_holder* memoriaData;
 
-static void __actualizar_pagina(uint32_t direccionFisica, bool esEscritura, t_memoria_data_holder memoriaData) {
+static void __actualizar_pagina(uint32_t direccionFisica, bool esEscritura, t_memoria_data_holder* memoriaData) {
     int nroPagina = obtener_pagina_de_un_marco(direccionFisica, memoriaData);
     int nroTablaNivel2 = obtener_tabla_de_nivel_2_pagina(nroPagina, memoriaData);
     if (esEscritura)
@@ -24,14 +24,14 @@ static void __actualizar_pagina(uint32_t direccionFisica, bool esEscritura, t_me
         actualizar_lectura_pagina(nroPagina, nroTablaNivel2, memoriaData);
 }
 
-static int __swap_marco(uint32_t nroDeTabla2Victima, uint32_t entradaDeTabla2Victima, uint32_t nroDeTabla2, uint32_t entradaDeTabla2, t_memoria_data_holder memoriaData) {
+static int __swap_marco(uint32_t nroDeTabla2Victima, uint32_t entradaDeTabla2Victima, uint32_t nroDeTabla2, uint32_t entradaDeTabla2, t_memoria_data_holder* memoriaData) {
     int marco = obtener_marco(nroDeTabla2Victima, entradaDeTabla2Victima, memoriaData);
     swap_out(nroDeTabla2Victima, entradaDeTabla2Victima, marco, memoriaData);
     swap_in(nroDeTabla2, entradaDeTabla2, marco, memoriaData);
     return marco;
 }
 
-int __obtener_marco(uint32_t nroDeTabla2, uint32_t entradaDeTabla2, t_memoria_data_holder memoriaData) {
+int __obtener_marco(uint32_t nroDeTabla2, uint32_t entradaDeTabla2, t_memoria_data_holder* memoriaData) {
     int marco = -1;
     if (pagina_en_memoria(nroDeTabla2, entradaDeTabla2, memoriaData)) {
         marco = obtener_marco(nroDeTabla2, entradaDeTabla2, memoriaData);
@@ -43,10 +43,10 @@ int __obtener_marco(uint32_t nroDeTabla2, uint32_t entradaDeTabla2, t_memoria_da
     marco = obtener_marco_libre(marcos, memoriaData);
 
     if (marco == -1) {
-        int punteroVictima = memoriaData.seleccionar_victima(nroTablaNivel1, memoriaData);
-        uint32_t indiceTabla2 = punteroVictima / memoriaData.entradasPorTabla;
+        int punteroVictima = memoriaData->seleccionar_victima(nroTablaNivel1, memoriaData);
+        uint32_t indiceTabla2 = punteroVictima / memoriaData->entradasPorTabla;
         uint32_t nroDeTabla2Victima = obtener_tabla_de_nivel_2(nroTablaNivel1, indiceTabla2, memoriaData);
-        uint32_t entradaDeTabla2Victima = punteroVictima % memoriaData.entradasPorTabla;
+        uint32_t entradaDeTabla2Victima = punteroVictima % memoriaData->entradasPorTabla;
 
         uint32_t tamanio = obtener_tamanio(nroTablaNivel1, memoriaData);
         abrir_archivo(tamanio, nroTablaNivel1, memoriaData);
@@ -61,9 +61,9 @@ int __obtener_marco(uint32_t nroDeTabla2, uint32_t entradaDeTabla2, t_memoria_da
 }
 
 void* escuchar_peticiones_cpu(void* socketCpu) {
-    void* memoriaPrincipal = memoriaData.memoriaPrincipal;
+    void* memoriaPrincipal = memoriaData->memoriaPrincipal;
     int socket = *(int*)socketCpu;
-    free(socketCpu);
+    // free(socketCpu);
 
     uint32_t header, direccionFisica, direccionFisicaOrigen, valor;
     t_buffer* buffer;
@@ -109,6 +109,8 @@ void* escuchar_peticiones_cpu(void* socketCpu) {
                 buffer_unpack(buffer, &nroDeTabla1, sizeof(nroDeTabla1));
                 buffer_unpack(buffer, &entradaDeTabla1, sizeof(entradaDeTabla1));
 
+                log_info(memoriaData->memoriaLogger, "Se recibe numero de tabla 1: %d, entrada de tabla 1: %d", nroDeTabla1, entradaDeTabla1);
+
                 int nroDeTabla2 = obtener_tabla_de_nivel_2(nroDeTabla1, entradaDeTabla1, memoriaData);
                 if (nroDeTabla2 == -1) {
                     despertar_proceso(nroDeTabla1, memoriaData);
@@ -130,7 +132,7 @@ void* escuchar_peticiones_cpu(void* socketCpu) {
                 buffer_unpack(buffer, &entradaDeTabla2, sizeof(entradaDeTabla2));
 
                 int indiceMarco = __obtener_marco(nroDeTabla2, entradaDeTabla2, memoriaData);
-                uint32_t marco = indiceMarco * memoriaData.tamanioPagina;
+                uint32_t marco = indiceMarco * memoriaData->tamanioPagina;
 
                 t_buffer* buffer_rta = buffer_create();
                 buffer_pack(buffer_rta, &marco, sizeof(marco));

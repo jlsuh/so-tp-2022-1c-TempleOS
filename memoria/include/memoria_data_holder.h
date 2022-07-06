@@ -30,7 +30,7 @@ struct t_memoria_data_holder{
     int contadorTabla1;
     int retardoSwap;
     int tamanioMaxArchivo;
-    int (*seleccionar_victima)(uint32_t nroTablaNivel1, t_memoria_data_holder memoriaData);
+    int (*seleccionar_victima)(uint32_t nroTablaNivel1, t_memoria_data_holder* memoriaData);
 };
 
 #endif

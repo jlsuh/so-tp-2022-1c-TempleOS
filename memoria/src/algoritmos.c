@@ -11,9 +11,9 @@ typedef struct
     bool bitModificado;
 } t_entrada_nivel_2_algoritmo;
 
-void __cargar_tabla(uint32_t nroTablaNivel1, t_entrada_nivel_2_algoritmo* tablaAlgoritmo, t_memoria_data_holder memoriaData) {
+void __cargar_tabla(uint32_t nroTablaNivel1, t_entrada_nivel_2_algoritmo* tablaAlgoritmo, t_memoria_data_holder* memoriaData) {
     int* marcos = obtener_marcos(nroTablaNivel1, memoriaData);
-    int tamanio = memoriaData.cantidadMarcosProceso;
+    int tamanio = memoriaData->cantidadMarcosProceso;
     int puntero = obtener_puntero(nroTablaNivel1, memoriaData);
     int indicePuntero;
 
@@ -36,17 +36,17 @@ void __cargar_tabla(uint32_t nroTablaNivel1, t_entrada_nivel_2_algoritmo* tablaA
     }
 }
 
-void __descargar_tabla(uint32_t nroTablaNivel1, t_entrada_nivel_2_algoritmo* tablaAlgoritmo, t_memoria_data_holder memoriaData) {
+void __descargar_tabla(uint32_t nroTablaNivel1, t_entrada_nivel_2_algoritmo* tablaAlgoritmo, t_memoria_data_holder* memoriaData) {
     int indiceTabla1 = (int)obtener_indice_tabla_nivel_1(nroTablaNivel1, memoriaData);
-    int paginaInicialTabla1 = indiceTabla1 * memoriaData.entradasPorTabla * memoriaData.entradasPorTabla;
-    for (int i = 0; i < memoriaData.cantidadMarcosProceso; i++) {
+    int paginaInicialTabla1 = indiceTabla1 * memoriaData->entradasPorTabla * memoriaData->entradasPorTabla;
+    for (int i = 0; i < memoriaData->cantidadMarcosProceso; i++) {
         int pagina = paginaInicialTabla1 + tablaAlgoritmo[i].indicePagina;
         setear_bit_uso(pagina, tablaAlgoritmo[i].bitUso, memoriaData);
     }
 }
 
-int seleccionar_victima_clock(uint32_t nroTablaNivel1, t_memoria_data_holder memoriaData) {
-    int tamanio = memoriaData.cantidadMarcosProceso;
+int seleccionar_victima_clock(uint32_t nroTablaNivel1, t_memoria_data_holder* memoriaData) {
+    int tamanio = memoriaData->cantidadMarcosProceso;
     t_entrada_nivel_2_algoritmo tablaAlgoritmo[tamanio];
     __cargar_tabla(nroTablaNivel1, tablaAlgoritmo, memoriaData);
 
@@ -64,8 +64,8 @@ int seleccionar_victima_clock(uint32_t nroTablaNivel1, t_memoria_data_holder mem
     return -1;
 }
 
-int seleccionar_victima_clock_modificado(uint32_t nroTablaNivel1, t_memoria_data_holder memoriaData) {
-    int tamanio = memoriaData.cantidadMarcosProceso;
+int seleccionar_victima_clock_modificado(uint32_t nroTablaNivel1, t_memoria_data_holder* memoriaData) {
+    int tamanio = memoriaData->cantidadMarcosProceso;
     t_entrada_nivel_2_algoritmo tablaAlgoritmo[tamanio];
     __cargar_tabla(nroTablaNivel1, tablaAlgoritmo, memoriaData);
 
