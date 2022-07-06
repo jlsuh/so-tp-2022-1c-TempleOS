@@ -1,3 +1,4 @@
+#include <pthread.h>
 #include <stdint.h>
 #include <stdlib.h>
 
@@ -11,6 +12,7 @@
 #include "tabla_suspendido.h"
 
 extern t_memoria_data_holder* memoriaData;
+extern pthread_mutex_t mutexMemoriaData;
 
 static uint32_t __crear_nuevo_proceso(uint32_t tamanio, t_memoria_data_holder* memoriaData) {
     uint32_t indiceTablaNivel1 = obtener_tabla_libre_de_nivel_1(memoriaData);
@@ -40,6 +42,7 @@ void* escuchar_peticiones_kernel(void* socketKernel) {
     uint32_t header, nroTablaNivel1;
     for (;;) {
         header = stream_recv_header(socket);
+        pthread_mutex_lock(&mutexMemoriaData);
         t_buffer* buffer = buffer_create();
         stream_recv_buffer(socket, buffer);
 
@@ -92,6 +95,7 @@ void* escuchar_peticiones_kernel(void* socketKernel) {
                 exit(-1);
                 break;
         }
+        pthread_mutex_unlock(&mutexMemoriaData);
     }
 
     return NULL;

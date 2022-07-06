@@ -26,6 +26,7 @@
 t_memoria_data_holder* memoriaData;
 bool cpuSinAtender = true;
 bool kernelSinAtender = true;
+pthread_mutex_t mutexMemoriaData;
 
 void __recibir_conexiones(int socketEscucha);
 void* __recibir_conexion(int socketEscucha, int* socketCliente, pthread_t* threadSuscripcion);
@@ -55,6 +56,8 @@ int main(int argc, char* argv[]) {
     memoriaData->retardoSwap = memoria_config_get_retardo_swap(memoriaData->memoriaConfig);
     int paginasPorProceso = memoriaData->entradasPorTabla * memoriaData->entradasPorTabla;
     memoriaData->tamanioMaxArchivo = paginasPorProceso * memoriaData->tamanioPagina;
+
+    pthread_mutex_init(&mutexMemoriaData, NULL);
 
     if (memoria_config_es_algoritmo_sustitucion_clock(memoriaData->memoriaConfig)) {
         memoriaData->seleccionar_victima = seleccionar_victima_clock;
@@ -105,7 +108,13 @@ void* __recibir_conexion(int socketEscucha, int* socketCliente, pthread_t* threa
     void* (*funcion_suscripcion)(void*) = NULL;
     if (handshake == HANDSHAKE_cpu && cpuSinAtender) {
         log_info(memoriaData->memoriaLogger, "\e[1;92mSe acepta conexión de CPU en socket [%d]\e[0m", *socketCliente);
-        stream_send_empty_buffer(*socketCliente, HANDSHAKE_ok_continue);
+        t_buffer* buffer = buffer_create();
+        uint32_t tamanioPagina = memoriaData->tamanioPagina;
+        uint32_t entradasPorTabla = memoriaData->entradasPorTabla;
+        buffer_pack(buffer, &tamanioPagina, sizeof(tamanioPagina));
+        buffer_pack(buffer, &entradasPorTabla, sizeof(entradasPorTabla));
+        stream_send_buffer(*socketCliente, HANDSHAKE_ok_continue, buffer);
+        buffer_destroy(buffer);
         funcion_suscripcion = escuchar_peticiones_cpu;
         cpuSinAtender = false;
     } else if (handshake == HANDSHAKE_kernel && kernelSinAtender) {

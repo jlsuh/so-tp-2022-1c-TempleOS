@@ -1,3 +1,4 @@
+#include <pthread.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdlib.h>
@@ -14,6 +15,7 @@
 #include "tabla_suspendido.h"
 
 extern t_memoria_data_holder* memoriaData;
+extern pthread_mutex_t mutexMemoriaData;
 
 static void __actualizar_pagina(uint32_t direccionFisica, bool esEscritura, t_memoria_data_holder* memoriaData) {
     int nroPagina = obtener_pagina_de_un_marco(direccionFisica, memoriaData);
@@ -55,7 +57,7 @@ int __obtener_marco(uint32_t nroDeTabla2, uint32_t entradaDeTabla2, t_memoria_da
     } else {
         int pagina = obtener_pagina(nroDeTabla2, entradaDeTabla2, memoriaData);
         asignar_pagina_a_marco(pagina, marco, memoriaData);
-        asignar_marco_a_pagina(marco, nroDeTabla2, entradaDeTabla2, memoriaData);
+        swap_in(nroDeTabla2, entradaDeTabla2, marco, memoriaData);
     }
     return marco;
 }
@@ -70,6 +72,7 @@ void* escuchar_peticiones_cpu(void* socketCpu) {
 
     for (;;) {
         header = stream_recv_header(socket);
+        pthread_mutex_lock(&mutexMemoriaData);
         buffer = buffer_create();
         stream_recv_buffer(socket, buffer);
 
@@ -98,7 +101,7 @@ void* escuchar_peticiones_cpu(void* socketCpu) {
 
                 __actualizar_pagina(direccionFisica, true, memoriaData);
 
-                log_info(memoriaData->memoriaLogger, "Se escribio el valor [%d] en la dirección física [%d]", *((uint32_t*) (memoriaPrincipal + direccionFisica)), direccionFisica);
+                log_info(memoriaData->memoriaLogger, "Se escribio el valor [%d] en la dirección física [%d]", *((uint32_t*)(memoriaPrincipal + direccionFisica)), direccionFisica);
                 break;
             case HEADER_tabla_nivel_2: {
                 log_info(memoriaData->memoriaLogger, "\e[1;93mPetición de tabla nivel 2\e[0m");
@@ -109,7 +112,7 @@ void* escuchar_peticiones_cpu(void* socketCpu) {
 
                 int nroDeTabla2 = obtener_tabla_de_nivel_2(nroDeTabla1, entradaDeTabla1, memoriaData);
                 if (nroDeTabla2 == -1) {
-                log_info(memoriaData->memoriaLogger, "\e[1;92mProceso suspendido, se procede a despertar\e[0m");
+                    log_info(memoriaData->memoriaLogger, "\e[1;92mProceso suspendido, se procede a despertar\e[0m");
                     despertar_proceso(nroDeTabla1, memoriaData);
                     nroDeTabla2 = obtener_tabla_de_nivel_2(nroDeTabla1, entradaDeTabla1, memoriaData);
                 }
@@ -145,6 +148,7 @@ void* escuchar_peticiones_cpu(void* socketCpu) {
                 break;
         }
         buffer_destroy(buffer);
+        pthread_mutex_unlock(&mutexMemoriaData);
     }
 
     return NULL;

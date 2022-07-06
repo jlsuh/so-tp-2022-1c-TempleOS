@@ -5,6 +5,9 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+
+#include "common_utils.h"
+
 typedef struct
 {
     int indiceMarco;
@@ -66,10 +69,10 @@ void actualizar_lectura_pagina(int nroPagina, int nroTablaNivel2, t_memoria_data
 }
 
 void swap_out(int nroDeTabla2, int entradaDeTabla2, int marco, t_memoria_data_holder* memoriaData) {
-    memoriaData->tablasDeNivel2[nroDeTabla2].entradaNivel2[entradaDeTabla2].bitPresencia = 0;
+    memoriaData->tablasDeNivel2[nroDeTabla2].entradaNivel2[entradaDeTabla2].bitPresencia = false;
     if (memoriaData->tablasDeNivel2[nroDeTabla2].entradaNivel2[entradaDeTabla2].bitModificado) {
         int pagina = nroDeTabla2 * memoriaData->entradasPorTabla + entradaDeTabla2;
-        sleep(memoriaData->retardoSwap);
+        intervalo_de_pausa(memoriaData->retardoSwap);
         memcpy(memoriaData->inicio_archivo + memoriaData->tamanioPagina * pagina, memoriaData->memoriaPrincipal + marco * memoriaData->tamanioPagina, memoriaData->tamanioPagina);
         memoriaData->tablasDeNivel2[nroDeTabla2].entradaNivel2[entradaDeTabla2].bitPaginaEnSwap = true;
     }
@@ -77,12 +80,12 @@ void swap_out(int nroDeTabla2, int entradaDeTabla2, int marco, t_memoria_data_ho
 
 void swap_in(int nroDeTabla2, int entradaDeTabla2, int marco, t_memoria_data_holder* memoriaData) {
     memoriaData->tablasDeNivel2[nroDeTabla2].entradaNivel2[entradaDeTabla2].indiceMarco = marco;
-    memoriaData->tablasDeNivel2[nroDeTabla2].entradaNivel2[entradaDeTabla2].bitPresencia = 1;
-    memoriaData->tablasDeNivel2[nroDeTabla2].entradaNivel2[entradaDeTabla2].bitUso = 0;
-    memoriaData->tablasDeNivel2[nroDeTabla2].entradaNivel2[entradaDeTabla2].bitModificado = 0;
+    memoriaData->tablasDeNivel2[nroDeTabla2].entradaNivel2[entradaDeTabla2].bitPresencia = true;
+    memoriaData->tablasDeNivel2[nroDeTabla2].entradaNivel2[entradaDeTabla2].bitUso = false;
+    memoriaData->tablasDeNivel2[nroDeTabla2].entradaNivel2[entradaDeTabla2].bitModificado = false;
     if (memoriaData->tablasDeNivel2[nroDeTabla2].entradaNivel2[entradaDeTabla2].bitPaginaEnSwap) {
         int pagina = nroDeTabla2 * memoriaData->entradasPorTabla + entradaDeTabla2;
-        sleep(memoriaData->retardoSwap);
+        intervalo_de_pausa(memoriaData->retardoSwap);
         memcpy(memoriaData->memoriaPrincipal + marco * memoriaData->tamanioPagina, memoriaData->inicio_archivo + memoriaData->tamanioPagina * pagina, memoriaData->tamanioPagina);
     }
 }
@@ -109,12 +112,7 @@ bool pagina_en_memoria(uint32_t nroDeTabla2, uint32_t entradaDeTabla2, t_memoria
 }
 
 int obtener_pagina(uint32_t nroDeTabla2, uint32_t entradaDeTabla2, t_memoria_data_holder* memoriaData) {
-    return nroDeTabla2 * memoriaData->entradasPorTabla * memoriaData->entradasPorTabla + entradaDeTabla2;
-}
-
-void asignar_marco_a_pagina(int marco, uint32_t nroDeTabla2, uint32_t entradaDeTabla2, t_memoria_data_holder* memoriaData) {
-    memoriaData->tablasDeNivel2[nroDeTabla2].entradaNivel2[entradaDeTabla2].indiceMarco = marco;
-    memoriaData->tablasDeNivel2[nroDeTabla2].entradaNivel2[entradaDeTabla2].bitPresencia = true;
+    return nroDeTabla2 * memoriaData->entradasPorTabla + entradaDeTabla2;
 }
 
 int obtener_indice(int nroPagina, t_memoria_data_holder* memoriaData) {
