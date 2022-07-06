@@ -9,17 +9,16 @@
 extern t_tlb* tlb;
 
 /*
-|--------------------|--------------------|-------| ---------|
-| entradaTablaNivel1 | entradaTablaNivel2 | marco | instante |
-|--------------------|--------------------|-------| ---------|
-| 0                  | 1                  | 0     | 0        |
-| -1                 | -1                 | -1    | -1       |
-|        ...         |         ...        |  ...  | ...      |
+|--------------------|-------|----------|
+| Número página      | marco | instante |
+|--------------------|-------|----------|
+| 1                  | 0     | 0        |
+| -1                 | -1    | -1       |
+|         ...        |  ...  | ...      |
 */
 
 typedef struct {
-    int entradaTablaNivel1;
-    int entradaTablaNivel2;
+    int numeroPagina;
     int marco;
     int instanteDeTiempo;
 } t_entrada_tlb;
@@ -34,8 +33,7 @@ struct t_tlb {
 };
 
 static void __flush_entrada(t_tlb* self, int entrada) {
-    self->entradas[entrada].entradaTablaNivel1 = -1;
-    self->entradas[entrada].entradaTablaNivel2 = -1;
+    self->entradas[entrada].numeroPagina = -1;
     self->entradas[entrada].marco = -1;
     self->entradas[entrada].instanteDeTiempo = -1;
 }
@@ -69,8 +67,7 @@ static int __elegir_entrada_de_menor_instante_de_tiempo(t_tlb* self) {
 }
 
 static bool __es_entrada_libre(t_tlb* self, int entrada) {
-    return self->entradas[entrada].entradaTablaNivel1 == -1 &&
-           self->entradas[entrada].entradaTablaNivel2 == -1 &&
+    return self->entradas[entrada].numeroPagina == -1 &&
            self->entradas[entrada].marco == -1;
 }
 
@@ -83,7 +80,7 @@ static int __obtener_primer_entrada_libre(t_tlb* self) {
     return -1;
 }
 
-void tlb_registrar_entrada_en_tlb(t_tlb* self, uint32_t entradaTablaNivel1, uint32_t entradaTablaNivel2, uint32_t marco) {
+void tlb_registrar_entrada_en_tlb(t_tlb* self, uint32_t numeroPagina, uint32_t marco) {
     int indiceEntrada = -1;
     if (self->cantidadEntradasLibres > 0) {
         indiceEntrada = __obtener_primer_entrada_libre(self);
@@ -91,8 +88,7 @@ void tlb_registrar_entrada_en_tlb(t_tlb* self, uint32_t entradaTablaNivel1, uint
     } else {
         indiceEntrada = __elegir_entrada_de_menor_instante_de_tiempo(self);
     }
-    self->entradas[indiceEntrada].entradaTablaNivel1 = entradaTablaNivel1;
-    self->entradas[indiceEntrada].entradaTablaNivel2 = entradaTablaNivel2;
+    self->entradas[indiceEntrada].numeroPagina = numeroPagina;
     self->entradas[indiceEntrada].marco = marco;
     self->entradas[indiceEntrada].instanteDeTiempo = __obtener_y_actualizar_ultimo_instante(self);
 }
@@ -122,9 +118,9 @@ void tlb_flush(t_tlb* self) {
     self->cantidadEntradasLibres = self->cantidadEntradasTotales;
 }
 
-uint32_t tlb_get_marco(t_tlb* self, uint32_t entradaTablaNivel1, uint32_t entradaTablaNivel2) {
+int tlb_get_marco(t_tlb* self, uint32_t numeroPagina) {
     for (int i = 0; i < self->cantidadEntradasTotales; i++) {
-        if (self->entradas[i].entradaTablaNivel1 == entradaTablaNivel1 && self->entradas[i].entradaTablaNivel2 == entradaTablaNivel2) {
+        if (self->entradas[i].numeroPagina == numeroPagina) {
             self->actualizar_ultima_referencia(self, i);
             return self->entradas[i].marco;
         }

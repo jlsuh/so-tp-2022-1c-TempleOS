@@ -34,7 +34,7 @@ static uint32_t __solicitar(int toSocket, uint32_t numeroDeTabla, uint32_t entra
     return responseHeader;
 }
 
-static uint32_t __obtener_marco(int toSocket, uint32_t direccion, uint32_t numberoDeTabla1) {
+static uint32_t __obtener_marco(int toSocket, uint32_t direccion, uint32_t numeroDeTabla1) {
     int tamanioPagina = cpu_config_get_tamanio_pagina(cpuConfig);
     int entradasPorTabla = cpu_config_get_entradas_por_tabla(cpuConfig);
 
@@ -43,11 +43,11 @@ static uint32_t __obtener_marco(int toSocket, uint32_t direccion, uint32_t numbe
     uint32_t entradaTablaNivel2 = numeroPagina % entradasPorTabla;
     uint32_t offset = direccion - numeroPagina * tamanioPagina;
 
-    int marco = tlb_get_marco(tlb, entradaTablaNivel1, entradaTablaNivel2);
+    int marco = tlb_get_marco(tlb, numeroPagina);
     if (marco < 0) {
-        uint32_t numeroDeTabla2 = __solicitar(toSocket, numberoDeTabla1, entradaTablaNivel1, HEADER_tabla_nivel_2);
+        uint32_t numeroDeTabla2 = __solicitar(toSocket, numeroDeTabla1, entradaTablaNivel1, HEADER_tabla_nivel_2);
         marco = __solicitar(toSocket, numeroDeTabla2, entradaTablaNivel2, HEADER_marco);
-        tlb_registrar_entrada_en_tlb(tlb, entradaTablaNivel1, entradaTablaNivel2, marco);
+        tlb_registrar_entrada_en_tlb(tlb, numeroPagina, marco);
     }
     return marco + offset;
 }
