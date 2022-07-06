@@ -1,3 +1,5 @@
+#include "cpu_memoria_cliente.h"
+
 #include <stdint.h>
 #include <stdlib.h>
 

@@ -41,7 +41,8 @@ static uint32_t cpu_fetch_operands(t_instruccion* nextInstruction, t_cpu_pcb* pc
     // Llegamos acá solamente en caso de INSTRUCCION_copy
     uint32_t direccionLogicaOrigen = instruccion_get_operando2(nextInstruction);
     // TODO: Descomentar esto cuando se acople memoria
-    uint32_t fetchedValue = leer_en_memoria(direccionLogicaOrigen, cpu_pcb_get_tabla_pagina_primer_nivel(pcb));
+    printf("CPU tabla página primer nivel en CPU_fetch_operands: %d\n", cpu_pcb_get_tabla_pagina_primer_nivel(pcb));
+    uint32_t fetchedValue = leer_en_memoria(cpu_config_get_socket_memoria(cpuConfig), direccionLogicaOrigen, cpu_pcb_get_tabla_pagina_primer_nivel(pcb));
     // Entonces, ahora la INSTRUCCION_copy se degrada en una INSTRUCCION_write, debido a que ya tenemos el valor a escribir en la dirección destino en operando2
     log_info(cpuLogger, "FETCH OPERANDS: PCB <ID %d> COPY <DL Destino: %d> <DL Origen: %d> => Fetched Value: %d", cpu_pcb_get_pid(pcb), instruccion_get_operando1(nextInstruction), direccionLogicaOrigen, fetchedValue);
     return fetchedValue;
@@ -76,7 +77,8 @@ static bool cpu_exec_instruction(t_cpu_pcb* pcb, t_tipo_instruccion tipoInstrucc
         shouldStopExec = true;
     } else if (tipoInstruccion == INSTRUCCION_read) {
         // TODO: Descomentar esto cuando se acople memoria
-        uint32_t readValue = leer_en_memoria(operando1, cpu_pcb_get_tabla_pagina_primer_nivel(pcb));
+        printf("CPU tabla página primer nivel en INSTRUCCION_read: %d\n", cpu_pcb_get_tabla_pagina_primer_nivel(pcb));
+        uint32_t readValue = leer_en_memoria(cpu_config_get_socket_memoria(cpuConfig), operando1, cpu_pcb_get_tabla_pagina_primer_nivel(pcb));
         log_info(cpuLogger, "EXEC: PCB <ID %d> READ <DL: %d> => Read Value: %d", cpu_pcb_get_pid(pcb), operando1, readValue);
     } else if (tipoInstruccion == INSTRUCCION_write) {
         shouldWrite = true;
@@ -100,7 +102,8 @@ static bool cpu_exec_instruction(t_cpu_pcb* pcb, t_tipo_instruccion tipoInstrucc
 
     if (shouldWrite) {
         // TODO: Descomentar esto cuando se acople memoria
-        escribir_en_memoria(operando1, cpu_pcb_get_tabla_pagina_primer_nivel(pcb), operando2);
+        printf("CPU tabla página primer nivel en ESCRIBIR EN MEMORIA: %d\n", cpu_pcb_get_tabla_pagina_primer_nivel(pcb));
+        escribir_en_memoria(cpu_config_get_socket_memoria(cpuConfig), operando1, cpu_pcb_get_tabla_pagina_primer_nivel(pcb), operando2);
         log_info(cpuLogger, "%s", logMsg);
         free(logMsg);
     }
