@@ -9,15 +9,20 @@
 #include "common_flags.h"
 #include "common_utils.h"
 #include "cpu_config.h"
+#include "cpu_memoria_cliente.h"
 #include "cpu_pcb.h"
 #include "instruccion.h"
 #include "stream.h"
+#include "tlb.h"
+
+extern t_tlb* tlb;
 
 extern t_cpu_config* cpuConfig;
 extern t_log* cpuLogger;
 
 static bool hayInterrupcion;
 static pthread_mutex_t mutexInterrupcion;
+static int pidProcesoEnExec;
 
 static t_instruccion* cpu_fetch_instruction(t_cpu_pcb* pcb) {
     t_list* instructionsList = cpu_pcb_get_instrucciones(pcb);
@@ -36,9 +41,8 @@ static uint32_t cpu_fetch_operands(t_instruccion* nextInstruction, t_cpu_pcb* pc
     // Llegamos acá solamente en caso de INSTRUCCION_copy
     uint32_t direccionLogicaOrigen = instruccion_get_operando2(nextInstruction);
     // TODO: Descomentar esto cuando se acople memoria
-    // uint32_t fetchedValue = leer_en_memoria(direccionLogicaOrigen, cpu_pcb_get_tabla_pagina_primer_nivel(pcb)); Se abstrae de memoria por ahora
+    uint32_t fetchedValue = leer_en_memoria(direccionLogicaOrigen, cpu_pcb_get_tabla_pagina_primer_nivel(pcb));
     // Entonces, ahora la INSTRUCCION_copy se degrada en una INSTRUCCION_write, debido a que ya tenemos el valor a escribir en la dirección destino en operando2
-    uint32_t fetchedValue = 2;
     log_info(cpuLogger, "FETCH OPERANDS: PCB <ID %d> COPY <DL Destino: %d> <DL Origen: %d> => Fetched Value: %d", cpu_pcb_get_pid(pcb), instruccion_get_operando1(nextInstruction), direccionLogicaOrigen, fetchedValue);
     return fetchedValue;
 }
@@ -72,8 +76,7 @@ static bool cpu_exec_instruction(t_cpu_pcb* pcb, t_tipo_instruccion tipoInstrucc
         shouldStopExec = true;
     } else if (tipoInstruccion == INSTRUCCION_read) {
         // TODO: Descomentar esto cuando se acople memoria
-        // uint32_t readValue = leer_en_memoria(operando1, cpu_pcb_get_tabla_pagina_primer_nivel(pcb)); Se abstrae de memoria por ahora
-        uint32_t readValue = 3;
+        uint32_t readValue = leer_en_memoria(operando1, cpu_pcb_get_tabla_pagina_primer_nivel(pcb));
         log_info(cpuLogger, "EXEC: PCB <ID %d> READ <DL: %d> => Read Value: %d", cpu_pcb_get_pid(pcb), operando1, readValue);
     } else if (tipoInstruccion == INSTRUCCION_write) {
         shouldWrite = true;
@@ -97,7 +100,7 @@ static bool cpu_exec_instruction(t_cpu_pcb* pcb, t_tipo_instruccion tipoInstrucc
 
     if (shouldWrite) {
         // TODO: Descomentar esto cuando se acople memoria
-        // escribir_en_memoria(operando1, cpu_pcb_get_tabla_pagina_primer_nivel(pcb), operando2); Se abstrae de memoria por ahora
+        escribir_en_memoria(operando1, cpu_pcb_get_tabla_pagina_primer_nivel(pcb), operando2);
         log_info(cpuLogger, "%s", logMsg);
         free(logMsg);
     }
@@ -168,6 +171,10 @@ static void noreturn dispatch_peticiones_de_kernel(void) {
             buffer_unpack(bufferPcb, &tablaPags, sizeof(tablaPags));
             buffer_destroy(bufferPcb);
 
+            if (pidRecibido != pidProcesoEnExec) {
+                tlb_flush(tlb);
+            }
+
             pcb = cpu_pcb_create(pidRecibido, programCounter, tablaPags);
             kernelResponse = stream_recv_header(cpu_config_get_socket_dispatch(cpuConfig));
             if (kernelResponse == HEADER_lista_instrucciones) {
@@ -208,7 +215,15 @@ static void noreturn interrupt_peticiones_de_kernel(void) {
     }
 }
 
+void __inicializar_kernel_server(void) {
+    hayInterrupcion = false;
+    pthread_mutex_init(&mutexInterrupcion, NULL);
+    pidProcesoEnExec = -1;
+}
+
 void atender_peticiones_de_kernel(void) {
+    __inicializar_kernel_server();
+
     pthread_t interruptTh;
     pthread_create(&interruptTh, NULL, (void*)interrupt_peticiones_de_kernel, NULL);
     pthread_detach(interruptTh);

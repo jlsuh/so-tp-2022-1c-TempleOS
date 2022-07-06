@@ -1,10 +1,10 @@
 #include "memoria_config.h"
 
-#include "module_config.h"
-
 #include <commons/config.h>
 #include <stdlib.h>
 #include <string.h>
+
+#include "module_config.h"
 
 struct t_memoria_config {
     char* IP_ESCUCHA;
@@ -75,34 +75,42 @@ int memoria_config_get_cpu_socket(t_memoria_config* self) {
     return self->CPU_SOCKET;
 }
 
-int memoria_config_get_tamanio_memoria(t_memoria_config* self){
+int memoria_config_get_tamanio_memoria(t_memoria_config* self) {
     return self->TAM_MEMORIA;
 }
 
-int memoria_config_get_tamanio_pagina(t_memoria_config* self){
+int memoria_config_get_tamanio_pagina(t_memoria_config* self) {
     return self->TAM_PAGINA;
 }
 
-int memoria_config_get_marcos_por_proceso(t_memoria_config* self){
+int memoria_config_get_marcos_por_proceso(t_memoria_config* self) {
     return self->MARCOS_POR_PROCESO;
 }
 
-int memoria_config_get_entradas_por_tabla(t_memoria_config* self){
+int memoria_config_get_entradas_por_tabla(t_memoria_config* self) {
     return self->ENTRADAS_POR_TABLA;
 }
 
-char* memoria_config_get_path_swap(t_memoria_config* self){
+char* memoria_config_get_path_swap(t_memoria_config* self) {
     return self->PATH_SWAP;
 }
 
-int memoria_config_get_retardo_swap(t_memoria_config* self){
+int memoria_config_get_retardo_swap(t_memoria_config* self) {
     return self->RETARDO_SWAP;
 }
 
-int memoria_config_get_marcos_totales(t_memoria_config* self){
+int memoria_config_get_marcos_totales(t_memoria_config* self) {
     return self->TAM_MEMORIA / self->TAM_PAGINA;
 }
 
-int memoria_config_get_procesos_totales(t_memoria_config* self){
+int memoria_config_get_procesos_totales(t_memoria_config* self) {
     return self->TAM_MEMORIA / (self->TAM_PAGINA * self->MARCOS_POR_PROCESO);
+}
+
+bool memoria_config_es_algoritmo_sustitucion_clock(t_memoria_config* self) {
+    return strcmp(self->ALGORITMO_REEMPLAZO, "CLOCK") == 0;
+}
+
+bool memoria_config_es_algoritmo_sustitucion_clock_modificado(t_memoria_config* self) {
+    return strcmp(self->ALGORITMO_REEMPLAZO, "CLOCK-M") == 0;
 }

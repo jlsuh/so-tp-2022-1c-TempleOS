@@ -25,11 +25,17 @@ void abrir_archivo(uint32_t tamanio, int nroTablaNivel1, t_memoria_data_holder m
 
 void crear_archivo_de_proceso(uint32_t tamanio, int nroTablaNivel1, t_memoria_data_holder memoriaData) {
     abrir_archivo(tamanio, nroTablaNivel1, memoriaData);
-    memset(memoriaData.inicio_archivo, '\0', tamanio);
+    memset(memoriaData.inicio_archivo, '\0', tamanio); //TODO esta generando problemas en runtime
     cerrar_archivo(memoriaData);
 }
 
 void cerrar_archivo(t_memoria_data_holder memoriaData) {
     free(memoriaData.inicio_archivo);
     close(memoriaData.archivo_swap);
+}
+
+void eliminar_archivo_de_proceso(int nroTablaNivel1, t_memoria_data_holder memoriaData){
+    char* pathArchivo = string_from_format("%s/%d.swap", memoriaData.pathSwap, nroTablaNivel1);
+    if(remove(pathArchivo) == -1)
+        perror("Error in deleting a file");
 }
