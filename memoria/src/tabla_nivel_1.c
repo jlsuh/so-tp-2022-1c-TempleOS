@@ -13,13 +13,15 @@ struct t_tabla_nivel_1 {
 };
 
 t_tabla_nivel_1* crear_tablas_de_nivel_1(t_memoria_data_holder* memoriaData) {
-    int cantidadProcesosMax = memoriaData->cantidadMarcosProceso;
+    int cantidadProcesosMax = memoriaData->cantidadProcesosMax;
     int cantidadMarcosProceso = memoriaData->cantidadMarcosProceso;
     int entradasPorTabla = memoriaData->entradasPorTabla;
 
     t_tabla_nivel_1* tablasDeNivel1 = malloc(cantidadProcesosMax * sizeof(t_tabla_nivel_1));
     int contadorTablaNivel2 = 0;
     int contadorMarcos = 0;
+
+    log_info(memoriaData->memoriaLogger, "\e[1;93mSe crean las tablas de nivel 1\e[0m");
     for (int i = 0; i < cantidadProcesosMax; i++) {
         tablasDeNivel1[i].nroTablaNivel2 = malloc(entradasPorTabla * sizeof(int));
         tablasDeNivel1[i].marcos = malloc(cantidadMarcosProceso * sizeof(int));
@@ -35,6 +37,8 @@ t_tabla_nivel_1* crear_tablas_de_nivel_1(t_memoria_data_holder* memoriaData) {
             contadorMarcos++;
         }
     }
+    log_info(memoriaData->memoriaLogger, "Se creó %d tablas con %d marcos y %d entradas de paginas", cantidadProcesosMax, cantidadMarcosProceso, entradasPorTabla);
+
     return tablasDeNivel1;
 }
 
@@ -172,7 +176,7 @@ int obtener_puntero(uint32_t nroTablaNivel1, t_memoria_data_holder* memoriaData)
     return puntero;
 }
 
-void actualizar_puntero(uint32_t nroTablaNivel1, int puntero, t_memoria_data_holder* memoriaData){
+void actualizar_puntero(uint32_t nroTablaNivel1, int puntero, t_memoria_data_holder* memoriaData) {
     for (int i = 0; i < memoriaData->cantidadProcesosMax; i++) {
         if (memoriaData->tablasDeNivel1[i].id == nroTablaNivel1) {
             memoriaData->tablasDeNivel1[i].puntero = puntero;

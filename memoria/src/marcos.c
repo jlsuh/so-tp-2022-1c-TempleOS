@@ -12,11 +12,14 @@ struct t_marcos {
 t_marcos* crear_marcos(t_memoria_data_holder* memoriaData) {
     int cantTotalMarcos = memoriaData->cantidadMarcosMax;
 
+    log_info(memoriaData->memoriaLogger, "\e[1;93mSe crean los marcos\e[0m");
     t_marcos* marcos = malloc(cantTotalMarcos * sizeof(*marcos));
     for (int i = 0; i < cantTotalMarcos; i++) {
         marcos[i].enUso = false;
         marcos[i].pagina = -1;
     }
+    log_info(memoriaData->memoriaLogger, "Se creó %d marcos", cantTotalMarcos);
+
     return marcos;
 }
 

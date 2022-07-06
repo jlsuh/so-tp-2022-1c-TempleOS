@@ -71,7 +71,7 @@ uint32_t leer_en_memoria(int toSocket, uint32_t direccionALeer, uint32_t numbero
     t_buffer *requestBuffer = buffer_create();
     uint32_t marcoAEnviar = marco;
     buffer_pack(requestBuffer, &marcoAEnviar, sizeof(marcoAEnviar));
-    stream_send_buffer(toSocket, HEADER_write, requestBuffer);
+    stream_send_buffer(toSocket, HEADER_read, requestBuffer);
     buffer_destroy(requestBuffer);
 
     uint32_t responseHeader = stream_recv_header(toSocket);
@@ -80,6 +80,7 @@ uint32_t leer_en_memoria(int toSocket, uint32_t direccionALeer, uint32_t numbero
         exit(-1);
     }
     t_buffer *responseBuffer = buffer_create();
+    stream_recv_buffer(toSocket, responseBuffer);
     uint32_t contenidoLeido = -1;
     buffer_unpack(responseBuffer, &contenidoLeido, sizeof(contenidoLeido));
     buffer_destroy(responseBuffer);

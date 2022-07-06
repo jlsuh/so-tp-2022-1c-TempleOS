@@ -37,7 +37,7 @@ int main(int argc, char* argv[]) {
     memoriaData->memoriaConfig = memoria_config_create(MEMORIA_CONFIG_PATH, memoriaData->memoriaLogger);
 
     int socketEscucha = iniciar_servidor(memoria_config_get_ip_escucha(memoriaData->memoriaConfig), memoria_config_get_puerto_escucha(memoriaData->memoriaConfig));
-    log_info(memoriaData->memoriaLogger, "Memoria(%s): A la escucha de Kernel y CPU en puerto %d", __FILE__, socketEscucha);
+    log_info(memoriaData->memoriaLogger, "\e[1;92mA la escucha de Kernel y CPU en puerto %d\e[0m", socketEscucha);
 
     int tamanioMemoria = memoria_config_get_tamanio_memoria(memoriaData->memoriaConfig);
     memoriaData->memoriaPrincipal = malloc(tamanioMemoria);
@@ -56,14 +56,12 @@ int main(int argc, char* argv[]) {
     int paginasPorProceso = memoriaData->entradasPorTabla * memoriaData->entradasPorTabla;
     memoriaData->tamanioMaxArchivo = paginasPorProceso * memoriaData->tamanioPagina;
 
-    printf("Path swap: %s\n", memoriaData->pathSwap);
-
     if (memoria_config_es_algoritmo_sustitucion_clock(memoriaData->memoriaConfig)) {
         memoriaData->seleccionar_victima = seleccionar_victima_clock;
     } else if (memoria_config_es_algoritmo_sustitucion_clock_modificado(memoriaData->memoriaConfig)) {
         memoriaData->seleccionar_victima = seleccionar_victima_clock_modificado;
     } else {
-        log_error(memoriaData->memoriaLogger, "Memoria(%s): No se reconocio el algoritmo de sustitucion", __FILE__);
+        log_error(memoriaData->memoriaLogger, "No se reconocio el algoritmo de sustitucion");
         exit(-1);
     }
 
@@ -106,12 +104,12 @@ void* __recibir_conexion(int socketEscucha, int* socketCliente, pthread_t* threa
 
     void* (*funcion_suscripcion)(void*) = NULL;
     if (handshake == HANDSHAKE_cpu && cpuSinAtender) {
-        log_info(memoriaData->memoriaLogger, "Se acepta conexión de CPU en socket %d", *socketCliente);
+        log_info(memoriaData->memoriaLogger, "\e[1;92mSe acepta conexión de CPU en socket [%d]\e[0m", *socketCliente);
         stream_send_empty_buffer(*socketCliente, HANDSHAKE_ok_continue);
         funcion_suscripcion = escuchar_peticiones_cpu;
         cpuSinAtender = false;
     } else if (handshake == HANDSHAKE_kernel && kernelSinAtender) {
-        log_info(memoriaData->memoriaLogger, "Se acepta conexión de Kernel en socket %d", *socketCliente);
+        log_info(memoriaData->memoriaLogger, "\e[1;92mSe acepta conexión de Kernel en socket [%d]\e[0m", *socketCliente);
         stream_send_empty_buffer(*socketCliente, HANDSHAKE_ok_continue);
         funcion_suscripcion = escuchar_peticiones_kernel;
         kernelSinAtender = false;

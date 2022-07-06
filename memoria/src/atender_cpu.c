@@ -65,7 +65,7 @@ void* escuchar_peticiones_cpu(void* socketCpu) {
     int socket = *(int*)socketCpu;
     // free(socketCpu);
 
-    uint32_t header, direccionFisica, direccionFisicaOrigen, valor;
+    uint32_t header, direccionFisica, valor;
     t_buffer* buffer;
 
     for (;;) {
@@ -75,6 +75,7 @@ void* escuchar_peticiones_cpu(void* socketCpu) {
 
         switch (header) {
             case HEADER_read:
+                log_info(memoriaData->memoriaLogger, "\e[1;93mPetición de lectura\e[0m");
                 buffer_unpack(buffer, &direccionFisica, sizeof(direccionFisica));
 
                 memcpy(&valor, memoriaPrincipal + direccionFisica, sizeof(valor));
@@ -86,33 +87,29 @@ void* escuchar_peticiones_cpu(void* socketCpu) {
 
                 __actualizar_pagina(direccionFisica, false, memoriaData);
 
+                log_info(memoriaData->memoriaLogger, "Se envió el valor [%d] de la dirección física [%d]", valor, direccionFisica);
                 break;
             case HEADER_write:
+                log_info(memoriaData->memoriaLogger, "\e[1;93mPetición de escritura\e[0m");
                 buffer_unpack(buffer, &direccionFisica, sizeof(direccionFisica));
                 buffer_unpack(buffer, &valor, sizeof(valor));
 
                 memcpy(memoriaPrincipal + direccionFisica, &valor, sizeof(valor));
 
                 __actualizar_pagina(direccionFisica, true, memoriaData);
-                break;
-            case HEADER_copy:
-                buffer_unpack(buffer, &direccionFisica, sizeof(direccionFisica));
-                buffer_unpack(buffer, &direccionFisicaOrigen, sizeof(direccionFisicaOrigen));
 
-                memcpy(memoriaPrincipal + direccionFisica, memoriaPrincipal + direccionFisicaOrigen, sizeof(uint32_t));
-
-                __actualizar_pagina(direccionFisica, true, memoriaData);
-                __actualizar_pagina(direccionFisicaOrigen, false, memoriaData);
+                log_info(memoriaData->memoriaLogger, "Se escribio el valor [%d] en la dirección física [%d]", *((uint32_t*) (memoriaPrincipal + direccionFisica)), direccionFisica);
                 break;
             case HEADER_tabla_nivel_2: {
+                log_info(memoriaData->memoriaLogger, "\e[1;93mPetición de tabla nivel 2\e[0m");
                 uint32_t nroDeTabla1, entradaDeTabla1;
                 buffer_unpack(buffer, &nroDeTabla1, sizeof(nroDeTabla1));
                 buffer_unpack(buffer, &entradaDeTabla1, sizeof(entradaDeTabla1));
-
-                log_info(memoriaData->memoriaLogger, "Se recibe numero de tabla 1: %d, entrada de tabla 1: %d", nroDeTabla1, entradaDeTabla1);
+                log_info(memoriaData->memoriaLogger, "Se recibe ID [%d] de tabla 1 con la entrada [%d]", nroDeTabla1, entradaDeTabla1);
 
                 int nroDeTabla2 = obtener_tabla_de_nivel_2(nroDeTabla1, entradaDeTabla1, memoriaData);
                 if (nroDeTabla2 == -1) {
+                log_info(memoriaData->memoriaLogger, "\e[1;92mProceso suspendido, se procede a despertar\e[0m");
                     despertar_proceso(nroDeTabla1, memoriaData);
                     nroDeTabla2 = obtener_tabla_de_nivel_2(nroDeTabla1, entradaDeTabla1, memoriaData);
                 }
@@ -124,9 +121,11 @@ void* escuchar_peticiones_cpu(void* socketCpu) {
                 stream_send_buffer(socket, HEADER_tabla_nivel_2, buffer_rta);
                 buffer_destroy(buffer_rta);
 
+                log_info(memoriaData->memoriaLogger, "Se enviá la tabla nivel 2 con ID [%d]", nroDeTabla2send);
                 break;
             }
             case HEADER_marco: {
+                log_info(memoriaData->memoriaLogger, "\e[1;93mPetición de marco\e[0m");
                 uint32_t nroDeTabla2, entradaDeTabla2;
                 buffer_unpack(buffer, &nroDeTabla2, sizeof(nroDeTabla2));
                 buffer_unpack(buffer, &entradaDeTabla2, sizeof(entradaDeTabla2));
@@ -139,6 +138,7 @@ void* escuchar_peticiones_cpu(void* socketCpu) {
                 stream_send_buffer(socket, HEADER_marco, buffer_rta);
                 buffer_destroy(buffer_rta);
 
+                log_info(memoriaData->memoriaLogger, "Se enviá la dirección física [%d]", marco);
                 break;
             }
             default:

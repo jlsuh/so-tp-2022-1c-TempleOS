@@ -35,6 +35,7 @@ t_tabla_nivel_2* crear_tablas_de_nivel_2(t_memoria_data_holder* memoriaData) {
 
     t_tabla_nivel_2* tablasDeNivel2 = malloc(cantidadTablasNivel2Max * sizeof(*tablasDeNivel2));
 
+    log_info(memoriaData->memoriaLogger, "\e[1;93mSe crean las tablas de nivel 2\e[0m");
     for (int i = 0; i < cantidadTablasNivel2Max; i++) {
         tablasDeNivel2[i].entradaNivel2 = malloc(entradasPorTabla * sizeof(t_entrada_nivel_2));
         for (int j = 0; j < entradasPorTabla; j++) {
@@ -45,6 +46,7 @@ t_tabla_nivel_2* crear_tablas_de_nivel_2(t_memoria_data_holder* memoriaData) {
             tablasDeNivel2[i].entradaNivel2[j].bitPaginaEnSwap = false;
         }
     }
+    log_info(memoriaData->memoriaLogger, "Se creó %d tablas con %d entradas de paginas", cantidadTablasNivel2Max, entradasPorTabla);
     return tablasDeNivel2;
 }
 
@@ -138,7 +140,6 @@ bool obtener_bit_pagina_en_swap(int nroDeTabla2, int entradaDeTabla2, t_memoria_
 void setear_bit_pagina_en_swap(int nroDeTabla2, int entradaDeTabla2, bool bitPaginaEnSwap, t_memoria_data_holder* memoriaData) {
     memoriaData->tablasDeNivel2[nroDeTabla2].entradaNivel2[entradaDeTabla2].bitPaginaEnSwap = bitPaginaEnSwap;
 }
-
 
 void setear_bit_uso(int nroPagina, bool bitUso, t_memoria_data_holder* memoriaData) {
     int entrada = __obtener_entrada(nroPagina, memoriaData);

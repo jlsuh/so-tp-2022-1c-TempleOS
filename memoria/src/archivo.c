@@ -12,7 +12,6 @@
 #include <unistd.h>
 
 void abrir_archivo(uint32_t tamanio, int nroTablaNivel1, t_memoria_data_holder* memoriaData) {
-    printf("Path swap: %s\n", memoriaData->pathSwap);
     char* pathArchivo = string_from_format("%s/%d.swap", memoriaData->pathSwap, nroTablaNivel1);
     memoriaData->archivo_swap = open(pathArchivo, O_RDWR | O_CREAT, S_IRUSR | S_IWUSR);
     if (memoriaData->archivo_swap == -1) {
