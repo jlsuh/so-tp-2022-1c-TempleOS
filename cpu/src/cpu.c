@@ -16,7 +16,7 @@
 #define CPU_LOG_PATH "bin/cpu.log"
 #define CPU_MODULE_NAME "CPU"
 
-t_tlb* tlb;
+extern t_tlb* tlb;
 
 extern t_log* cpuLogger;
 extern t_cpu_config* cpuConfig;
