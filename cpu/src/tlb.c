@@ -8,11 +8,11 @@
 
 extern t_tlb* tlb;
 
-typedef struct {
+struct t_entrada_tlb {
     int numeroPagina;
     int marco;
     int instanteDeTiempo;
-} t_entrada_tlb;
+};
 
 struct t_tlb {
     uint32_t cantidadEntradasTotales;
@@ -102,11 +102,18 @@ t_tlb* tlb_create(uint32_t cantidadDeEntradas, char* algoritmoReemplazo) {
     return self;
 }
 
+void tlb_destroy(t_tlb* self) {
+    free(self->algoritmoReemplazo);
+    free(self->entradas);
+    free(self);
+}
+
 void tlb_flush(t_tlb* self) {
     for (int i = 0; i < self->cantidadEntradasTotales; i++) {
         __flush_entrada(self, i);
     }
     self->cantidadEntradasLibres = self->cantidadEntradasTotales;
+    puts("Se flushean las entradas de la TLB");
 }
 
 int tlb_get_marco(t_tlb* self, uint32_t numeroPagina) {
@@ -117,4 +124,24 @@ int tlb_get_marco(t_tlb* self, uint32_t numeroPagina) {
         }
     }
     return -1;
+}
+
+uint32_t tlb_get_cantidad_entradas_totales(t_tlb* self) {
+    return self->cantidadEntradasTotales;
+}
+
+char* tlb_get_algoritmo_reemplazo(t_tlb* self) {
+    return self->algoritmoReemplazo;
+}
+
+int entrada_tlb_get_numero_pagina(t_tlb* self, uint32_t index) {
+    return self->entradas[index].numeroPagina;
+}
+
+int entrada_tlb_get_marco(t_tlb* self, uint32_t index) {
+    return self->entradas[index].marco;
+}
+
+int entrada_tlb_get_instante_de_tiempo(t_tlb* self, uint32_t index) {
+    return self->entradas[index].instanteDeTiempo;
 }
