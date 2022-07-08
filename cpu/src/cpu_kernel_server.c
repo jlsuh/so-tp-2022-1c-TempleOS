@@ -176,6 +176,7 @@ static void noreturn dispatch_peticiones_de_kernel(void) {
 
             if (pidRecibido != pidProcesoEnExec) {
                 tlb_flush(tlb);
+                pidProcesoEnExec = pidRecibido;
             }
 
             pcb = cpu_pcb_create(pidRecibido, programCounter, tablaPags);

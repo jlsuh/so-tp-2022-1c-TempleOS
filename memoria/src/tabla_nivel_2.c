@@ -7,6 +7,7 @@
 #include <unistd.h>
 
 #include "common_utils.h"
+#include "marcos.h"
 
 typedef struct
 {
@@ -22,7 +23,7 @@ struct t_tabla_nivel_2 {
 };
 
 int __obtener_tabla2(int nroPagina, t_memoria_data_holder* memoriaData) {
-    return nroPagina / (memoriaData->entradasPorTabla * memoriaData->entradasPorTabla);
+    return nroPagina / memoriaData->entradasPorTabla;
 }
 
 int __obtener_entrada(int nroPagina, t_memoria_data_holder* memoriaData) {
@@ -69,25 +70,38 @@ void actualizar_lectura_pagina(int nroPagina, int nroTablaNivel2, t_memoria_data
 }
 
 void swap_out(int nroDeTabla2, int entradaDeTabla2, int marco, t_memoria_data_holder* memoriaData) {
+    log_info(memoriaData->memoriaLogger, "\e[1;93mSe realiza un swap out\e[0m");
     memoriaData->tablasDeNivel2[nroDeTabla2].entradaNivel2[entradaDeTabla2].bitPresencia = false;
+    int pagina = nroDeTabla2 * memoriaData->entradasPorTabla + entradaDeTabla2;
     if (memoriaData->tablasDeNivel2[nroDeTabla2].entradaNivel2[entradaDeTabla2].bitModificado) {
-        int pagina = nroDeTabla2 * memoriaData->entradasPorTabla + entradaDeTabla2;
+        int puntero = obtener_indice(pagina, memoriaData);
         intervalo_de_pausa(memoriaData->retardoSwap);
-        memcpy(memoriaData->inicio_archivo + memoriaData->tamanioPagina * pagina, memoriaData->memoriaPrincipal + marco * memoriaData->tamanioPagina, memoriaData->tamanioPagina);
+        memcpy((void*)(memoriaData->inicio_archivo + memoriaData->tamanioPagina * puntero), (void*)(memoriaData->memoriaPrincipal + marco * memoriaData->tamanioPagina), memoriaData->tamanioPagina);
         memoriaData->tablasDeNivel2[nroDeTabla2].entradaNivel2[entradaDeTabla2].bitPaginaEnSwap = true;
+
+        log_info(memoriaData->memoriaLogger, "<\e[0;96m(Acceso a disco)\e[0m> Se escribió en disco la <\e[1;95mpágina global [%d]\e[0m> con <\e[1;95mmarco [%d]\e[0m> <Bit Modificado = 1>", pagina, marco);
+    } else {
+        log_info(memoriaData->memoriaLogger, "La <\e[1;95mpágina global [%d]\e[0m> con <\e[1;95mmarco [%d]\e[0m> no se encuentra modificada <Bit Modificado = 0>", pagina, marco);
     }
+    asignar_pagina_a_marco(-1, marco, memoriaData);
 }
 
 void swap_in(int nroDeTabla2, int entradaDeTabla2, int marco, t_memoria_data_holder* memoriaData) {
+    log_info(memoriaData->memoriaLogger, "\e[1;93mSe realiza un swap in\e[0m");
     memoriaData->tablasDeNivel2[nroDeTabla2].entradaNivel2[entradaDeTabla2].indiceMarco = marco;
     memoriaData->tablasDeNivel2[nroDeTabla2].entradaNivel2[entradaDeTabla2].bitPresencia = true;
     memoriaData->tablasDeNivel2[nroDeTabla2].entradaNivel2[entradaDeTabla2].bitUso = false;
     memoriaData->tablasDeNivel2[nroDeTabla2].entradaNivel2[entradaDeTabla2].bitModificado = false;
+    int pagina = nroDeTabla2 * memoriaData->entradasPorTabla + entradaDeTabla2;
     if (memoriaData->tablasDeNivel2[nroDeTabla2].entradaNivel2[entradaDeTabla2].bitPaginaEnSwap) {
-        int pagina = nroDeTabla2 * memoriaData->entradasPorTabla + entradaDeTabla2;
+        int puntero = obtener_indice(pagina, memoriaData);
         intervalo_de_pausa(memoriaData->retardoSwap);
-        memcpy(memoriaData->memoriaPrincipal + marco * memoriaData->tamanioPagina, memoriaData->inicio_archivo + memoriaData->tamanioPagina * pagina, memoriaData->tamanioPagina);
+        memcpy((void*)(memoriaData->memoriaPrincipal + marco * memoriaData->tamanioPagina), (void*)(memoriaData->inicio_archivo + memoriaData->tamanioPagina * puntero), memoriaData->tamanioPagina);
+        log_info(memoriaData->memoriaLogger, "<\e[0;96m(Acceso a disco)\e[0m> Se trae de disco la <\e[1;95mpágina global [%d]\e[0m> al <\e[1;95mmarco [%d]\e[0m> <Bit Página en Swap = 1>", pagina, marco);
+    } else {
+        log_info(memoriaData->memoriaLogger, "La <\e[1;95mpágina global [%d]\e[0m> no tiene datos en disco para escribir en <\e[1;95mmarco [%d]\e[0m> <Bit Página en Swap = 0>", pagina, marco);
     }
+    asignar_pagina_a_marco(pagina, marco, memoriaData);
 }
 
 void limpiar_tabla_nivel_2(int nroDeTabla2, t_memoria_data_holder* memoriaData) {
@@ -116,7 +130,7 @@ int obtener_pagina(uint32_t nroDeTabla2, uint32_t entradaDeTabla2, t_memoria_dat
 }
 
 int obtener_indice(int nroPagina, t_memoria_data_holder* memoriaData) {
-    return __obtener_entrada(nroPagina, memoriaData);
+    return nroPagina % (memoriaData->entradasPorTabla * memoriaData->entradasPorTabla);
 }
 
 bool obtener_bit_uso(int nroPagina, t_memoria_data_holder* memoriaData) {

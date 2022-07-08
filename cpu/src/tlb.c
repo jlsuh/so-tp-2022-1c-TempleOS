@@ -76,8 +76,10 @@ void tlb_registrar_entrada_en_tlb(t_tlb* self, uint32_t numeroPagina, uint32_t m
     if (self->cantidadEntradasLibres > 0) {
         indiceEntrada = __obtener_primer_entrada_libre(self);
         self->cantidadEntradasLibres -= 1;
+        printf("\e[1;92mTLB: Se registra en <entrada %d>: <página: %d, marco: %d, instante de tiempo: %d>\e[0m\n", indiceEntrada, numeroPagina, marco, self->entradas[indiceEntrada].instanteDeTiempo);
     } else {
         indiceEntrada = __elegir_entrada_de_menor_instante_de_tiempo(self);
+        printf("\e[1;92mTLB: Se elige como víctima <entrada %d>: <página: %d, marco: %d, instante de tiempo: %d>\e[0m\n", indiceEntrada, numeroPagina, marco, self->entradas[indiceEntrada].instanteDeTiempo);
     }
     self->entradas[indiceEntrada].numeroPagina = numeroPagina;
     self->entradas[indiceEntrada].marco = marco;
@@ -113,16 +115,18 @@ void tlb_flush(t_tlb* self) {
         __flush_entrada(self, i);
     }
     self->cantidadEntradasLibres = self->cantidadEntradasTotales;
-    puts("Se flushean las entradas de la TLB");
+    puts("\e[1;92mSe flushean las entradas de la TLB\e[0m");
 }
 
 int tlb_get_marco(t_tlb* self, uint32_t numeroPagina) {
     for (int i = 0; i < self->cantidadEntradasTotales; i++) {
         if (self->entradas[i].numeroPagina == numeroPagina) {
             self->actualizar_ultima_referencia(self, i);
+            printf("\e[1;92mTLB: HIT <entrada %d>: <página: %d, marco: %d, instante de tiempo: %d>\e[0m\n", i, numeroPagina, self->entradas[i].marco, self->entradas[i].instanteDeTiempo);
             return self->entradas[i].marco;
         }
     }
+    printf("\e[1;92mTLB: MISS <página %d>\e[0m\n", numeroPagina);
     return -1;
 }
 

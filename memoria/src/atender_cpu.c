@@ -18,7 +18,7 @@ extern t_memoria_data_holder* memoriaData;
 extern pthread_mutex_t mutexMemoriaData;
 
 static void __actualizar_pagina(uint32_t direccionFisica, bool esEscritura, t_memoria_data_holder* memoriaData) {
-    int nroPagina = obtener_pagina_de_un_marco(direccionFisica, memoriaData);
+    int nroPagina = obtener_pagina_de_direccion_fisica(direccionFisica, memoriaData);
     int nroTablaNivel2 = obtener_tabla_de_nivel_2_pagina(nroPagina, memoriaData);
     if (esEscritura)
         actualizar_escritura_pagina(nroPagina, nroTablaNivel2, memoriaData);
@@ -44,21 +44,25 @@ int __obtener_marco(uint32_t nroDeTabla2, uint32_t entradaDeTabla2, t_memoria_da
     int* marcos = obtener_marcos(nroTablaNivel1, memoriaData);
     marco = obtener_marco_libre(marcos, memoriaData);
 
+    uint32_t tamanio = obtener_tamanio(nroTablaNivel1, memoriaData);
+    abrir_archivo(tamanio, nroTablaNivel1, memoriaData);
     if (marco == -1) {
         int punteroVictima = memoriaData->seleccionar_victima(nroTablaNivel1, memoriaData);
         uint32_t indiceTabla2 = punteroVictima / memoriaData->entradasPorTabla;
         uint32_t nroDeTabla2Victima = obtener_tabla_de_nivel_2(nroTablaNivel1, indiceTabla2, memoriaData);
         uint32_t entradaDeTabla2Victima = punteroVictima % memoriaData->entradasPorTabla;
-
-        uint32_t tamanio = obtener_tamanio(nroTablaNivel1, memoriaData);
-        abrir_archivo(tamanio, nroTablaNivel1, memoriaData);
         marco = __swap_marco(nroDeTabla2Victima, entradaDeTabla2Victima, nroDeTabla2, entradaDeTabla2, memoriaData);
-        cerrar_archivo(memoriaData);
     } else {
         int pagina = obtener_pagina(nroDeTabla2, entradaDeTabla2, memoriaData);
+        if (marco == marcos[0]) {
+            int puntero = obtener_indice(pagina, memoriaData);
+            actualizar_puntero(nroTablaNivel1, puntero, memoriaData);
+        }
         asignar_pagina_a_marco(pagina, marco, memoriaData);
         swap_in(nroDeTabla2, entradaDeTabla2, marco, memoriaData);
     }
+    cerrar_archivo(memoriaData);
+
     return marco;
 }
 
@@ -81,7 +85,7 @@ void* escuchar_peticiones_cpu(void* socketCpu) {
                 log_info(memoriaData->memoriaLogger, "\e[1;93mPetición de lectura\e[0m");
                 buffer_unpack(buffer, &direccionFisica, sizeof(direccionFisica));
 
-                memcpy(&valor, memoriaPrincipal + direccionFisica, sizeof(valor));
+                memcpy((void*)&valor, (void*)(memoriaPrincipal + direccionFisica), sizeof(valor));
 
                 t_buffer* buffer_rta = buffer_create();
                 buffer_pack(buffer_rta, &valor, sizeof(valor));
@@ -97,7 +101,7 @@ void* escuchar_peticiones_cpu(void* socketCpu) {
                 buffer_unpack(buffer, &direccionFisica, sizeof(direccionFisica));
                 buffer_unpack(buffer, &valor, sizeof(valor));
 
-                memcpy(memoriaPrincipal + direccionFisica, &valor, sizeof(valor));
+                memcpy((void*)(memoriaPrincipal + direccionFisica), (void*)&valor, sizeof(valor));
 
                 __actualizar_pagina(direccionFisica, true, memoriaData);
 
@@ -132,6 +136,8 @@ void* escuchar_peticiones_cpu(void* socketCpu) {
                 uint32_t nroDeTabla2, entradaDeTabla2;
                 buffer_unpack(buffer, &nroDeTabla2, sizeof(nroDeTabla2));
                 buffer_unpack(buffer, &entradaDeTabla2, sizeof(entradaDeTabla2));
+
+                log_info(memoriaData->memoriaLogger, "Se quiere la dirección física de la tabla 2 [%d] con entrada [%d]", nroDeTabla2, entradaDeTabla2);
 
                 int indiceMarco = __obtener_marco(nroDeTabla2, entradaDeTabla2, memoriaData);
                 uint32_t marco = indiceMarco * memoriaData->tamanioPagina;

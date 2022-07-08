@@ -23,7 +23,12 @@ t_marcos* crear_marcos(t_memoria_data_holder* memoriaData) {
     return marcos;
 }
 
-int obtener_pagina_de_un_marco(uint32_t direccionFisica, t_memoria_data_holder* memoriaData) {
+int obtener_pagina_de_un_marco(int marco, t_memoria_data_holder* memoriaData) {
+    t_marcos* marcos = memoriaData->marcos;
+    return marcos[marco].pagina;
+}
+
+int obtener_pagina_de_direccion_fisica(uint32_t direccionFisica, t_memoria_data_holder* memoriaData) {
     int tamanioPagina = memoriaData->tamanioPagina;
     t_marcos* marcos = memoriaData->marcos;
 
