@@ -5,6 +5,10 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+
+#include "common_utils.h"
+#include "marcos.h"
+
 typedef struct
 {
     int indiceMarco;
@@ -18,23 +22,24 @@ struct t_tabla_nivel_2 {
     t_entrada_nivel_2* entradaNivel2;
 };
 
-int __obtener_tabla2(int nroPagina, t_memoria_data_holder memoriaData) {
-    return nroPagina / (memoriaData.entradasPorTabla * memoriaData.entradasPorTabla);
+int __obtener_tabla2(int nroPagina, t_memoria_data_holder* memoriaData) {
+    return nroPagina / memoriaData->entradasPorTabla;
 }
 
-int __obtener_entrada(int nroPagina, t_memoria_data_holder memoriaData) {
-    int entradasPorTabla = memoriaData.entradasPorTabla;
+int __obtener_entrada(int nroPagina, t_memoria_data_holder* memoriaData) {
+    int entradasPorTabla = memoriaData->entradasPorTabla;
 
     return (nroPagina % (entradasPorTabla * entradasPorTabla)) % entradasPorTabla;
 }
 
-t_tabla_nivel_2* crear_tablas_de_nivel_2(t_memoria_data_holder memoriaData) {
-    int cantidadProcesosMax = memoriaData.cantidadProcesosMax;
-    int entradasPorTabla = memoriaData.entradasPorTabla;
+t_tabla_nivel_2* crear_tablas_de_nivel_2(t_memoria_data_holder* memoriaData) {
+    int cantidadProcesosMax = memoriaData->cantidadProcesosMax;
+    int entradasPorTabla = memoriaData->entradasPorTabla;
     int cantidadTablasNivel2Max = cantidadProcesosMax * entradasPorTabla;
 
     t_tabla_nivel_2* tablasDeNivel2 = malloc(cantidadTablasNivel2Max * sizeof(*tablasDeNivel2));
 
+    log_info(memoriaData->memoriaLogger, "\e[1;93mSe crean las tablas de nivel 2\e[0m");
     for (int i = 0; i < cantidadTablasNivel2Max; i++) {
         tablasDeNivel2[i].entradaNivel2 = malloc(entradasPorTabla * sizeof(t_entrada_nivel_2));
         for (int j = 0; j < entradasPorTabla; j++) {
@@ -45,49 +50,63 @@ t_tabla_nivel_2* crear_tablas_de_nivel_2(t_memoria_data_holder memoriaData) {
             tablasDeNivel2[i].entradaNivel2[j].bitPaginaEnSwap = false;
         }
     }
+    log_info(memoriaData->memoriaLogger, "Se creó %d tablas con %d entradas de paginas", cantidadTablasNivel2Max, entradasPorTabla);
     return tablasDeNivel2;
 }
 
-void actualizar_escritura_pagina(int nroPagina, int nroTablaNivel2, t_memoria_data_holder memoriaData) {
-    t_tabla_nivel_2* tablasDeNivel2 = memoriaData.tablasDeNivel2;
+void actualizar_escritura_pagina(int nroPagina, int nroTablaNivel2, t_memoria_data_holder* memoriaData) {
+    t_tabla_nivel_2* tablasDeNivel2 = memoriaData->tablasDeNivel2;
 
     int entrada = __obtener_entrada(nroPagina, memoriaData);
     tablasDeNivel2[nroTablaNivel2].entradaNivel2[entrada].bitUso = true;
     tablasDeNivel2[nroTablaNivel2].entradaNivel2[entrada].bitModificado = true;
 }
 
-void actualizar_lectura_pagina(int nroPagina, int nroTablaNivel2, t_memoria_data_holder memoriaData) {
-    t_tabla_nivel_2* tablasDeNivel2 = memoriaData.tablasDeNivel2;
+void actualizar_lectura_pagina(int nroPagina, int nroTablaNivel2, t_memoria_data_holder* memoriaData) {
+    t_tabla_nivel_2* tablasDeNivel2 = memoriaData->tablasDeNivel2;
 
     int entrada = __obtener_entrada(nroPagina, memoriaData);
     tablasDeNivel2[nroTablaNivel2].entradaNivel2[entrada].bitUso = true;
 }
 
-void swap_out(int nroDeTabla2, int entradaDeTabla2, int marco, t_memoria_data_holder memoriaData) {
-    memoriaData.tablasDeNivel2[nroDeTabla2].entradaNivel2[entradaDeTabla2].bitPresencia = 0;
-    if (memoriaData.tablasDeNivel2[nroDeTabla2].entradaNivel2[entradaDeTabla2].bitModificado) {
-        int pagina = nroDeTabla2 * memoriaData.entradasPorTabla + entradaDeTabla2;
-        sleep(memoriaData.retardoSwap);
-        memcpy(memoriaData.inicio_archivo + memoriaData.tamanioPagina * pagina, memoriaData.memoriaPrincipal + marco * memoriaData.tamanioPagina, memoriaData.tamanioPagina);
-        memoriaData.tablasDeNivel2[nroDeTabla2].entradaNivel2[entradaDeTabla2].bitPaginaEnSwap = true;
+void swap_out(int nroDeTabla2, int entradaDeTabla2, int marco, t_memoria_data_holder* memoriaData) {
+    log_info(memoriaData->memoriaLogger, "\e[1;93mSe realiza un swap out\e[0m");
+    memoriaData->tablasDeNivel2[nroDeTabla2].entradaNivel2[entradaDeTabla2].bitPresencia = false;
+    int pagina = nroDeTabla2 * memoriaData->entradasPorTabla + entradaDeTabla2;
+    if (memoriaData->tablasDeNivel2[nroDeTabla2].entradaNivel2[entradaDeTabla2].bitModificado) {
+        int puntero = obtener_indice(pagina, memoriaData);
+        intervalo_de_pausa(memoriaData->retardoSwap);
+        memcpy((void*)(memoriaData->inicio_archivo + memoriaData->tamanioPagina * puntero), (void*)(memoriaData->memoriaPrincipal + marco * memoriaData->tamanioPagina), memoriaData->tamanioPagina);
+        memoriaData->tablasDeNivel2[nroDeTabla2].entradaNivel2[entradaDeTabla2].bitPaginaEnSwap = true;
+
+        log_info(memoriaData->memoriaLogger, "<\e[0;96m(Acceso a disco)\e[0m> Se escribió en disco la <\e[1;95mpágina global [%d]\e[0m> con <\e[1;95mmarco [%d]\e[0m> <Bit Modificado = 1>", pagina, marco);
+    } else {
+        log_info(memoriaData->memoriaLogger, "La <\e[1;95mpágina global [%d]\e[0m> con <\e[1;95mmarco [%d]\e[0m> no se encuentra modificada <Bit Modificado = 0>", pagina, marco);
     }
+    asignar_pagina_a_marco(-1, marco, memoriaData);
 }
 
-void swap_in(int nroDeTabla2, int entradaDeTabla2, int marco, t_memoria_data_holder memoriaData) {
-    memoriaData.tablasDeNivel2[nroDeTabla2].entradaNivel2[entradaDeTabla2].indiceMarco = marco;
-    memoriaData.tablasDeNivel2[nroDeTabla2].entradaNivel2[entradaDeTabla2].bitPresencia = 1;
-    memoriaData.tablasDeNivel2[nroDeTabla2].entradaNivel2[entradaDeTabla2].bitUso = 0;
-    memoriaData.tablasDeNivel2[nroDeTabla2].entradaNivel2[entradaDeTabla2].bitModificado = 0;
-    if (memoriaData.tablasDeNivel2[nroDeTabla2].entradaNivel2[entradaDeTabla2].bitPaginaEnSwap) {
-        int pagina = nroDeTabla2 * memoriaData.entradasPorTabla + entradaDeTabla2;
-        sleep(memoriaData.retardoSwap);
-        memcpy(memoriaData.memoriaPrincipal + marco * memoriaData.tamanioPagina, memoriaData.inicio_archivo + memoriaData.tamanioPagina * pagina, memoriaData.tamanioPagina);
+void swap_in(int nroDeTabla2, int entradaDeTabla2, int marco, t_memoria_data_holder* memoriaData) {
+    log_info(memoriaData->memoriaLogger, "\e[1;93mSe realiza un swap in\e[0m");
+    memoriaData->tablasDeNivel2[nroDeTabla2].entradaNivel2[entradaDeTabla2].indiceMarco = marco;
+    memoriaData->tablasDeNivel2[nroDeTabla2].entradaNivel2[entradaDeTabla2].bitPresencia = true;
+    memoriaData->tablasDeNivel2[nroDeTabla2].entradaNivel2[entradaDeTabla2].bitUso = false;
+    memoriaData->tablasDeNivel2[nroDeTabla2].entradaNivel2[entradaDeTabla2].bitModificado = false;
+    int pagina = nroDeTabla2 * memoriaData->entradasPorTabla + entradaDeTabla2;
+    if (memoriaData->tablasDeNivel2[nroDeTabla2].entradaNivel2[entradaDeTabla2].bitPaginaEnSwap) {
+        int puntero = obtener_indice(pagina, memoriaData);
+        intervalo_de_pausa(memoriaData->retardoSwap);
+        memcpy((void*)(memoriaData->memoriaPrincipal + marco * memoriaData->tamanioPagina), (void*)(memoriaData->inicio_archivo + memoriaData->tamanioPagina * puntero), memoriaData->tamanioPagina);
+        log_info(memoriaData->memoriaLogger, "<\e[0;96m(Acceso a disco)\e[0m> Se trae de disco la <\e[1;95mpágina global [%d]\e[0m> al <\e[1;95mmarco [%d]\e[0m> <Bit Página en Swap = 1>", pagina, marco);
+    } else {
+        log_info(memoriaData->memoriaLogger, "La <\e[1;95mpágina global [%d]\e[0m> no tiene datos en disco para escribir en <\e[1;95mmarco [%d]\e[0m> <Bit Página en Swap = 0>", pagina, marco);
     }
+    asignar_pagina_a_marco(pagina, marco, memoriaData);
 }
 
-void limpiar_tabla_nivel_2(int nroDeTabla2, t_memoria_data_holder memoriaData) {
-    int entradasPorTabla = memoriaData.entradasPorTabla;
-    t_tabla_nivel_2* tablasDeNivel2 = memoriaData.tablasDeNivel2;
+void limpiar_tabla_nivel_2(int nroDeTabla2, t_memoria_data_holder* memoriaData) {
+    int entradasPorTabla = memoriaData->entradasPorTabla;
+    t_tabla_nivel_2* tablasDeNivel2 = memoriaData->tablasDeNivel2;
 
     for (int i = 0; i < entradasPorTabla; i++) {
         tablasDeNivel2[nroDeTabla2].entradaNivel2[i].indiceMarco = -1;
@@ -98,63 +117,57 @@ void limpiar_tabla_nivel_2(int nroDeTabla2, t_memoria_data_holder memoriaData) {
     }
 }
 
-int obtener_marco(uint32_t nroDeTabla2, uint32_t entradaDeTabla2, t_memoria_data_holder memoriaData) {
-    return memoriaData.tablasDeNivel2[nroDeTabla2].entradaNivel2[entradaDeTabla2].indiceMarco;
+int obtener_marco(uint32_t nroDeTabla2, uint32_t entradaDeTabla2, t_memoria_data_holder* memoriaData) {
+    return memoriaData->tablasDeNivel2[nroDeTabla2].entradaNivel2[entradaDeTabla2].indiceMarco;
 }
 
-bool pagina_en_memoria(uint32_t nroDeTabla2, uint32_t entradaDeTabla2, t_memoria_data_holder memoriaData) {
-    return memoriaData.tablasDeNivel2[nroDeTabla2].entradaNivel2[entradaDeTabla2].bitPresencia;
+bool pagina_en_memoria(uint32_t nroDeTabla2, uint32_t entradaDeTabla2, t_memoria_data_holder* memoriaData) {
+    return memoriaData->tablasDeNivel2[nroDeTabla2].entradaNivel2[entradaDeTabla2].bitPresencia;
 }
 
-int obtener_pagina(uint32_t nroDeTabla2, uint32_t entradaDeTabla2, t_memoria_data_holder memoriaData) {
-    return nroDeTabla2 * memoriaData.entradasPorTabla * memoriaData.entradasPorTabla + entradaDeTabla2;
+int obtener_pagina(uint32_t nroDeTabla2, uint32_t entradaDeTabla2, t_memoria_data_holder* memoriaData) {
+    return nroDeTabla2 * memoriaData->entradasPorTabla + entradaDeTabla2;
 }
 
-void asignar_marco_a_pagina(int marco, uint32_t nroDeTabla2, uint32_t entradaDeTabla2, t_memoria_data_holder memoriaData) {
-    memoriaData.tablasDeNivel2[nroDeTabla2].entradaNivel2[entradaDeTabla2].indiceMarco = marco;
-    memoriaData.tablasDeNivel2[nroDeTabla2].entradaNivel2[entradaDeTabla2].bitPresencia = true;
+int obtener_indice(int nroPagina, t_memoria_data_holder* memoriaData) {
+    return nroPagina % (memoriaData->entradasPorTabla * memoriaData->entradasPorTabla);
 }
 
-int obtener_indice(int nroPagina, t_memoria_data_holder memoriaData) {
-    return __obtener_entrada(nroPagina, memoriaData);
-}
-
-bool obtener_bit_uso(int nroPagina, t_memoria_data_holder memoriaData) {
+bool obtener_bit_uso(int nroPagina, t_memoria_data_holder* memoriaData) {
     int entrada = __obtener_entrada(nroPagina, memoriaData);
     int nroDeTabla2 = __obtener_tabla2(nroPagina, memoriaData);
-    return memoriaData.tablasDeNivel2[nroDeTabla2].entradaNivel2[entrada].bitUso;
+    return memoriaData->tablasDeNivel2[nroDeTabla2].entradaNivel2[entrada].bitUso;
 }
 
-bool obtener_bit_modificado(int nroPagina, t_memoria_data_holder memoriaData) {
+bool obtener_bit_modificado(int nroPagina, t_memoria_data_holder* memoriaData) {
     int entrada = __obtener_entrada(nroPagina, memoriaData);
     int nroDeTabla2 = __obtener_tabla2(nroPagina, memoriaData);
-    return memoriaData.tablasDeNivel2[nroDeTabla2].entradaNivel2[entrada].bitModificado;
+    return memoriaData->tablasDeNivel2[nroDeTabla2].entradaNivel2[entrada].bitModificado;
 }
 
-bool obtener_bit_pagina_en_swap(int nroDeTabla2, int entradaDeTabla2, t_memoria_data_holder memoriaData) {
-    return memoriaData.tablasDeNivel2[nroDeTabla2].entradaNivel2[entradaDeTabla2].bitPaginaEnSwap;
+bool obtener_bit_pagina_en_swap(int nroDeTabla2, int entradaDeTabla2, t_memoria_data_holder* memoriaData) {
+    return memoriaData->tablasDeNivel2[nroDeTabla2].entradaNivel2[entradaDeTabla2].bitPaginaEnSwap;
 }
 
-void setear_bit_pagina_en_swap(int nroDeTabla2, int entradaDeTabla2, bool bitPaginaEnSwap, t_memoria_data_holder memoriaData) {
-    memoriaData.tablasDeNivel2[nroDeTabla2].entradaNivel2[entradaDeTabla2].bitPaginaEnSwap = bitPaginaEnSwap;
+void setear_bit_pagina_en_swap(int nroDeTabla2, int entradaDeTabla2, bool bitPaginaEnSwap, t_memoria_data_holder* memoriaData) {
+    memoriaData->tablasDeNivel2[nroDeTabla2].entradaNivel2[entradaDeTabla2].bitPaginaEnSwap = bitPaginaEnSwap;
 }
 
-
-void setear_bit_uso(int nroPagina, bool bitUso, t_memoria_data_holder memoriaData) {
+void setear_bit_uso(int nroPagina, bool bitUso, t_memoria_data_holder* memoriaData) {
     int entrada = __obtener_entrada(nroPagina, memoriaData);
     int nroDeTabla2 = __obtener_tabla2(nroPagina, memoriaData);
-    memoriaData.tablasDeNivel2[nroDeTabla2].entradaNivel2[entrada].bitUso = bitUso;
+    memoriaData->tablasDeNivel2[nroDeTabla2].entradaNivel2[entrada].bitUso = bitUso;
 }
 
-int obtener_victima_clock_con_indice_inicial(uint32_t nroDeTabla2, int indicePagina, t_memoria_data_holder memoriaData) {
-    for (; indicePagina < memoriaData.entradasPorTabla; indicePagina++) {
-        bool presencia = memoriaData.tablasDeNivel2[nroDeTabla2].entradaNivel2[indicePagina].bitPresencia;
+int obtener_victima_clock_con_indice_inicial(uint32_t nroDeTabla2, int indicePagina, t_memoria_data_holder* memoriaData) {
+    for (; indicePagina < memoriaData->entradasPorTabla; indicePagina++) {
+        bool presencia = memoriaData->tablasDeNivel2[nroDeTabla2].entradaNivel2[indicePagina].bitPresencia;
         if (!presencia) {
             continue;
         }
-        bool uso = memoriaData.tablasDeNivel2[nroDeTabla2].entradaNivel2[indicePagina].bitUso;
+        bool uso = memoriaData->tablasDeNivel2[nroDeTabla2].entradaNivel2[indicePagina].bitUso;
         if (uso) {
-            memoriaData.tablasDeNivel2[nroDeTabla2].entradaNivel2[indicePagina].bitUso = false;
+            memoriaData->tablasDeNivel2[nroDeTabla2].entradaNivel2[indicePagina].bitUso = false;
         } else {
             return indicePagina;
         }

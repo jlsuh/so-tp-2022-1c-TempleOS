@@ -16,7 +16,7 @@
 #define CPU_LOG_PATH "bin/cpu.log"
 #define CPU_MODULE_NAME "CPU"
 
-t_tlb* tlb;
+extern t_tlb* tlb;
 
 extern t_log* cpuLogger;
 extern t_cpu_config* cpuConfig;
@@ -36,12 +36,20 @@ int main(int argc, char* argv[]) {
 
     stream_send_empty_buffer(memoriaSocket, HANDSHAKE_cpu);
     uint8_t memoriaResponse = stream_recv_header(memoriaSocket);
-    stream_recv_empty_buffer(memoriaSocket);
+    t_buffer* bufferMemoria = buffer_create();
+    stream_recv_buffer(cpu_config_get_socket_memoria(cpuConfig), bufferMemoria);
     if (memoriaResponse != HANDSHAKE_ok_continue) {
         log_error(cpuLogger, "Error al intentar establecer Handshake inicial con módulo Memoria");
         log_destroy(cpuLogger);
         return -1;
     }
+    uint32_t tamanioPagina;
+    uint32_t entradasPorTabla;
+    buffer_unpack(bufferMemoria, &tamanioPagina, sizeof(tamanioPagina));
+    buffer_unpack(bufferMemoria, &entradasPorTabla, sizeof(entradasPorTabla));
+    cpu_config_set_tamanio_pagina(cpuConfig, tamanioPagina);
+    cpu_config_set_entradas_por_tabla(cpuConfig, entradasPorTabla);
+    buffer_destroy(bufferMemoria);
     log_info(cpuLogger, "Conexión con Memoria establecida");
 
     // Servidor de Kernel
