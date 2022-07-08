@@ -135,7 +135,6 @@ local.properties
 # Others
 */bin/
 */obj/
-.vscode/
 *.log
 */vgcore.*
 

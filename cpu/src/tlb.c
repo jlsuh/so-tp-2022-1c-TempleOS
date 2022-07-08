@@ -8,11 +8,11 @@
 
 extern t_tlb* tlb;
 
-typedef struct {
+struct t_entrada_tlb {
     int numeroPagina;
     int marco;
     int instanteDeTiempo;
-} t_entrada_tlb;
+};
 
 struct t_tlb {
     uint32_t cantidadEntradasTotales;
@@ -76,8 +76,10 @@ void tlb_registrar_entrada_en_tlb(t_tlb* self, uint32_t numeroPagina, uint32_t m
     if (self->cantidadEntradasLibres > 0) {
         indiceEntrada = __obtener_primer_entrada_libre(self);
         self->cantidadEntradasLibres -= 1;
+        printf("\e[1;92mTLB: Se registra en <entrada %d>: <página: %d, marco: %d, instante de tiempo: %d>\e[0m\n", indiceEntrada, numeroPagina, marco, self->entradas[indiceEntrada].instanteDeTiempo);
     } else {
         indiceEntrada = __elegir_entrada_de_menor_instante_de_tiempo(self);
+        printf("\e[1;92mTLB: Se elige como víctima <entrada %d>: <página: %d, marco: %d, instante de tiempo: %d>\e[0m\n", indiceEntrada, numeroPagina, marco, self->entradas[indiceEntrada].instanteDeTiempo);
     }
     self->entradas[indiceEntrada].numeroPagina = numeroPagina;
     self->entradas[indiceEntrada].marco = marco;
@@ -102,19 +104,48 @@ t_tlb* tlb_create(uint32_t cantidadDeEntradas, char* algoritmoReemplazo) {
     return self;
 }
 
+void tlb_destroy(t_tlb* self) {
+    free(self->algoritmoReemplazo);
+    free(self->entradas);
+    free(self);
+}
+
 void tlb_flush(t_tlb* self) {
     for (int i = 0; i < self->cantidadEntradasTotales; i++) {
         __flush_entrada(self, i);
     }
     self->cantidadEntradasLibres = self->cantidadEntradasTotales;
+    puts("\e[1;92mSe flushean las entradas de la TLB\e[0m");
 }
 
 int tlb_get_marco(t_tlb* self, uint32_t numeroPagina) {
     for (int i = 0; i < self->cantidadEntradasTotales; i++) {
         if (self->entradas[i].numeroPagina == numeroPagina) {
             self->actualizar_ultima_referencia(self, i);
+            printf("\e[1;92mTLB: HIT <entrada %d>: <página: %d, marco: %d, instante de tiempo: %d>\e[0m\n", i, numeroPagina, self->entradas[i].marco, self->entradas[i].instanteDeTiempo);
             return self->entradas[i].marco;
         }
     }
+    printf("\e[1;92mTLB: MISS <página %d>\e[0m\n", numeroPagina);
     return -1;
+}
+
+uint32_t tlb_get_cantidad_entradas_totales(t_tlb* self) {
+    return self->cantidadEntradasTotales;
+}
+
+char* tlb_get_algoritmo_reemplazo(t_tlb* self) {
+    return self->algoritmoReemplazo;
+}
+
+int entrada_tlb_get_numero_pagina(t_tlb* self, uint32_t index) {
+    return self->entradas[index].numeroPagina;
+}
+
+int entrada_tlb_get_marco(t_tlb* self, uint32_t index) {
+    return self->entradas[index].marco;
+}
+
+int entrada_tlb_get_instante_de_tiempo(t_tlb* self, uint32_t index) {
+    return self->entradas[index].instanteDeTiempo;
 }

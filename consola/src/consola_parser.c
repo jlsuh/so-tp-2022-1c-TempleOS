@@ -18,8 +18,8 @@ bool consola_parser_parse_instructions(t_buffer *buffer, const char *pathInstruc
         fscanf(archivoInstrucciones, "%s", instruccion);
         bool hayDosArgumentos = false;
         if (strcmp(instruccion, "NO_OP") == 0) {
+            fscanf(archivoInstrucciones, "%d", &op1);
             for (int i = 0; i < op1; i++) {
-                fscanf(archivoInstrucciones, "%d", &op1);
                 consola_serializer_pack_no_args(buffer, INSTRUCCION_no_op);
             }
         } else if (strcmp(instruccion, "I/O") == 0) {
