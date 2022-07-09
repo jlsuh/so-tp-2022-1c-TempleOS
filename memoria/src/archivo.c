@@ -31,11 +31,11 @@ void abrir_archivo(uint32_t tamanio, int nroTablaNivel1, t_memoria_data_holder* 
 void crear_archivo_de_proceso(uint32_t tamanio, int nroTablaNivel1, t_memoria_data_holder* memoriaData) {
     abrir_archivo(tamanio, nroTablaNivel1, memoriaData);
     memset(memoriaData->inicio_archivo, '\0', tamanio);  // TODO esta generando problemas en runtime
-    cerrar_archivo(memoriaData);
+    cerrar_archivo(tamanio, memoriaData);
 }
 
-void cerrar_archivo(t_memoria_data_holder* memoriaData) {
-    // free(memoriaData->inicio_archivo);
+void cerrar_archivo(uint32_t tamanio, t_memoria_data_holder* memoriaData) {
+    munmap(memoriaData->inicio_archivo, tamanio);
     close(memoriaData->archivo_swap);
 }
 

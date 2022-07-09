@@ -22,5 +22,6 @@ int memoria_config_get_marcos_totales(t_memoria_config* self);
 int memoria_config_get_procesos_totales(t_memoria_config* self);
 bool memoria_config_es_algoritmo_sustitucion_clock(t_memoria_config* self);
 bool memoria_config_es_algoritmo_sustitucion_clock_modificado(t_memoria_config* self);
+int memoria_config_get_retardo_memoria(t_memoria_config* self);
 
 #endif

@@ -115,7 +115,7 @@ void tlb_flush(t_tlb* self) {
         __flush_entrada(self, i);
     }
     self->cantidadEntradasLibres = self->cantidadEntradasTotales;
-    puts("\e[1;92mSe flushean las entradas de la TLB\e[0m");
+    puts("\e[1;93mSe flushean las entradas de la TLB\e[0m");
 }
 
 int tlb_get_marco(t_tlb* self, uint32_t numeroPagina) {
