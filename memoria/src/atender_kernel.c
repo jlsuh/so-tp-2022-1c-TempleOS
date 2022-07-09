@@ -24,11 +24,15 @@ static uint32_t __crear_nuevo_proceso(uint32_t tamanio, t_memoria_data_holder* m
 
 static void __eliminar_proceso(uint32_t nroTablaNivel1, t_memoria_data_holder* memoriaData) {
     eliminar_archivo_de_proceso(nroTablaNivel1, memoriaData);
-    for (int i = 0; i < memoriaData->entradasPorTabla; i++) {
-        int nroDeTabla2 = obtener_tabla_de_nivel_2(nroTablaNivel1, i, memoriaData);
-        limpiar_tabla_nivel_2(nroDeTabla2, memoriaData);
+    if (esta_suspendido(nroTablaNivel1, memoriaData)) {
+        eliminar_de_tabla_suspendidos(nroTablaNivel1, memoriaData);
+    } else {
+        for (int i = 0; i < memoriaData->entradasPorTabla; i++) {
+            int nroDeTabla2 = obtener_tabla_de_nivel_2(nroTablaNivel1, i, memoriaData);
+            limpiar_tabla_nivel_2(nroDeTabla2, memoriaData);
+        }
+        limpiar_tabla_nivel_1(nroTablaNivel1, memoriaData);
     }
-    limpiar_tabla_nivel_1(nroTablaNivel1, memoriaData);
 }
 
 static bool __se_puede_crear_proceso(uint32_t tamanio, t_memoria_data_holder* memoriaData) {

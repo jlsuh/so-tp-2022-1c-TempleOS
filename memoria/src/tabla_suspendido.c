@@ -68,7 +68,7 @@ void despertar_proceso(uint32_t nroDeTabla1, t_memoria_data_holder* memoriaData)
     uint32_t indiceTablaNivel1 = obtener_tabla_libre_de_nivel_1(memoriaData);
     asignar_tabla_nivel_1_with_id(indiceTablaNivel1, nroDeTabla1, tamanioNroDeTabla1, memoriaData);
 
-    uint32_t indiceValue = valueRecuperado[1]; 
+    uint32_t indiceValue = valueRecuperado[1];
     for (int i = 0; i < indiceValue; i++) {
         int puntero = valueRecuperado[i + 2];
         int entradaDeTabla2 = puntero / memoriaData->entradasPorTabla;
@@ -77,4 +77,23 @@ void despertar_proceso(uint32_t nroDeTabla1, t_memoria_data_holder* memoriaData)
         setear_bit_pagina_en_swap(nroTabla2, entradaTabla2, true, memoriaData);
     }
     free(valueRecuperado);
+}
+
+bool esta_suspendido(uint32_t nroTablaNivel1, t_memoria_data_holder* memoriaData) {
+    int length = snprintf(NULL, 0, "%d", nroTablaNivel1);
+    char* nroDeTabla1Str = malloc(length + 1);
+    snprintf(nroDeTabla1Str, length + 1, "%d", nroTablaNivel1);
+    bool estaSuspendido = dictionary_has_key(memoriaData->tablaSuspendidos, nroDeTabla1Str);
+    free(nroDeTabla1Str);
+
+    return estaSuspendido;
+}
+
+void eliminar_de_tabla_suspendidos(uint32_t nroTablaNivel1, t_memoria_data_holder* memoriaData) {
+    int length = snprintf(NULL, 0, "%d", nroTablaNivel1);
+    char* nroDeTabla1Str = malloc(length + 1);
+    snprintf(nroDeTabla1Str, length + 1, "%d", nroTablaNivel1);
+    uint32_t* valueRecuperado = dictionary_remove(memoriaData->tablaSuspendidos, nroDeTabla1Str);
+    free(valueRecuperado);
+    free(nroDeTabla1Str);
 }
