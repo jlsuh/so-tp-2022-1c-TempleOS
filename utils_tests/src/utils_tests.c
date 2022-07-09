@@ -3,8 +3,22 @@
 #include <stdio.h>
 
 #include "buffer_tests.h"
+#include "misc_tests.h"
 #include "stream_connections_tests.h"
 #include "testing_utils.h"
+
+static void misc_tests(void) {
+    CU_pSuite miscSuite = CU_add_suite_with_setup_and_teardown(
+        "Misc Tests Suite",
+        NULL,
+        NULL,
+        NULL,
+        NULL);
+    t_test_case miscTestCases[] = {
+        TEST_FUNC(dictionary_tests),
+    };
+    ADD_TEST_CASES_TO_SUITE(miscSuite, miscTestCases);
+}
 
 static void buffer_tests(void) {
     CU_pSuite bufferSuite = CU_add_suite_with_setup_and_teardown(
@@ -40,6 +54,7 @@ int main(int argc, char* argv[]) {
     CU_basic_set_mode(CU_BRM_VERBOSE);
 
     // Llamadas a funciones que agreguen los tests a sus respectivos suites
+    misc_tests();
     buffer_tests();
     stream_connections_tests();
 

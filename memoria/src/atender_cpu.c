@@ -7,6 +7,7 @@
 
 #include "archivo.h"
 #include "common_flags.h"
+#include "common_utils.h"
 #include "marcos.h"
 #include "memoria_data_holder.h"
 #include "stream.h"
@@ -61,7 +62,7 @@ int __obtener_marco(uint32_t nroDeTabla2, uint32_t entradaDeTabla2, t_memoria_da
         asignar_pagina_a_marco(pagina, marco, memoriaData);
         swap_in(nroDeTabla2, entradaDeTabla2, marco, memoriaData);
     }
-    cerrar_archivo(memoriaData);
+    cerrar_archivo(tamanio, memoriaData);
 
     return marco;
 }
@@ -79,7 +80,7 @@ void* escuchar_peticiones_cpu(void* socketCpu) {
         pthread_mutex_lock(&mutexMemoriaData);
         buffer = buffer_create();
         stream_recv_buffer(socket, buffer);
-
+        intervalo_de_pausa(memoriaData->retardoMemoria);
         switch (header) {
             case HEADER_read:
                 log_info(memoriaData->memoriaLogger, "\e[1;93mPetición de lectura\e[0m");

@@ -46,7 +46,7 @@ void suspender_proceso(uint32_t nroDeTabla1, t_memoria_data_holder* memoriaData)
         limpiar_tabla_nivel_2(nroDeTabla2, memoriaData);
     }
     limpiar_tabla_nivel_1(nroDeTabla1, memoriaData);
-    cerrar_archivo(memoriaData);
+    cerrar_archivo(tamanioNroDeTabla1, memoriaData);
 
     uint32_t* punteroValue = malloc((indiceValue + 2) * sizeof(*punteroValue));
     punteroValue[0] = tamanioNroDeTabla1;
@@ -76,4 +76,5 @@ void despertar_proceso(uint32_t nroDeTabla1, t_memoria_data_holder* memoriaData)
         int entradaTabla2 = puntero % memoriaData->entradasPorTabla;
         setear_bit_pagina_en_swap(nroTabla2, entradaTabla2, true, memoriaData);
     }
+    free(valueRecuperado);
 }
