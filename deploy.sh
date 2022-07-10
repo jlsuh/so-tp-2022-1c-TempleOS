@@ -109,32 +109,40 @@ if [ ${#LIBRARIES[@]} -ne 0 ]; then
         cd $CWD
     done
 else
-    echo -e "\n\nNo external libraries to clone..."
+    echo -e "\n\nNo external libraries were indicated..."
 fi
 
-echo -e "\n\nCloning project repo...\n\n"
+if [ ${REPONAME} -ne "" ]; then
+    echo -e "\n\nCloning project repo...\n\n"
+    rm -rf $REPONAME
+    git clone "https://${TOKEN}@github.com/sisoputnfrba/${REPONAME}.git" $REPONAME
+    cd $REPONAME
+else
+    echo -e "\n\nNo repository was indicated..."
+fi
 
-rm -rf $REPONAME
-git clone "https://${TOKEN}@github.com/sisoputnfrba/${REPONAME}.git" $REPONAME
-cd $REPONAME
-PROJECTROOT=$PWD
+if [ ${#DEPENDENCIES[@]} -ne 0 ]; then
+    echo -e "\n\nBuilding dependencies..."
+    for i in "${DEPENDENCIES[@]}"; do
+        echo -e "\n\nBuilding ${i}\n\n"
+        cd $i
+        make install
+        cd $PROJECTROOT
+    done
+else
+    echo -e "\n\nNo dependencies were indicated..."
+fi
 
-echo -e "\n\nBuilding dependencies..."
-
-for i in "${DEPENDENCIES[@]}"; do
-    echo -e "\n\nBuilding ${i}\n\n"
-    cd $i
-    make install
-    cd $PROJECTROOT
-done
-
-echo -e "\n\nBuilding projects..."
-
-for i in "${PROJECTS[@]}"; do
-    echo -e "\n\nBuilding ${i}\n\n"
-    cd $i
-    make $RULE
-    cd $PROJECTROOT
-done
+if [ ${#PROJECTS[@]} -ne 0 ]; then
+    echo -e "\n\nBuilding projects..."
+    for i in "${PROJECTS[@]}"; do
+        echo -e "\n\nBuilding ${i}\n\n"
+        cd $i
+        make $RULE
+        cd $PROJECTROOT
+    done
+else
+    echo -e "\n\nNo projects were indicated..."
+fi
 
 echo -e "\n\nDeploy finished\n\n"
