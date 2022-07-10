@@ -3,7 +3,7 @@
 
 typedef enum {
     HEADER_lista_instrucciones,
-    HEADER_nuevo_proceso,
+    HEADER_pid,
     HEADER_proceso_terminado,
     HEADER_proceso_bloqueado,
     HEADER_proceso_desalojado,
