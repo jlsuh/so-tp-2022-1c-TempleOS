@@ -1,14 +1,17 @@
 #!/bin/bash
 
+echo "Personal Access Token: "
+read -r TOKEN
+
 cd() { command cd "$@" && printf 'Changing directory: %s -> %s\n' "${OLDPWD}" "${PWD}"; }
 
 bold=$(tput bold)
 normal=$(tput sgr0)
-underline=`tput smul`
-nounderline=`tput rmul`
+underline=$(tput smul)
+nounderline=$(tput rmul)
 
 if [[ "$@" =~ (-h|-H|--help) ]]; then
-  echo "
+    echo "
 ${bold}NAME${normal}
     ${bold}deploy.sh${normal} - script to deploy sisoputnfrba's TP.
 ${bold}SYNOPSIS${normal}
@@ -32,31 +35,31 @@ ${bold}COMPATIBILITY${normal}
 ${bold}EXAMPLE${normal}
       ${bold}deploy.sh${normal} ${bold}-l${normal}=sisoputnfrba/ansisop-parser ${bold}-d${normal}=sockets ${bold}-p${normal}=consola ${bold}-p${normal}=kernel ${bold}-p${normal}=memoria ${underline}tp-2017-1C-exampleRepo${nounderline}
   "
-  exit
+    exit
 fi
 
 CWD=$PWD
 case $1 in
-  -t=*|--target=*)
+-t=* | --target=*)
     case ${1#*=} in
-      /*) CWD="${1#*=}" ;;
-      *) CWD+="/${1#*=}" ;;
+    /*) CWD="${1#*=}" ;;
+    *) CWD+="/${1#*=}" ;;
     esac
     shift
-  ;;
-  *)
-  ;;
+    ;;
+*) ;;
+
 esac
 cd $CWD
 
 RULE=""
 case $1 in
-  -m=*|--make=*)
+-m=* | --make=*)
     RULE="${1#*=}"
     shift
-  ;;
-  *)
-  ;;
+    ;;
+*) ;;
+
 esac
 
 echo -e "\n\nInstalling commons libraries...\n\n"
@@ -64,14 +67,14 @@ echo -e "\n\nInstalling commons libraries...\n\n"
 COMMONS="so-commons-library"
 
 rm -rf $COMMONS
-git clone "https://github.com/sisoputnfrba/${COMMONS}.git" $COMMONS
+git clone "https://${TOKEN}@github.com/sisoputnfrba/${COMMONS}.git" $COMMONS
 cd $COMMONS
 sudo make uninstall
 make all
 sudo make install
 cd $CWD
 
-length=$(($#-1))
+length=$(($# - 1))
 OPTIONS=${@:1:length}
 REPONAME="${!#}"
 
@@ -79,62 +82,59 @@ LIBRARIES=()
 DEPENDENCIES=()
 PROJECTS=()
 
-for i in $OPTIONS
-do
+for i in $OPTIONS; do
     case $i in
-        -l=*|--lib=*)
-          LIBRARIES+=("${i#*=}")
+    -l=* | --lib=*)
+        LIBRARIES+=("${i#*=}")
         ;;
-        -d=*|--dependency=*)
-          DEPENDENCIES+=("${i#*=}")
+    -d=* | --dependency=*)
+        DEPENDENCIES+=("${i#*=}")
         ;;
-        -p=*|--project=*)
-          PROJECTS+=("${i#*=}")
+    -p=* | --project=*)
+        PROJECTS+=("${i#*=}")
         ;;
-        *)
-        ;;
+    *) ;;
+
     esac
 done
 
-
-echo -e "\n\nCloning external libraries..."
-
-
-for i in "${LIBRARIES[@]}"
-do
-  echo -e "\n\nBuilding ${i}\n\n"
-  rm -rf $i
-  git clone "https://github.com/${i}.git" $i
-  cd $i
-  make install
-  cd $CWD
-done
+if [ ${#LIBRARIES[@]} -ne 0 ]; then
+    echo -e "\n\nCloning external libraries..."
+    for i in "${LIBRARIES[@]}"; do
+        echo -e "\n\nBuilding ${i}\n\n"
+        rm -rf $i
+        git clone "https://${TOKEN}@github.com/${i}.git" $i
+        cd $i
+        make install
+        cd $CWD
+    done
+else
+    echo -e "\n\nNo external libraries to clone..."
+fi
 
 echo -e "\n\nCloning project repo...\n\n"
 
 rm -rf $REPONAME
-git clone "https://github.com/sisoputnfrba/${REPONAME}.git" $REPONAME
+git clone "https://${TOKEN}@github.com/sisoputnfrba/${REPONAME}.git" $REPONAME
 cd $REPONAME
 PROJECTROOT=$PWD
 
 echo -e "\n\nBuilding dependencies..."
 
-for i in "${DEPENDENCIES[@]}"
-do
-  echo -e "\n\nBuilding ${i}\n\n"
-  cd $i
-  make install
-  cd $PROJECTROOT 
+for i in "${DEPENDENCIES[@]}"; do
+    echo -e "\n\nBuilding ${i}\n\n"
+    cd $i
+    make install
+    cd $PROJECTROOT
 done
 
 echo -e "\n\nBuilding projects..."
 
-for i in "${PROJECTS[@]}"
-do
-  echo -e "\n\nBuilding ${i}\n\n"
-  cd $i
-  make $RULE
-  cd $PROJECTROOT
+for i in "${PROJECTS[@]}"; do
+    echo -e "\n\nBuilding ${i}\n\n"
+    cd $i
+    make $RULE
+    cd $PROJECTROOT
 done
 
 echo -e "\n\nDeploy finished\n\n"
