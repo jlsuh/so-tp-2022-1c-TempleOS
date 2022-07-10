@@ -1,16 +1,20 @@
 #!/usr/bin/env bash
 
-declare -r RULE="release"
-declare -r GREEN="\e[1;92m"
-declare -r ENDCOLOR="\e[0m"
 declare -r COMMONS="so-commons-library"
 declare -r DEPENDENCIES=("utils")
 declare -r PROJECTS=("consola" "kernel" "memoria" "cpu")
+declare -r RULE="release"
+declare -r SWAP="swap/"
+
+declare -r ENDCOLOR="\e[0m"
+declare -r GREEN="\e[1;92m"
+
+function log_green() { echo -e "${GREEN}$1${ENDCOLOR}"; }
 
 function cd() { command cd "$@" && printf 'Changing directory: %s -> %s\n' "${OLDPWD}" "${PWD}"; }
 
-function install_commons_library() {
-    echo -e "${GREEN}Installing commons libraries...${ENDCOLOR}\n"
+function install_commons() {
+    log_green "Installing commons library..."
     rm -rf $COMMONS
     git clone "https://${TOKEN}@github.com/sisoputnfrba/${COMMONS}.git" $COMMONS
     cd $COMMONS || exit
@@ -20,10 +24,10 @@ function install_commons_library() {
     cd "$CWD" || exit
 }
 
-function build_dependencies() {
-    echo -e "${GREEN}Building dependencies...${ENDCOLOR}\n"
+function install_dependencies() {
+    log_green "Installing dependencies..."
     for i in "${DEPENDENCIES[@]}"; do
-        echo -e "${GREEN}Building dependency ${i}${ENDCOLOR}\n"
+        log_green "Installing dependency ${i}..."
         cd "$i" || exit
         make install
         cd "$CWD" || exit
@@ -31,9 +35,9 @@ function build_dependencies() {
 }
 
 function build_projects() {
-    echo -e "${GREEN}Building projects...${ENDCOLOR}\n"
+    log_green "Building projects..."
     for i in "${PROJECTS[@]}"; do
-        echo -e "${GREEN}Building project ${i}${ENDCOLOR}\n"
+        log_green "Building project ${i}..."
         cd "$i" || exit
         make "$RULE"
         cd "$CWD" || exit
@@ -46,16 +50,16 @@ function main() {
     echo -n "Personal Access Token: "
     read -r TOKEN
 
-    install_commons_library
-    build_dependencies
+    install_commons
+    install_dependencies
     build_projects
 
     cd ..
-    sudo mkdir "swap/" || exit
-    sudo chmod 777 "swap/" || exit
-    echo -e "${GREEN}Swap subdirectory created...${ENDCOLOR}\n"
+    sudo mkdir $SWAP || exit
+    sudo chmod 777 $SWAP || exit
+    log_green "Swap subdirectory created..."
 
-    echo -e "${GREEN}Deploy finished${ENDCOLOR}\n"
+    log_green "Deploy finished"
 }
 
 main
