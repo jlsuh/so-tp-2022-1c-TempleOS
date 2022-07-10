@@ -1,6 +1,6 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
-echo "Personal Access Token: "
+echo -n "Personal Access Token: "
 read -r TOKEN
 
 cd() { command cd "$@" && printf 'Changing directory: %s -> %s\n' "${OLDPWD}" "${PWD}"; }
@@ -50,7 +50,7 @@ case $1 in
 *) ;;
 
 esac
-cd $CWD
+cd "$CWD" || exit
 
 RULE=""
 case $1 in
@@ -68,15 +68,14 @@ COMMONS="so-commons-library"
 
 rm -rf $COMMONS
 git clone "https://${TOKEN}@github.com/sisoputnfrba/${COMMONS}.git" $COMMONS
-cd $COMMONS
+cd $COMMONS || exit
 sudo make uninstall
 make all
 sudo make install
-cd $CWD
+cd "$CWD" || exit
 
 length=$(($# - 1))
 OPTIONS=${@:1:length}
-REPONAME="${!#}"
 
 LIBRARIES=()
 DEPENDENCIES=()
@@ -102,32 +101,23 @@ if [ ${#LIBRARIES[@]} -ne 0 ]; then
     echo -e "\n\nCloning external libraries..."
     for i in "${LIBRARIES[@]}"; do
         echo -e "\n\nBuilding ${i}\n\n"
-        rm -rf $i
-        git clone "https://${TOKEN}@github.com/${i}.git" $i
-        cd $i
+        rm -rf "$i"
+        git clone "https://${TOKEN}@github.com/${i}.git" "$i"
+        cd "$i" || exit
         make install
-        cd $CWD
+        cd "$CWD" || exit
     done
 else
     echo -e "\n\nNo external libraries were indicated..."
-fi
-
-if [ -n "$REPONAME" ]; then
-    echo -e "\n\nCloning project repo...\n\n"
-    rm -rf $REPONAME
-    git clone "https://${TOKEN}@github.com/sisoputnfrba/${REPONAME}.git" $REPONAME
-    cd $REPONAME
-else
-    echo -e "\n\nNo repository was indicated..."
 fi
 
 if [ ${#DEPENDENCIES[@]} -ne 0 ]; then
     echo -e "\n\nBuilding dependencies..."
     for i in "${DEPENDENCIES[@]}"; do
         echo -e "\n\nBuilding ${i}\n\n"
-        cd $i
+        cd "$i" || exit
         make install
-        cd $PROJECTROOT
+        cd "$CWD" || exit
     done
 else
     echo -e "\n\nNo dependencies were indicated..."
@@ -137,9 +127,9 @@ if [ ${#PROJECTS[@]} -ne 0 ]; then
     echo -e "\n\nBuilding projects..."
     for i in "${PROJECTS[@]}"; do
         echo -e "\n\nBuilding ${i}\n\n"
-        cd $i
-        make $RULE
-        cd $PROJECTROOT
+        cd "$i" || exit
+        make "$RULE"
+        cd "$CWD" || exit
     done
 else
     echo -e "\n\nNo projects were indicated..."
