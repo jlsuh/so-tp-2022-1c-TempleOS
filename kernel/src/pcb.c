@@ -73,10 +73,6 @@ void pcb_destroy(t_pcb* self) {
     free(self);
 }
 
-void pcb_responder_a_consola(t_pcb* self, uint8_t responseHeader) {
-    stream_send_empty_buffer(*self->socketConsola, responseHeader);
-}
-
 void pcb_test_and_set_tiempo_final_bloqueado(t_pcb* self) {
     pthread_mutex_lock(pcb_get_mutex(self));
     if (!__pcb_tiempo_final_ya_establecido(self)) {
@@ -140,6 +136,10 @@ void pcb_set_tiempo_de_bloqueo(t_pcb* self, uint32_t tiempoDeBloqueo) {
 
 void pcb_set_socket(t_pcb* self, int* socketConsola) {
     self->socketConsola = socketConsola;
+}
+
+int pcb_get_socket(t_pcb* self) {
+    return *self->socketConsola;
 }
 
 t_buffer* pcb_get_instruction_buffer(t_pcb* self) {

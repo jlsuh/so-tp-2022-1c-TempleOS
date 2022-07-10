@@ -65,7 +65,7 @@ static void responder_memoria_insuficiente(t_pcb* pcb) {
     estado_encolar_pcb_atomic(estadoExit, pcb);
     log_transition("NEW", "EXIT", pcb_get_pid(pcb));
     log_info(kernelLogger, "Memoria insuficiente para alojar el proceso %d", pcb_get_pid(pcb));
-    pcb_responder_a_consola(pcb, HEADER_memoria_insuficiente);
+    stream_send_empty_buffer(pcb_get_socket(pcb), HEADER_memoria_insuficiente);
 }
 
 static uint32_t obtener_siguiente_pid(void) {
@@ -225,6 +225,7 @@ static void noreturn hilo_que_libera_pcbs_en_exit(void) {
         t_pcb* pcbALiberar = estado_desencolar_primer_pcb_atomic(estadoExit);
         mem_adapter_finalizar_proceso(pcbALiberar, kernelConfig, kernelLogger);
         log_info(kernelLogger, "Se finaliza PCB <ID %d> de tamaño %d", pcb_get_pid(pcbALiberar), pcb_get_tamanio(pcbALiberar));
+        stream_send_empty_buffer(pcb_get_socket(pcbALiberar), HANDSHAKE_ok_continue);  // Finalizar proceso
         pcb_destroy(pcbALiberar);
         sem_post(&gradoMultiprog);
     }
@@ -348,7 +349,7 @@ static void noreturn atender_pcb(void) {
                 pcb_set_estado_actual(pcb, EXIT);
                 estado_encolar_pcb_atomic(estadoExit, pcb);
                 log_transition("EXEC", "EXIT", pcb_get_pid(pcb));
-                pcb_responder_a_consola(pcb, HEADER_proceso_terminado);
+                stream_send_empty_buffer(pcb_get_socket(pcb), HEADER_proceso_terminado);
                 sem_post(estado_get_sem(estadoExit));
                 break;
             case HEADER_proceso_bloqueado:
@@ -390,14 +391,12 @@ void* encolar_en_new_a_nuevo_pcb_entrante(void* socket) {
     uint32_t tamanio = 0;
 
     uint8_t response = stream_recv_header(*socketProceso);
-    if (response != HANDSHAKE_consola) {
-        log_error(kernelLogger, "Error al intentar establecer conexión con proceso mediante <socket %d>", *socketProceso);
-    } else {
+    if (response == HANDSHAKE_consola) {
         t_buffer* bufferHandshakeInicial = buffer_create();
         stream_recv_buffer(*socketProceso, bufferHandshakeInicial);
         buffer_unpack(bufferHandshakeInicial, &tamanio, sizeof(tamanio));
         buffer_destroy(bufferHandshakeInicial);
-        stream_send_empty_buffer(*socketProceso, HANDSHAKE_ok_continue);  // TODO: Descomentarlo en consola.c luego en producción
+        stream_send_empty_buffer(*socketProceso, HANDSHAKE_ok_continue);
 
         uint8_t consolaResponse = stream_recv_header(*socketProceso);
         if (consolaResponse != HEADER_lista_instrucciones) {
@@ -416,10 +415,17 @@ void* encolar_en_new_a_nuevo_pcb_entrante(void* socket) {
 
         log_info(kernelLogger, "Creación de nuevo proceso ID %d de tamaño %d mediante <socket %d>", pcb_get_pid(newPcb), tamanio, *socketProceso);
 
+        t_buffer* bufferPID = buffer_create();
+        buffer_pack(bufferPID, &newPid, sizeof(newPid));
+        stream_send_buffer(*socketProceso, HEADER_pid, bufferPID);
+        buffer_destroy(bufferPID);
+
         estado_encolar_pcb_atomic(estadoNew, newPcb);
         log_transition("NULL", "NEW", pcb_get_pid(newPcb));
         sem_post(&hayPcbsParaAgregarAlSistema);
         buffer_destroy(instructionsBuffer);
+    } else {
+        log_error(kernelLogger, "Error al intentar establecer conexión con proceso mediante <socket %d>", *socketProceso);
     }
     return NULL;
 }
