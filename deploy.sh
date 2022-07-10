@@ -112,7 +112,7 @@ else
     echo -e "\n\nNo external libraries were indicated..."
 fi
 
-if [ ${REPONAME} -ne "" ]; then
+if [ -n "${REPONAME}" ]; then
     echo -e "\n\nCloning project repo...\n\n"
     rm -rf $REPONAME
     git clone "https://${TOKEN}@github.com/sisoputnfrba/${REPONAME}.git" $REPONAME
