@@ -135,4 +135,8 @@ else
     echo -e "\n\nNo projects were indicated..."
 fi
 
+cd "/home/utnso/" || exit
+mkdir "/swap/" || exit
+echo -e "\n\nSwap subdirectory created...\n\n"
+
 echo -e "\n\nDeploy finished\n\n"
