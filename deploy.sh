@@ -1,8 +1,5 @@
 #!/usr/bin/env bash
 
-echo -n "Personal Access Token: "
-read -r TOKEN
-
 cd() { command cd "$@" && printf 'Changing directory: %s -> %s\n' "${OLDPWD}" "${PWD}"; }
 
 bold=$(tput bold)
@@ -37,6 +34,9 @@ ${bold}EXAMPLE${normal}
   "
     exit
 fi
+
+echo -n "Personal Access Token: "
+read -r TOKEN
 
 CWD=$PWD
 case $1 in
