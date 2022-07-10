@@ -15,9 +15,9 @@
 #include "scheduler.h"
 #include "stream.h"
 
-#define KERNEL_CONFIG_PATH "cfg/kernel_config.cfg"
 #define KERNEL_LOG_PATH "bin/kernel.log"
 #define KERNEL_MODULE_NAME "Kernel"
+#define NUMBER_OF_ARGS_REQUIRED 2
 
 extern t_log* kernelLogger;
 extern t_kernel_config* kernelConfig;
@@ -51,7 +51,12 @@ static void __kernel_destroy(t_kernel_config* kernelConfig, t_log* kernelLogger)
 
 int main(int argc, char* argv[]) {
     kernelLogger = log_create(KERNEL_LOG_PATH, KERNEL_MODULE_NAME, true, LOG_LEVEL_DEBUG);
-    kernelConfig = kernel_config_create(KERNEL_CONFIG_PATH, kernelLogger);
+    if (argc != NUMBER_OF_ARGS_REQUIRED) {
+        log_error(kernelLogger, "Cantidad de argumentos inválida.\nArgumentos: <configPath>");
+        log_destroy(kernelLogger);
+        return -1;
+    }
+    kernelConfig = kernel_config_create(argv[1], kernelLogger);
 
     // Conexión con CPU en canal Dispatch
     const int socketCPUDispatch = conectar_a_servidor(kernel_config_get_ip_cpu(kernelConfig), kernel_config_get_puerto_cpu_dispatch(kernelConfig));
