@@ -14,7 +14,7 @@ function log_green() { echo -e "${GREEN}$1${ENDCOLOR}"; }
 function cd() { command cd "$@" && printf 'Changing directory: %s -> %s\n' "${OLDPWD}" "${PWD}"; }
 
 function install_commons() {
-    log_green "Installing commons library..."
+    log_green "Installing ${COMMONS}..."
     rm -rf $COMMONS
     git clone "https://${TOKEN}@github.com/sisoputnfrba/${COMMONS}.git" $COMMONS
     cd $COMMONS || exit
@@ -25,7 +25,6 @@ function install_commons() {
 }
 
 function install_dependencies() {
-    log_green "Installing dependencies..."
     for i in "${DEPENDENCIES[@]}"; do
         log_green "Installing dependency ${i}..."
         cd "$i" || exit
@@ -35,9 +34,8 @@ function install_dependencies() {
 }
 
 function build_projects() {
-    log_green "Building projects..."
     for i in "${PROJECTS[@]}"; do
-        log_green "Building project ${i}..."
+        log_green "Building project ${i} with rule ${RULE}..."
         cd "$i" || exit
         make "$RULE"
         cd "$CWD" || exit
