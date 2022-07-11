@@ -56,7 +56,7 @@ function build_projects() {
 
 function main() {
     if (($# != 1)); then
-        echo "${RED}Parameters: <PersonalAccessToken>${ENDCOLOR}"
+        echo -e "${RED}Parameters: <PersonalAccessToken>${ENDCOLOR}"
         exit 1
     fi
 
