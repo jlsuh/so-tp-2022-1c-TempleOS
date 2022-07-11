@@ -11,34 +11,45 @@ declare -r GREEN="\e[1;92m"
 
 function log_green() { echo -e "${GREEN}$1${ENDCOLOR}"; }
 
-function cd() { command cd "$@" && printf 'Changing directory: %s -> %s\n' "${OLDPWD}" "${PWD}"; }
+function cd() { command cd "$@" && printf "Changing directory: %s -> %s\n" "${OLDPWD}" "${PWD}"; }
 
 function install_commons() {
-    log_green "Installing ${COMMONS}..."
-    rm -rf $COMMONS
-    git clone "https://${TOKEN}@github.com/sisoputnfrba/${COMMONS}.git" $COMMONS
-    cd $COMMONS || exit
+    local -r cwd=$1
+    local -r commons=$2
+    local -r token=$3
+    log_green "Installing ${commons}..."
+    rm -rf "$commons"
+    git clone "https://${token}@github.com/sisoputnfrba/${commons}.git" "$commons"
+    cd "$commons" || exit
     sudo make uninstall
     make all
     sudo make install
-    cd "$CWD" || exit
+    cd "$cwd" || exit
 }
 
 function install_dependencies() {
-    for i in "${DEPENDENCIES[@]}"; do
-        log_green "Installing dependency ${i}..."
-        cd "$i" || exit
+    local -r cwd=$1
+    shift
+    local -r dependencies=("$@")
+    for d in "${dependencies[@]}"; do
+        log_green "Installing dependency ${d}..."
+        cd "$d" || exit
         make install
-        cd "$CWD" || exit
+        cd "$cwd" || exit
     done
 }
 
 function build_projects() {
-    for i in "${PROJECTS[@]}"; do
-        log_green "Building project ${i} with rule ${RULE}..."
-        cd "$i" || exit
-        make "$RULE"
-        cd "$CWD" || exit
+    local -r cwd=$1
+    shift
+    local -r rule=$1
+    shift
+    local -r projects=("$@")
+    for p in "${projects[@]}"; do
+        log_green "Building project ${p} with rule ${rule}..."
+        cd "$p" || exit
+        make "$rule"
+        cd "$cwd" || exit
     done
 }
 
@@ -48,9 +59,9 @@ function main() {
     echo -n "Personal Access Token: "
     read -r TOKEN
 
-    install_commons
-    install_dependencies
-    build_projects
+    install_commons "$CWD" "$COMMONS" "$TOKEN"
+    install_dependencies "$CWD" "${DEPENDENCIES[@]}"
+    build_projects "$CWD" "$RULE" "${PROJECTS[@]}"
 
     cd ..
     sudo mkdir $SWAP || exit
