@@ -8,10 +8,11 @@ declare -r SWAP="swap/"
 
 declare -r ENDCOLOR="\e[0m"
 declare -r GREEN="\e[1;92m"
+declare -r RED="\e[1;91m"
 
-function log_green() { echo -e "${GREEN}$1${ENDCOLOR}"; }
+function log_green() { echo -e "${GREEN}${1}${ENDCOLOR}"; }
 
-function cd() { command cd "$@" && printf "Changing directory: %s -> %s\n" "${OLDPWD}" "${PWD}"; }
+function cd() { command cd "$@" && printf "Changing directory: %s -> %s\n" "$OLDPWD" "$PWD"; }
 
 function install_commons() {
     local -r cwd=$1
@@ -54,10 +55,13 @@ function build_projects() {
 }
 
 function main() {
-    local -r CWD=$PWD
+    if (($# != 1)); then
+        echo "${RED}Parameters: <PersonalAccessToken>${ENDCOLOR}"
+        exit 1
+    fi
 
-    echo -n "Personal Access Token: "
-    read -r TOKEN
+    local -r CWD=$PWD
+    local -r TOKEN=$1
 
     install_commons "$CWD" "$COMMONS" "$TOKEN"
     install_dependencies "$CWD" "${DEPENDENCIES[@]}"
@@ -71,4 +75,4 @@ function main() {
     log_green "Deploy finished"
 }
 
-main
+main "$@"
