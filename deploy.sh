@@ -10,9 +10,11 @@ declare -r ENDCOLOR="\e[0m"
 declare -r GREEN="\e[1;92m"
 declare -r RED="\e[1;91m"
 
-function log_green() { echo -e "${GREEN}${1}${ENDCOLOR}"; }
-
 function cd() { command cd "$@" && printf "Changing directory: %s -> %s\n" "$OLDPWD" "$PWD"; }
+
+function fail() { exit 1; }
+
+function log_green() { echo -e "${GREEN}${1}${ENDCOLOR}"; }
 
 function install_commons() {
     local -r cwd=$1
@@ -21,11 +23,11 @@ function install_commons() {
     log_green "Installing ${commons}..."
     rm -rf "$commons"
     git clone "https://${token}@github.com/sisoputnfrba/${commons}.git" "$commons"
-    cd "$commons" || exit
+    cd "$commons" || fail
     sudo make uninstall
     make all
     sudo make install
-    cd "$cwd" || exit
+    cd "$cwd" || fail
 }
 
 function install_dependencies() {
@@ -34,9 +36,9 @@ function install_dependencies() {
     local -r dependencies=("$@")
     for d in "${dependencies[@]}"; do
         log_green "Installing dependency ${d}..."
-        cd "$d" || exit
+        cd "$d" || fail
         make install
-        cd "$cwd" || exit
+        cd "$cwd" || fail
     done
 }
 
@@ -48,16 +50,16 @@ function build_projects() {
     local -r projects=("$@")
     for p in "${projects[@]}"; do
         log_green "Building project ${p} with rule ${rule}..."
-        cd "$p" || exit
+        cd "$p" || fail
         make "$rule"
-        cd "$cwd" || exit
+        cd "$cwd" || fail
     done
 }
 
 function main() {
     if (($# != 1)); then
         echo -e "${RED}Parameters: <PersonalAccessToken>${ENDCOLOR}"
-        exit 1
+        fail
     fi
 
     local -r CWD=$PWD
@@ -68,8 +70,8 @@ function main() {
     build_projects "$CWD" "$RULE" "${PROJECTS[@]}"
 
     cd ..
-    sudo mkdir $SWAP || exit
-    sudo chmod 777 $SWAP || exit
+    sudo mkdir $SWAP || fail
+    sudo chmod 777 $SWAP || fail
     log_green "Swap subdirectory created..."
 
     log_green "Deploy finished"
