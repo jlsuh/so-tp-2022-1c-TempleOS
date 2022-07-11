@@ -12,9 +12,9 @@
 #include "stream.h"
 #include "tlb.h"
 
-#define CPU_CONFIG_PATH "cfg/cpu_config.cfg"
 #define CPU_LOG_PATH "bin/cpu.log"
 #define CPU_MODULE_NAME "CPU"
+#define NUMBER_OF_ARGS_REQUIRED 2
 
 extern t_tlb* tlb;
 
@@ -23,7 +23,12 @@ extern t_cpu_config* cpuConfig;
 
 int main(int argc, char* argv[]) {
     cpuLogger = log_create(CPU_LOG_PATH, CPU_MODULE_NAME, true, LOG_LEVEL_INFO);
-    cpuConfig = cpu_config_create(CPU_CONFIG_PATH, cpuLogger);
+    if (argc != NUMBER_OF_ARGS_REQUIRED) {
+        log_error(cpuLogger, "Cantidad de argumentos inválida.\nArgumentos: <configPath>");
+        log_destroy(cpuLogger);
+        return -1;
+    }
+    cpuConfig = cpu_config_create(argv[1], cpuLogger);
 
     // Conexión con Memoria
     const int memoriaSocket = conectar_a_servidor(cpu_config_get_ip_memoria(cpuConfig), cpu_config_get_puerto_memoria(cpuConfig));

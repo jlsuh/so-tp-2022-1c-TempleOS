@@ -166,7 +166,7 @@ static void noreturn dispatch_peticiones_de_kernel(void) {
         uint8_t kernelResponse = stream_recv_header(cpu_config_get_socket_dispatch(cpuConfig));
         t_buffer* bufferPcb = NULL;
         t_cpu_pcb* pcb = NULL;
-        if (kernelResponse == HEADER_pcb_a_ejecutar) {
+        if (kernelResponse == HEADER_pcb_a_ejecutar || kernelResponse == HEADER_pcb_a_ejecutar_ultimo_suspendido) {
             bufferPcb = buffer_create();
             stream_recv_buffer(cpu_config_get_socket_dispatch(cpuConfig), bufferPcb);
             buffer_unpack(bufferPcb, &pidRecibido, sizeof(pidRecibido));
@@ -174,7 +174,7 @@ static void noreturn dispatch_peticiones_de_kernel(void) {
             buffer_unpack(bufferPcb, &tablaPags, sizeof(tablaPags));
             buffer_destroy(bufferPcb);
 
-            if (pidRecibido != pidProcesoEnExec) {
+            if (kernelResponse == HEADER_pcb_a_ejecutar_ultimo_suspendido || pidRecibido != pidProcesoEnExec) {
                 tlb_flush(tlb);
                 pidProcesoEnExec = pidRecibido;
             }

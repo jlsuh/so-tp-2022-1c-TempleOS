@@ -116,7 +116,7 @@ int* obtener_marcos(uint32_t nroTablaNivel1, t_memoria_data_holder* memoriaData)
 uint32_t obtener_indice_tabla_nivel_1(uint32_t nroTablaNivel1, t_memoria_data_holder* memoriaData) {
     int cantidadProcesosMax = memoriaData->cantidadProcesosMax;
     t_tabla_nivel_1* tablasDeNivel1 = memoriaData->tablasDeNivel1;
-    uint32_t indice;
+    uint32_t indice = -1;
 
     for (int i = 0; i < cantidadProcesosMax; i++) {
         if (tablasDeNivel1[i].id == nroTablaNivel1) {

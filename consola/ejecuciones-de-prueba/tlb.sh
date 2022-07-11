@@ -5,7 +5,7 @@
 # 2) Ejecutar 2 módulos consola con los siguientes scripts en el orden indicado:
 SIZE=2048
 export LD_LIBRARY_PATH=./../utils/bin
-./bin/consola.out $SIZE ./instrucciones-de-prueba/TLB_1
+./bin/consola.out $SIZE ./instrucciones-de-prueba/TLB_1 &
 ./bin/consola.out $SIZE ./instrucciones-de-prueba/TLB_2
 # 3) Esperar su finalización
 # 4) Cambiar el algoritmo de la TLB a LRU y volver a ejecutar los scripts en el mismo orden
