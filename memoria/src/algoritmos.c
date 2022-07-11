@@ -16,7 +16,7 @@ void __cargar_tabla(uint32_t nroTablaNivel1, t_entrada_nivel_2_algoritmo* tablaA
     int tamanio = memoriaData->cantidadMarcosProceso;
     int puntero = obtener_puntero(nroTablaNivel1, memoriaData);
     printf("puntero: %d\n", puntero);
-    int indicePuntero;
+    int indicePuntero = -1;
 
     for (int i = 0; i < tamanio; i++) {
         int pagina = obtener_pagina_de_un_marco(marcos[i], memoriaData);

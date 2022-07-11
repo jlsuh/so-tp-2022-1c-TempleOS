@@ -19,7 +19,10 @@ void abrir_archivo(uint32_t tamanio, int nroTablaNivel1, t_memoria_data_holder* 
     }
     free(pathArchivo);
 
-    ftruncate(memoriaData->archivo_swap, tamanio);
+    if (ftruncate(memoriaData->archivo_swap, tamanio) == -1) {
+        log_error(memoriaData->memoriaLogger, "Error al truncar el archivo swap: %s", strerror(errno));
+        exit(-1);
+    }
 
     memoriaData->inicio_archivo = mmap(NULL, tamanio, PROT_READ | PROT_WRITE, MAP_SHARED, memoriaData->archivo_swap, 0);
     if (memoriaData->inicio_archivo == MAP_FAILED) {
