@@ -36,6 +36,7 @@ static t_onBlocked_handler actualizar_pcb_por_bloqueo;
 static uint32_t nextPid;
 static pthread_mutex_t nextPidMutex;
 static int ultimoPIDSuspendido;
+static pthread_mutex_t ultimoPIDSuspendidoMutex;
 
 static sem_t gradoMultiprog;
 static sem_t hayPcbsParaAgregarAlSistema;
@@ -176,7 +177,9 @@ static void iniciar_contador_blocked_a_suspended_blocked(void* pcbVoid) {
 
             pcb_set_estado_actual(pcb, SUSPENDED_BLOCKED);
             mem_adapter_avisar_suspension(pcb, kernelConfig, kernelLogger);
+            pthread_mutex_lock(&ultimoPIDSuspendidoMutex);
             ultimoPIDSuspendido = pcb_get_pid(pcb);
+            pthread_mutex_unlock(&ultimoPIDSuspendidoMutex);
             estado_encolar_pcb_atomic(estadoSuspendedBlocked, pcb);
             log_debug(kernelLogger, "Entra en suspensión PCB <ID %d>", pcb_get_pid(pcb));
             log_transition("BLOCKED", "SUSBLOCKED", pcb_get_pid(pcb));
@@ -325,14 +328,13 @@ static void noreturn atender_pcb(void) {
         set_timespec(&start);
 
         uint8_t headerAEnviar = -1;
-        /*
-        Leer previamente si el proceso fue el último en suspenderse
-        */
-        if(ultimoPIDSuspendido == pcb_get_pid(pcb)){
+        pthread_mutex_lock(&ultimoPIDSuspendidoMutex);
+        if (ultimoPIDSuspendido == pcb_get_pid(pcb)) {
             headerAEnviar = HEADER_pcb_a_ejecutar_ultimo_suspendido;
         } else {
             headerAEnviar = HEADER_pcb_a_ejecutar;
         }
+        pthread_mutex_unlock(&ultimoPIDSuspendidoMutex);
 
         cpu_adapter_enviar_pcb_a_cpu(pcb, kernelConfig, kernelLogger, headerAEnviar);
         uint8_t cpuResponse = stream_recv_header(kernel_config_get_socket_dispatch_cpu(kernelConfig));
@@ -463,6 +465,7 @@ void inicializar_estructuras(void) {
     pthread_mutex_init(&nextPidMutex, NULL);
     pthread_mutex_init(&hayQueDesalojarMutex, NULL);
     pthread_mutex_init(&mutexSocketMemoria, NULL);
+    pthread_mutex_init(&ultimoPIDSuspendidoMutex, NULL);
 
     int valorInicialGradoMultiprog = kernel_config_get_grado_multiprogramacion(kernelConfig);
 
