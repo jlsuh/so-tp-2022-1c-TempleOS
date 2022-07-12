@@ -3,7 +3,7 @@
 
 typedef enum {
     HEADER_lista_instrucciones,
-    HEADER_nuevo_proceso,
+    HEADER_pid,
     HEADER_proceso_terminado,
     HEADER_proceso_bloqueado,
     HEADER_proceso_desalojado,
@@ -15,6 +15,7 @@ typedef enum {
     HEADER_tabla_de_paginas,
     HEADER_solicitud_tabla_paginas,
     HEADER_pcb_a_ejecutar,
+    HEADER_pcb_a_ejecutar_ultimo_suspendido,
     HEADER_memoria_insuficiente,
     HEADER_error,
     HEADER_tabla_nivel_2,

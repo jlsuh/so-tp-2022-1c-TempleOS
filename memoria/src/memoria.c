@@ -19,9 +19,9 @@
 #include "tabla_nivel_2.h"
 #include "tabla_suspendido.h"
 
-#define MEMORIA_CONFIG_PATH "cfg/memoria_config.cfg"
 #define MEMORIA_LOG_PATH "bin/memoria.log"
 #define MEMORIA_MODULE_NAME "Memoria"
+#define NUMBER_OF_ARGS_REQUIRED 2
 
 t_memoria_data_holder* memoriaData;
 bool cpuSinAtender = true;
@@ -35,7 +35,12 @@ int main(int argc, char* argv[]) {
     memoriaData = malloc(sizeof(*memoriaData));
 
     memoriaData->memoriaLogger = log_create(MEMORIA_LOG_PATH, MEMORIA_MODULE_NAME, true, LOG_LEVEL_INFO);
-    memoriaData->memoriaConfig = memoria_config_create(MEMORIA_CONFIG_PATH, memoriaData->memoriaLogger);
+    if (argc != NUMBER_OF_ARGS_REQUIRED) {
+        log_error(memoriaData->memoriaLogger, "Cantidad de argumentos inválida.\nArgumentos: <configPath>");
+        log_destroy(memoriaData->memoriaLogger);
+        return -1;
+    }
+    memoriaData->memoriaConfig = memoria_config_create(argv[1], memoriaData->memoriaLogger);
 
     int socketEscucha = iniciar_servidor(memoria_config_get_ip_escucha(memoriaData->memoriaConfig), memoria_config_get_puerto_escucha(memoriaData->memoriaConfig));
     log_info(memoriaData->memoriaLogger, "\e[1;92mA la escucha de Kernel y CPU en puerto %d\e[0m", socketEscucha);

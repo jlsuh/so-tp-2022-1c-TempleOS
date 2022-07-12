@@ -7,7 +7,7 @@
 #include "kernel_config.h"
 #include "stream.h"
 
-void cpu_adapter_enviar_pcb_a_cpu(t_pcb* pcbAEnviar, t_kernel_config* kernelConfig, t_log* kernelLogger) {
+void cpu_adapter_enviar_pcb_a_cpu(t_pcb* pcbAEnviar, t_kernel_config* kernelConfig, t_log* kernelLogger, uint8_t header) {
     uint32_t pidAEnviar = pcb_get_pid(pcbAEnviar);
     uint32_t pcAEnviar = pcb_get_program_counter(pcbAEnviar);
     uint32_t tablaPagsAEnviar = pcb_get_tabla_pagina_primer_nivel(pcbAEnviar);
@@ -17,7 +17,8 @@ void cpu_adapter_enviar_pcb_a_cpu(t_pcb* pcbAEnviar, t_kernel_config* kernelConf
     buffer_pack(bufferPcbAEjecutar, &pcAEnviar, sizeof(pcAEnviar));
     buffer_pack(bufferPcbAEjecutar, &tablaPagsAEnviar, sizeof(tablaPagsAEnviar));
 
-    stream_send_buffer(kernel_config_get_socket_dispatch_cpu(kernelConfig), HEADER_pcb_a_ejecutar, bufferPcbAEjecutar);
+    /*TODO: Parametrizar uint8_t header para discernir si el proceso fue el último en suspenderse*/
+    stream_send_buffer(kernel_config_get_socket_dispatch_cpu(kernelConfig), header, bufferPcbAEjecutar);
     stream_send_buffer(kernel_config_get_socket_dispatch_cpu(kernelConfig), HEADER_lista_instrucciones, pcb_get_instruction_buffer(pcbAEnviar));
 
     buffer_destroy(bufferPcbAEjecutar);

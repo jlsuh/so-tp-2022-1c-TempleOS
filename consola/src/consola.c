@@ -55,16 +55,28 @@ int main(int argc, char *argv[]) {
     const char *pathInstrucciones = argv[2];
     __consola_enviar_instrucciones_a_kernel(pathInstrucciones, consolaLogger, kernelSocket);
 
-    // TODO: Descomentar esto en producción
-    /* kernelResponse = stream_recv_header(kernelSocket);
+    kernelResponse = stream_recv_header(kernelSocket);
+    if (kernelResponse != HEADER_pid) {
+        log_error(consolaLogger, "Error al intentar recibir el PID");
+        __consola_destroy(consolaConfig, consolaLogger);
+        return -1;
+    }
+
+    uint32_t IDProceso = 0;
+    t_buffer *bufferPID = buffer_create();
+    stream_recv_buffer(kernelSocket, bufferPID);
+    buffer_unpack(bufferPID, &IDProceso, sizeof(IDProceso));
+    buffer_destroy(bufferPID);
+
+    kernelResponse = stream_recv_header(kernelSocket);
     stream_recv_empty_buffer(kernelSocket);
     if (kernelResponse != HEADER_proceso_terminado) {
-        log_error(consolaLogger, "Error al intentar finalizar consola");
+        log_error(consolaLogger, "Error al intentar finalizar consola de <ID %d>", IDProceso);
         __consola_destroy(consolaConfig, consolaLogger);
         return -1;
     } else {
-        log_info(consolaLogger, "Finalización de consola");
-    } */
+        log_info(consolaLogger, "Finalización de consola %d", IDProceso);
+    }
 
     consola_config_destroy(consolaConfig);
     log_destroy(consolaLogger);
