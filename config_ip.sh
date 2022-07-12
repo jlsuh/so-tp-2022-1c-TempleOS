@@ -12,7 +12,7 @@ function main () {
 
     # Cambiar IPs propias de cada modulo
     perl -pi -e "s/(?<=IP_ESCUCHA=).*/${kernelIP}/g" kernel/cfg/*
-    perl -pi -e "s/(?<=IP=).*/${memoriaIP}/g" memoria/cfg/*
+    perl -pi -e "s/(?<=IP_ESCUCHA=).*/${memoriaIP}/g" memoria/cfg/*
     perl -pi -e "s/(?<=IP=).*/${cpuIP}/g" cpu/cfg/*
 
     # Cambiar IP de memoria y cpu en kernel
