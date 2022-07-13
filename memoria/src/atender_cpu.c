@@ -18,6 +18,23 @@
 extern t_memoria_data_holder* memoriaData;
 extern pthread_mutex_t mutexMemoriaData;
 
+static void __loggear_paginas_en_memoria_del_proceso(uint32_t nroTablaNivel2, t_memoria_data_holder* memoriaData) {
+    int nroTablaNivel1 = obtener_tabla_de_nivel_1(nroTablaNivel2, memoriaData);
+    int* marcos = obtener_marcos(nroTablaNivel1, memoriaData);
+    int tamanio = memoriaData->cantidadMarcosProceso;
+    int puntero = obtener_puntero(nroTablaNivel1, memoriaData);
+    printf("--------------------\n");
+    printf("Proceso [%d] con puntero [%d]\n", nroTablaNivel1, puntero);
+    printf("Marco\t\tPagina\t\tBitUso\t\tBitModificado");
+    for (int i = 0; i < tamanio; i++) {
+        int pagina = obtener_pagina_de_un_marco(marcos[i], memoriaData);
+        int paginaLocal = obtener_indice(pagina, memoriaData);
+        bool bitUso = obtener_bit_uso(pagina, memoriaData);
+        bool bitModificado = obtener_bit_modificado(pagina, memoriaData);
+        printf("%d\t\t%d\t\t%d\t\t%d\n", marcos[i], paginaLocal, bitUso, bitModificado);
+    }
+}
+
 static void __actualizar_pagina(uint32_t direccionFisica, bool esEscritura, t_memoria_data_holder* memoriaData) {
     int nroPagina = obtener_pagina_de_direccion_fisica(direccionFisica, memoriaData);
     int nroTablaNivel2 = obtener_tabla_de_nivel_2_pagina(nroPagina, memoriaData);
@@ -25,6 +42,9 @@ static void __actualizar_pagina(uint32_t direccionFisica, bool esEscritura, t_me
         actualizar_escritura_pagina(nroPagina, nroTablaNivel2, memoriaData);
     else
         actualizar_lectura_pagina(nroPagina, nroTablaNivel2, memoriaData);
+
+    // No es logica de dominio
+    __loggear_paginas_en_memoria_del_proceso(nroTablaNivel2, memoriaData);
 }
 
 static int __swap_marco(uint32_t nroDeTabla2Victima, uint32_t entradaDeTabla2Victima, uint32_t nroDeTabla2, uint32_t entradaDeTabla2, t_memoria_data_holder* memoriaData) {

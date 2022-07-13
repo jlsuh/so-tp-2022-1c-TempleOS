@@ -8,6 +8,7 @@
 
 #include "common_utils.h"
 #include "marcos.h"
+#include "tabla_nivel_1.h"
 
 typedef struct
 {
@@ -73,15 +74,16 @@ void swap_out(int nroDeTabla2, int entradaDeTabla2, int marco, t_memoria_data_ho
     log_info(memoriaData->memoriaLogger, "\e[1;93mSe realiza un swap out\e[0m");
     memoriaData->tablasDeNivel2[nroDeTabla2].entradaNivel2[entradaDeTabla2].bitPresencia = false;
     int pagina = nroDeTabla2 * memoriaData->entradasPorTabla + entradaDeTabla2;
+    int tablaNivel1 = obtener_tabla_de_nivel_1(nroDeTabla2, memoriaData);
     if (memoriaData->tablasDeNivel2[nroDeTabla2].entradaNivel2[entradaDeTabla2].bitModificado) {
-        int puntero = obtener_indice(pagina, memoriaData);
+        int paginaLocal = obtener_indice(pagina, memoriaData);
         intervalo_de_pausa(memoriaData->retardoSwap);
-        memcpy((void*)(memoriaData->inicio_archivo + memoriaData->tamanioPagina * puntero), (void*)(memoriaData->memoriaPrincipal + marco * memoriaData->tamanioPagina), memoriaData->tamanioPagina);
+        memcpy((void*)(memoriaData->inicio_archivo + memoriaData->tamanioPagina * paginaLocal), (void*)(memoriaData->memoriaPrincipal + marco * memoriaData->tamanioPagina), memoriaData->tamanioPagina);
         memoriaData->tablasDeNivel2[nroDeTabla2].entradaNivel2[entradaDeTabla2].bitPaginaEnSwap = true;
 
-        log_info(memoriaData->memoriaLogger, "<\e[0;96m(Acceso a disco)\e[0m> Se escribió en disco la <\e[1;95mpágina global [%d]\e[0m> con <\e[1;95mmarco [%d]\e[0m> <Bit Modificado = 1>", pagina, marco);
+        log_info(memoriaData->memoriaLogger, "<\e[0;96m(Acceso a disco)\e[0m> Se escribió en disco la <\e[1;95mpágina [%d] del proceso [%d]\e[0m> con <\e[1;95mmarco [%d]\e[0m> <Bit Modificado = 1>", paginaLocal, tablaNivel1, marco);
     } else {
-        log_info(memoriaData->memoriaLogger, "La <\e[1;95mpágina global [%d]\e[0m> con <\e[1;95mmarco [%d]\e[0m> no se encuentra modificada <Bit Modificado = 0>", pagina, marco);
+        log_info(memoriaData->memoriaLogger, "La <\e[1;95mpágina [%d] del proceso [%d]\e[0m> con <\e[1;95mmarco [%d]\e[0m> no se encuentra modificada <Bit Modificado = 0>", pagina, tablaNivel1, marco);
     }
     asignar_pagina_a_marco(-1, marco, memoriaData);
 }
@@ -93,13 +95,14 @@ void swap_in(int nroDeTabla2, int entradaDeTabla2, int marco, t_memoria_data_hol
     memoriaData->tablasDeNivel2[nroDeTabla2].entradaNivel2[entradaDeTabla2].bitUso = false;
     memoriaData->tablasDeNivel2[nroDeTabla2].entradaNivel2[entradaDeTabla2].bitModificado = false;
     int pagina = nroDeTabla2 * memoriaData->entradasPorTabla + entradaDeTabla2;
+    int tablaNivel1 = obtener_tabla_de_nivel_1(nroDeTabla2, memoriaData);
     if (memoriaData->tablasDeNivel2[nroDeTabla2].entradaNivel2[entradaDeTabla2].bitPaginaEnSwap) {
-        int puntero = obtener_indice(pagina, memoriaData);
+        int paginaLocal = obtener_indice(pagina, memoriaData);
         intervalo_de_pausa(memoriaData->retardoSwap);
-        memcpy((void*)(memoriaData->memoriaPrincipal + marco * memoriaData->tamanioPagina), (void*)(memoriaData->inicio_archivo + memoriaData->tamanioPagina * puntero), memoriaData->tamanioPagina);
-        log_info(memoriaData->memoriaLogger, "<\e[0;96m(Acceso a disco)\e[0m> Se trae de disco la <\e[1;95mpágina global [%d]\e[0m> al <\e[1;95mmarco [%d]\e[0m> <Bit Página en Swap = 1>", pagina, marco);
+        memcpy((void*)(memoriaData->memoriaPrincipal + marco * memoriaData->tamanioPagina), (void*)(memoriaData->inicio_archivo + memoriaData->tamanioPagina * paginaLocal), memoriaData->tamanioPagina);
+        log_info(memoriaData->memoriaLogger, "<\e[0;96m(Acceso a disco)\e[0m> Se trae de disco la <\e[1;95mpágina [%d] del proceso [%d]\e[0m> al <\e[1;95mmarco [%d]\e[0m> <Bit Página en Swap = 1>", pagina,tablaNivel1, marco);
     } else {
-        log_info(memoriaData->memoriaLogger, "La <\e[1;95mpágina global [%d]\e[0m> no tiene datos en disco para escribir en <\e[1;95mmarco [%d]\e[0m> <Bit Página en Swap = 0>", pagina, marco);
+        log_info(memoriaData->memoriaLogger, "La <\e[1;95mpágina [%d] del proceso [%d]\e[0m> no tiene datos en disco para escribir en <\e[1;95mmarco [%d]\e[0m> <Bit Página en Swap = 0>", pagina,tablaNivel1, marco);
     }
     asignar_pagina_a_marco(pagina, marco, memoriaData);
 }
