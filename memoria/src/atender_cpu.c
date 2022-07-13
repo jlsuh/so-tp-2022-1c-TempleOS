@@ -28,10 +28,14 @@ static void __loggear_paginas_en_memoria_del_proceso(uint32_t nroTablaNivel2, t_
     printf("Marco\t\tPagina\t\tBitUso\t\tBitModificado\n");
     for (int i = 0; i < tamanio; i++) {
         int pagina = obtener_pagina_de_un_marco(marcos[i], memoriaData);
-        int paginaLocal = obtener_indice(pagina, memoriaData);
-        bool bitUso = obtener_bit_uso(pagina, memoriaData);
-        bool bitModificado = obtener_bit_modificado(pagina, memoriaData);
-        printf("%d\t\t%d\t\t%d\t\t%d\n", marcos[i], paginaLocal, bitUso, bitModificado);
+        if (pagina != -1) {
+            int paginaLocal = obtener_indice(pagina, memoriaData);
+            bool bitUso = obtener_bit_uso(pagina, memoriaData);
+            bool bitModificado = obtener_bit_modificado(pagina, memoriaData);
+            printf("%d\t\t%d\t\t%d\t\t%d\n", marcos[i], paginaLocal, bitUso, bitModificado);
+        } else {
+            printf("%d\t\t%d\t\t%d\t\t%d\n", marcos[i], -1, 0, 0);
+        }
     }
     printf("--------------------\n");
 }
