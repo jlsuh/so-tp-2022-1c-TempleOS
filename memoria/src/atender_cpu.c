@@ -26,7 +26,6 @@ static void __loggear_paginas_en_memoria_del_proceso(uint32_t nroTablaNivel2, t_
     printf("--------------------\n");
     printf("Proceso [%d] con puntero [%d]\n", nroTablaNivel1, puntero);
     printf("Marco\t\tPagina\t\tBitUso\t\tBitModificado\n");
-    printf("--------------------\n");
     for (int i = 0; i < tamanio; i++) {
         int pagina = obtener_pagina_de_un_marco(marcos[i], memoriaData);
         int paginaLocal = obtener_indice(pagina, memoriaData);
@@ -34,6 +33,7 @@ static void __loggear_paginas_en_memoria_del_proceso(uint32_t nroTablaNivel2, t_
         bool bitModificado = obtener_bit_modificado(pagina, memoriaData);
         printf("%d\t\t%d\t\t%d\t\t%d\n", marcos[i], paginaLocal, bitUso, bitModificado);
     }
+    printf("--------------------\n");
 }
 
 static void __actualizar_pagina(uint32_t direccionFisica, bool esEscritura, t_memoria_data_holder* memoriaData) {
