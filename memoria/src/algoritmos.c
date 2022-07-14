@@ -15,7 +15,6 @@ void __cargar_tabla(uint32_t nroTablaNivel1, t_entrada_nivel_2_algoritmo* tablaA
     int* marcos = obtener_marcos(nroTablaNivel1, memoriaData);
     int tamanio = memoriaData->cantidadMarcosProceso;
     int puntero = obtener_puntero(nroTablaNivel1, memoriaData);
-    printf("puntero: %d\n", puntero);
     int indicePuntero = -1;
 
     for (int i = 0; i < tamanio; i++) {
@@ -40,6 +39,7 @@ void __cargar_tabla(uint32_t nroTablaNivel1, t_entrada_nivel_2_algoritmo* tablaA
 void __descargar_tabla(uint32_t nroTablaNivel1, t_entrada_nivel_2_algoritmo* tablaAlgoritmo, t_memoria_data_holder* memoriaData) {
     int indiceTabla1 = (int)obtener_indice_tabla_nivel_1(nroTablaNivel1, memoriaData);
     int paginaInicialTabla1 = indiceTabla1 * memoriaData->entradasPorTabla * memoriaData->entradasPorTabla;
+
     for (int i = 0; i < memoriaData->cantidadMarcosProceso; i++) {
         int pagina = paginaInicialTabla1 + tablaAlgoritmo[i].indicePagina;
         setear_bit_uso(pagina, tablaAlgoritmo[i].bitUso, memoriaData);
@@ -59,9 +59,10 @@ int seleccionar_victima_clock(uint32_t nroTablaNivel1, t_memoria_data_holder* me
                 if (i == tamanio - 1) {
                     actualizar_puntero(nroTablaNivel1, tablaAlgoritmo[0].indicePagina, memoriaData);
                 } else {
-                    actualizar_puntero(nroTablaNivel1, tablaAlgoritmo[i+1].indicePagina, memoriaData);
+                    actualizar_puntero(nroTablaNivel1, tablaAlgoritmo[i + 1].indicePagina, memoriaData);
                 }
                 __descargar_tabla(nroTablaNivel1, tablaAlgoritmo, memoriaData);
+                log_trace(memoriaData->memoriaLogger, "Se selecciona la pagina %d de proceso %d como victima", tablaAlgoritmo[i].indicePagina, nroTablaNivel1);
                 return tablaAlgoritmo[i].indicePagina;
             }
         }
@@ -80,9 +81,10 @@ int seleccionar_victima_clock_modificado(uint32_t nroTablaNivel1, t_memoria_data
                 if (i == tamanio - 1) {
                     actualizar_puntero(nroTablaNivel1, tablaAlgoritmo[0].indicePagina, memoriaData);
                 } else {
-                    actualizar_puntero(nroTablaNivel1, tablaAlgoritmo[i+1].indicePagina, memoriaData);
+                    actualizar_puntero(nroTablaNivel1, tablaAlgoritmo[i + 1].indicePagina, memoriaData);
                 }
                 __descargar_tabla(nroTablaNivel1, tablaAlgoritmo, memoriaData);
+                log_trace(memoriaData->memoriaLogger, "Se selecciona la pagina %d de proceso %d como victima", tablaAlgoritmo[i].indicePagina, nroTablaNivel1);
                 return tablaAlgoritmo[i].indicePagina;
             }
         }
@@ -91,9 +93,11 @@ int seleccionar_victima_clock_modificado(uint32_t nroTablaNivel1, t_memoria_data
                 if (i == tamanio - 1) {
                     actualizar_puntero(nroTablaNivel1, tablaAlgoritmo[0].indicePagina, memoriaData);
                 } else {
-                    actualizar_puntero(nroTablaNivel1, tablaAlgoritmo[i+1].indicePagina, memoriaData);
+                    actualizar_puntero(nroTablaNivel1, tablaAlgoritmo[i + 1].indicePagina, memoriaData);
                 }
                 __descargar_tabla(nroTablaNivel1, tablaAlgoritmo, memoriaData);
+                log_trace(memoriaData->memoriaLogger, "Se selecciona la pagina %d de proceso %d como victima", tablaAlgoritmo[i].indicePagina, nroTablaNivel1);
+                return tablaAlgoritmo[i].indicePagina;
                 return tablaAlgoritmo[i].indicePagina;
             } else if (tablaAlgoritmo[i].bitUso) {
                 tablaAlgoritmo[i].bitUso = false;
