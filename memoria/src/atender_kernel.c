@@ -79,9 +79,9 @@ void* escuchar_peticiones_kernel(void* socketKernel) {
                 buffer_unpack(buffer, &nroTablaNivel1, sizeof(nroTablaNivel1));
 
                 if (esta_suspendido(nroTablaNivel1, memoriaData)) {
-                    log_info(memoriaData->memoriaLogger, "Ya se encuentra suspendido el proceso [%d]", nroTablaNivel1);
+                    log_info(memoriaData->memoriaLogger, "\e[1;93mYa se encuentra suspendido el proceso [%d]\e[0m", nroTablaNivel1);
                 } else {
-                    log_info(memoriaData->memoriaLogger, "Se suspendio proceso [%d]", nroTablaNivel1);
+                    log_info(memoriaData->memoriaLogger, "\e[1;93mSe suspendio el proceso [%d]\e[0m", nroTablaNivel1);
                     suspender_proceso(nroTablaNivel1, memoriaData);
                 }
 
