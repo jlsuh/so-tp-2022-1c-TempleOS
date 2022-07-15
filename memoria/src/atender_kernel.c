@@ -78,9 +78,9 @@ void* escuchar_peticiones_kernel(void* socketKernel) {
                 log_info(memoriaData->memoriaLogger, "\e[1;93mSe suspende proceso\e[0m");
                 buffer_unpack(buffer, &nroTablaNivel1, sizeof(nroTablaNivel1));
 
+                log_info(memoriaData->memoriaLogger, "Se suspendio tabla de nivel 1 con ID [%d]", nroTablaNivel1);
                 suspender_proceso(nroTablaNivel1, memoriaData);
 
-                log_info(memoriaData->memoriaLogger, "Se suspendio tabla de nivel 1 con ID [%d]", nroTablaNivel1);
                 stream_send_empty_buffer(socket, HANDSHAKE_ok_continue);
                 buffer_destroy(buffer);
                 break;
