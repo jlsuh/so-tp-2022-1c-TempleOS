@@ -1,7 +1,5 @@
 #include "cpu_pcb.h"
 
-#include <commons/collections/list.h>
-#include <stdint.h>
 #include <stdlib.h>
 
 #include "instruccion.h"

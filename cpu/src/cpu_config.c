@@ -1,14 +1,10 @@
 #include "cpu_config.h"
 
-#include <commons/config.h>
-#include <commons/log.h>
 #include <stdlib.h>
 #include <string.h>
 
 #include "module_config.h"
 
-/* Se mueven acá las declaraciones pues de lo contrario es una referencia
-   sin definir en la carpeta de tests (excluye al archivo con main) */
 t_log* cpuLogger;
 t_cpu_config* cpuConfig;
 

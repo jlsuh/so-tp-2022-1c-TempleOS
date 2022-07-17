@@ -6,7 +6,6 @@
 typedef struct t_tlb t_tlb;
 typedef struct t_entrada_tlb t_entrada_tlb;
 
-char* tlb_get_algoritmo_reemplazo(t_tlb*);
 int entrada_tlb_get_instante_de_tiempo(t_tlb*, uint32_t index);
 int entrada_tlb_get_marco(t_tlb*, uint32_t index);
 int entrada_tlb_get_numero_pagina(t_tlb*, uint32_t index);

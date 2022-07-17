@@ -1,6 +1,5 @@
 #include "tlb.h"
 
-#include <commons/collections/list.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -132,10 +131,6 @@ int tlb_get_marco(t_tlb* self, uint32_t numeroPagina) {
 
 uint32_t tlb_get_cantidad_entradas_totales(t_tlb* self) {
     return self->cantidadEntradasTotales;
-}
-
-char* tlb_get_algoritmo_reemplazo(t_tlb* self) {
-    return self->algoritmoReemplazo;
 }
 
 int entrada_tlb_get_numero_pagina(t_tlb* self, uint32_t index) {

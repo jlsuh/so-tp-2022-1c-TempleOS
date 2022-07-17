@@ -1,8 +1,3 @@
-#include <commons/log.h>
-#include <pthread.h>
-#include <stdbool.h>
-#include <stdio.h>
-#include <stdlib.h>
 #include <sys/socket.h>
 
 #include "common_flags.h"
@@ -17,7 +12,6 @@
 #define NUMBER_OF_ARGS_REQUIRED 2
 
 extern t_tlb* tlb;
-
 extern t_log* cpuLogger;
 extern t_cpu_config* cpuConfig;
 
