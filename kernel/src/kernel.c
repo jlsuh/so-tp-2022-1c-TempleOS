@@ -1,14 +1,8 @@
-#include <commons/log.h>
 #include <errno.h>
-#include <pthread.h>
-#include <stdbool.h>
-#include <stdio.h>
-#include <stdlib.h>
 #include <stdnoreturn.h>
 #include <string.h>
 #include <sys/socket.h>
 
-#include "buffer.h"
 #include "common_flags.h"
 #include "connections.h"
 #include "kernel_config.h"
