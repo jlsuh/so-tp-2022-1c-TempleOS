@@ -2,6 +2,7 @@
 
 #include <commons/string.h>
 #include <stdnoreturn.h>
+#include <string.h>
 
 #include "common_utils.h"
 #include "cpu_adapter.h"

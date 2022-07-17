@@ -3,7 +3,6 @@
 
 #include <pcb.h>
 #include <stdint.h>
-#include <string.h>
 
 #include "estado.h"
 
