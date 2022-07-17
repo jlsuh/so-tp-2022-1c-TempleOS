@@ -1,76 +1,60 @@
 #include "scheduler.h"
 
-#include <commons/collections/list.h>
-#include <commons/log.h>
 #include <commons/string.h>
-#include <commons/temporal.h>
-#include <pthread.h>
-#include <semaphore.h>
-#include <stdint.h>
-#include <stdio.h>
 #include <stdnoreturn.h>
-#include <unistd.h>
 
-#include "buffer.h"
-#include "common_flags.h"
 #include "common_utils.h"
 #include "cpu_adapter.h"
-#include "estado.h"
 #include "instruccion.h"
-#include "kernel_config.h"
 #include "mem_adapter.h"
-#include "pcb.h"
-#include "stream.h"
-
-typedef void (*t_suspension_handler)(void);
-
-extern pthread_mutex_t mutexSocketMemoria;
 
 extern t_log* kernelLogger;
 extern t_kernel_config* kernelConfig;
 
+typedef void (*t_suspension_handler)(void);
+
 static t_dispatch_handler elegir_pcb;
-static t_suspension_handler evaluar_suspension;
 static t_onBlocked_handler actualizar_pcb_por_bloqueo;
-
-static uint32_t nextPid;
-static pthread_mutex_t nextPidMutex;
-static int ultimoPIDSuspendido;
-static pthread_mutex_t ultimoPIDSuspendidoMutex;
-
-static sem_t gradoMultiprog;
-static sem_t hayPcbsParaAgregarAlSistema;
-static sem_t dispatchPermitido;
-static sem_t transicionarSusreadyAReady;
-
-static t_estado* estadoNew;
-static t_estado* estadoReady;
-static t_estado* estadoExec;
-static t_estado* estadoExit;
-static t_estado* estadoBlocked;
-static t_estado* estadoSuspendedBlocked;
-static t_estado* estadoSuspendedReady;
-
-static t_estado* pcbsEsperandoParaIO;
+static t_suspension_handler evaluar_suspension;
 
 static bool hayQueDesalojar;
+static int ultimoPIDSuspendido;
+static uint32_t nextPid;
+
 static pthread_mutex_t hayQueDesalojarMutex;
+extern pthread_mutex_t mutexSocketMemoria;
+static pthread_mutex_t nextPidMutex;
+static pthread_mutex_t ultimoPIDSuspendidoMutex;
+
+static sem_t dispatchPermitido;
+static sem_t gradoMultiprog;
+static sem_t hayPcbsParaAgregarAlSistema;
+static sem_t transicionarSusreadyAReady;
+
+static t_estado* estadoBlocked;
+static t_estado* estadoExec;
+static t_estado* estadoExit;
+static t_estado* estadoNew;
+static t_estado* estadoReady;
+static t_estado* estadoSuspendedBlocked;
+static t_estado* estadoSuspendedReady;
+static t_estado* pcbsEsperandoParaIO;
 
 //////////////////////////////////////// General Functions ////////////////////////////////////////
-static void log_transition(const char* prev, const char* post, int pid) {
+static void __log_transition(const char* prev, const char* post, int pid) {
     char* transicion = string_from_format("\e[1;93m%s->%s\e[0m", prev, post);
     log_info(kernelLogger, "Transición de %s PCB <ID %d>", transicion, pid);
     free(transicion);
 }
 
-static void responder_memoria_insuficiente(t_pcb* pcb) {
+static void __responder_memoria_insuficiente(t_pcb* pcb) {
     estado_encolar_pcb_atomic(estadoExit, pcb);
-    log_transition("NEW", "EXIT", pcb_get_pid(pcb));
+    __log_transition("NEW", "EXIT", pcb_get_pid(pcb));
     log_info(kernelLogger, "Memoria insuficiente para alojar el proceso %d", pcb_get_pid(pcb));
     stream_send_empty_buffer(pcb_get_socket(pcb), HEADER_memoria_insuficiente);
 }
 
-static uint32_t obtener_siguiente_pid(void) {
+static uint32_t __obtener_siguiente_pid(void) {
     pthread_mutex_lock(&nextPidMutex);
     uint32_t newNextPid = nextPid++;
     pthread_mutex_unlock(&nextPidMutex);
@@ -88,6 +72,30 @@ static void __evaluar_suspension_segun_fifo(void) {}
 static void __actualizar_pcb_por_bloqueo_segun_fifo(t_pcb* _, uint32_t __, double ___) {}
 
 //////////////////// SRT ////////////////////
+double calcular_estimacion_restante(t_pcb* pcb) {
+    return pcb_get_estimacion_actual(pcb) - pcb_get_reales_ejecutados_hasta_ahora(pcb);
+}
+
+static t_pcb* __menor_rafaga_restante(t_pcb* unPcb, t_pcb* otroPcb) {
+    double unaRafagaRestante = calcular_estimacion_restante(unPcb);
+    double otraRafagaRestante = calcular_estimacion_restante(otroPcb);
+    return unaRafagaRestante <= otraRafagaRestante
+               ? unPcb
+               : otroPcb;
+}
+
+static double __media_exponencial(double alfa, double realAnterior, double estimacionAnterior) {
+    return alfa * realAnterior + (1 - alfa) * estimacionAnterior;
+}
+
+static double __calcular_siguiente_estimacion(t_pcb* pcb, double alfa) {
+    return __media_exponencial(
+        alfa,
+        pcb_get_real_anterior(pcb),
+        pcb_get_estimacion_actual(pcb)
+    );
+}
+
 static void __evaluar_suspension_segun_srt(void) {
     pthread_mutex_lock(&hayQueDesalojarMutex);
     if (hayQueDesalojar) {
@@ -102,36 +110,10 @@ static void __evaluar_suspension_segun_srt(void) {
 }
 
 void actualizar_pcb_por_bloqueo_segun_srt(t_pcb* pcb, uint32_t realEjecutado, double alfa) {
-    pcb_set_real_anterior(pcb, pcb_get_reales_ejecutados_hasta_ahora(pcb) + realEjecutado);  // Digo que el real anterior es la sumatoria de los reales ejecutados hasta ahora, antes de bloquearse
-    pcb_set_reales_ejecutados_hasta_ahora(pcb, 0);                                           // Resetear reales ejecutados debido a que ya ejecutaron toda su ráfaga de CPU
-    double siguienteEstimacion = calcular_siguiente_estimacion(pcb, alfa);
-    pcb_set_estimacion_actual(pcb, siguienteEstimacion);  // Establezco la nueva estimación para cuando me desbloquee (estimamos antes por conveniencia)
-}
-
-double calcular_estimacion_restante(t_pcb* pcb) {
-    return pcb_get_estimacion_actual(pcb) - pcb_get_reales_ejecutados_hasta_ahora(pcb);
-}
-
-t_pcb* menor_rafaga_restante(t_pcb* unPcb, t_pcb* otroPcb) {
-    double unaRafagaRestante = calcular_estimacion_restante(unPcb);
-    double otraRafagaRestante = calcular_estimacion_restante(otroPcb);
-    // log_debug(kernelLogger, "PCB <ID %d> RAFAGA DE %lf miliseconds", pcb_get_pid(unPcb), unaRafagaRestante);
-    // log_debug(kernelLogger, "PCB <ID %d> RAFAGA DE %lf miliseconds", pcb_get_pid(otroPcb), otraRafagaRestante);
-    return unaRafagaRestante <= otraRafagaRestante
-               ? unPcb
-               : otroPcb;
-}
-
-double media_exponencial(double alfa, double realAnterior, double estimacionAnterior) {
-    return alfa * realAnterior + (1 - alfa) * estimacionAnterior;
-}
-
-double calcular_siguiente_estimacion(t_pcb* pcb, double alfa) {
-    return media_exponencial(
-        alfa,
-        pcb_get_real_anterior(pcb),
-        pcb_get_estimacion_actual(pcb)  // La estimación actual es la estimación anterior al momento de calcular la media exponencial
-    );
+    pcb_set_real_anterior(pcb, pcb_get_reales_ejecutados_hasta_ahora(pcb) + realEjecutado);
+    pcb_set_reales_ejecutados_hasta_ahora(pcb, 0);
+    double siguienteEstimacion = __calcular_siguiente_estimacion(pcb, alfa);
+    pcb_set_estimacion_actual(pcb, siguienteEstimacion);
 }
 
 t_pcb* elegir_pcb_segun_srt(t_estado* estado, double alfa) {
@@ -140,9 +122,8 @@ t_pcb* elegir_pcb_segun_srt(t_estado* estado, double alfa) {
     int cantidadPcbsEnLista = list_size(estado_get_list(estado));
     if (cantidadPcbsEnLista == 1) {
         pcbElecto = estado_desencolar_primer_pcb(estado);
-        // log_debug(kernelLogger, "PCB <ID %d> ESTÁ SOLO EN READY", pcb_get_pid(pcbElecto));
     } else if (cantidadPcbsEnLista > 1) {
-        pcbElecto = list_get_minimum(estado_get_list(estado), (void*)menor_rafaga_restante);
+        pcbElecto = list_get_minimum(estado_get_list(estado), (void*)__menor_rafaga_restante);
         estado_remover_pcb_de_cola(estado, pcbElecto);
     }
     pthread_mutex_unlock(estado_get_mutex(estado));
@@ -150,7 +131,7 @@ t_pcb* elegir_pcb_segun_srt(t_estado* estado, double alfa) {
 }
 
 //////////////////////////////////////// Scheduler Functions ////////////////////////////////////////
-static void iniciar_contador_blocked_a_suspended_blocked(void* pcbVoid) {
+static void __iniciar_contador_blocked_a_suspended_blocked(void* pcbVoid) {
     t_pcb* pcb = (t_pcb*)pcbVoid;
     pthread_mutex_lock(pcb_get_mutex(pcb));
     pcb_set_veces_bloqueado(pcb, pcb_get_veces_bloqueado(pcb) + 1);
@@ -164,17 +145,15 @@ static void iniciar_contador_blocked_a_suspended_blocked(void* pcbVoid) {
     if (estado_contiene_pcb_atomic(estadoBlocked, dummyPCB) && pcb_get_veces_bloqueado(pcb) == laVezBloqueadaQueRepresentaElHilo) {
         if (estado_remover_pcb_de_cola_atomic(estadoBlocked, dummyPCB) != NULL) {
             pcb_test_and_set_tiempo_final_bloqueado(pcb);
-
             pthread_mutex_lock(pcb_get_mutex(pcb));
             double tiempoEsperandoEnBlocked = difftime(pcb_get_tiempo_final_bloqueado(pcb), pcb_get_tiempo_inicial_bloqueado(pcb));
-            if (pcb_get_tiempo_de_bloqueo(pcb) / 1000.0 <= kernel_config_get_tiempo_maximo_bloqueado(kernelConfig) / 1000.0) {
-                if (pcb_get_tiempo_de_bloqueo(pcb) / 1000.0 + tiempoEsperandoEnBlocked <= kernel_config_get_tiempo_maximo_bloqueado(kernelConfig) / 1000.0) {
+            if (pcb_get_tiempo_de_bloqueo_en_secs(pcb) <= kernel_config_get_tiempo_maximo_bloqueado_en_secs(kernelConfig)) {
+                if (pcb_get_tiempo_de_bloqueo_en_secs(pcb) + tiempoEsperandoEnBlocked <= kernel_config_get_tiempo_maximo_bloqueado_en_secs(kernelConfig)) {
                     pcb_destroy(dummyPCB);
                     pthread_mutex_unlock(pcb_get_mutex(pcb));
                     return;
                 }
             }
-
             pcb_set_estado_actual(pcb, SUSPENDED_BLOCKED);
             mem_adapter_avisar_suspension(pcb, kernelConfig, kernelLogger);
             pthread_mutex_lock(&ultimoPIDSuspendidoMutex);
@@ -182,7 +161,7 @@ static void iniciar_contador_blocked_a_suspended_blocked(void* pcbVoid) {
             pthread_mutex_unlock(&ultimoPIDSuspendidoMutex);
             estado_encolar_pcb_atomic(estadoSuspendedBlocked, pcb);
             log_debug(kernelLogger, "Entra en suspensión PCB <ID %d>", pcb_get_pid(pcb));
-            log_transition("BLOCKED", "SUSBLOCKED", pcb_get_pid(pcb));
+            __log_transition("BLOCKED", "SUSBLOCKED", pcb_get_pid(pcb));
             sem_post(&gradoMultiprog);
             pthread_mutex_unlock(pcb_get_mutex(pcb));
         }
@@ -191,7 +170,7 @@ static void iniciar_contador_blocked_a_suspended_blocked(void* pcbVoid) {
     pcb_destroy(dummyPCB);
 }
 
-static void noreturn iniciar_dispositivo_io(void) {
+static void noreturn __iniciar_dispositivo_io(void) {
     for (;;) {
         sem_wait(estado_get_sem(pcbsEsperandoParaIO));
         t_pcb* pcbAEjecutarRafagasIO = estado_desencolar_primer_pcb_atomic(pcbsEsperandoParaIO);
@@ -209,14 +188,14 @@ static void noreturn iniciar_dispositivo_io(void) {
             pthread_mutex_lock(&hayQueDesalojarMutex);
             hayQueDesalojar = true;
             pthread_mutex_unlock(&hayQueDesalojarMutex);
-            log_transition("BLOCKED", "READY", pcb_get_pid(pcbAEjecutarRafagasIO));
+            __log_transition("BLOCKED", "READY", pcb_get_pid(pcbAEjecutarRafagasIO));
             sem_post(estado_get_sem(estadoReady));
         } else if (pcb_get_estado_actual(pcbAEjecutarRafagasIO) == SUSPENDED_BLOCKED) {
             estado_remover_pcb_de_cola_atomic(estadoSuspendedBlocked, pcbAEjecutarRafagasIO);
             pcb_set_estado_actual(pcbAEjecutarRafagasIO, SUSPENDED_READY);
             estado_encolar_pcb_atomic(estadoSuspendedReady, pcbAEjecutarRafagasIO);
             pcb_set_tiempo_de_bloqueo(pcbAEjecutarRafagasIO, 0);
-            log_transition("SUSBLOCKED", "SUSREADY", pcb_get_pid(pcbAEjecutarRafagasIO));
+            __log_transition("SUSBLOCKED", "SUSREADY", pcb_get_pid(pcbAEjecutarRafagasIO));
             sem_post(&hayPcbsParaAgregarAlSistema);
         }
         pcb_marcar_tiempo_final_como_no_establecido(pcbAEjecutarRafagasIO);
@@ -224,21 +203,21 @@ static void noreturn iniciar_dispositivo_io(void) {
     }
 }
 
-static void noreturn hilo_que_libera_pcbs_en_exit(void) {
+static void noreturn __hilo_que_libera_pcbs_en_exit(void) {
     for (;;) {
         sem_wait(estado_get_sem(estadoExit));
         t_pcb* pcbALiberar = estado_desencolar_primer_pcb_atomic(estadoExit);
         mem_adapter_finalizar_proceso(pcbALiberar, kernelConfig, kernelLogger);
         log_info(kernelLogger, "Se finaliza PCB <ID %d> de tamaño %d", pcb_get_pid(pcbALiberar), pcb_get_tamanio(pcbALiberar));
-        stream_send_empty_buffer(pcb_get_socket(pcbALiberar), HANDSHAKE_ok_continue);  // Finalizar proceso
+        stream_send_empty_buffer(pcb_get_socket(pcbALiberar), HANDSHAKE_ok_continue);
         pcb_destroy(pcbALiberar);
         sem_post(&gradoMultiprog);
     }
 }
 
-static void noreturn planificador_largo_plazo(void) {
+static void noreturn __planificador_largo_plazo(void) {
     pthread_t liberarPcbsEnExitTh;
-    pthread_create(&liberarPcbsEnExitTh, NULL, (void*)hilo_que_libera_pcbs_en_exit, NULL);
+    pthread_create(&liberarPcbsEnExitTh, NULL, (void*)__hilo_que_libera_pcbs_en_exit, NULL);
     pthread_detach(liberarPcbsEnExitTh);
 
     for (;;) {
@@ -253,13 +232,13 @@ static void noreturn planificador_largo_plazo(void) {
             int nuevaTablaPagina = mem_adapter_obtener_tabla_pagina(pcbQuePasaAReady, kernelConfig, kernelLogger);
             pcb_set_tabla_pagina_primer_nivel(pcbQuePasaAReady, nuevaTablaPagina);
             if (nuevaTablaPagina == -1) {
-                responder_memoria_insuficiente(pcbQuePasaAReady);
+                __responder_memoria_insuficiente(pcbQuePasaAReady);
             } else {
                 estado_encolar_pcb_atomic(estadoReady, pcbQuePasaAReady);
                 pthread_mutex_lock(&hayQueDesalojarMutex);
                 hayQueDesalojar = true;
                 pthread_mutex_unlock(&hayQueDesalojarMutex);
-                log_transition("NEW", "READY", pcb_get_pid(pcbQuePasaAReady));
+                __log_transition("NEW", "READY", pcb_get_pid(pcbQuePasaAReady));
                 sem_post(estado_get_sem(estadoReady));
             }
             pcbQuePasaAReady = NULL;
@@ -267,7 +246,7 @@ static void noreturn planificador_largo_plazo(void) {
     }
 }
 
-static void noreturn planificador_mediano_plazo(void) {
+static void noreturn __planificador_mediano_plazo(void) {
     for (;;) {
         sem_wait(&transicionarSusreadyAReady);
         pthread_mutex_lock(estado_get_mutex(estadoSuspendedReady));
@@ -278,7 +257,7 @@ static void noreturn planificador_mediano_plazo(void) {
         pthread_mutex_lock(&hayQueDesalojarMutex);
         hayQueDesalojar = true;
         pthread_mutex_unlock(&hayQueDesalojarMutex);
-        log_transition("SUSREADY", "READY", pcb_get_pid(pcbQuePasaAReady));
+        __log_transition("SUSREADY", "READY", pcb_get_pid(pcbQuePasaAReady));
         sem_post(estado_get_sem(estadoReady));
         pcbQuePasaAReady = NULL;
     }
@@ -288,20 +267,20 @@ void actualizar_pcb_por_desalojo(t_pcb* pcb, double realEjecutado) {
     pcb_set_reales_ejecutados_hasta_ahora(pcb, pcb_get_reales_ejecutados_hasta_ahora(pcb) + realEjecutado);
 }
 
-static void atender_bloqueo(t_pcb* pcb) {
+static void __atender_bloqueo(t_pcb* pcb) {
     pcb_marcar_tiempo_inicial_bloqueado(pcb);
     estado_encolar_pcb_atomic(pcbsEsperandoParaIO, pcb);
-    log_transition("EXEC", "BLOCKED", pcb_get_pid(pcb));
+    __log_transition("EXEC", "BLOCKED", pcb_get_pid(pcb));
     log_info(kernelLogger, "PCB <ID %d> ingresa a la cola de espera de I/O", pcb_get_pid(pcb));
     sem_post(estado_get_sem(pcbsEsperandoParaIO));
     pcb_set_estado_actual(pcb, BLOCKED);
     estado_encolar_pcb_atomic(estadoBlocked, pcb);
     pthread_t contadorASuspendedBlocked;
-    pthread_create(&contadorASuspendedBlocked, NULL, (void*)iniciar_contador_blocked_a_suspended_blocked, (void*)pcb);
+    pthread_create(&contadorASuspendedBlocked, NULL, (void*)__iniciar_contador_blocked_a_suspended_blocked, (void*)pcb);
     pthread_detach(contadorASuspendedBlocked);
 }
 
-void set_timespec(struct timespec* timespec) {
+static void __set_timespec(struct timespec* timespec) {
     int retVal = clock_gettime(CLOCK_REALTIME, timespec);
     if (retVal == -1) {
         perror("clock_gettime");
@@ -309,23 +288,23 @@ void set_timespec(struct timespec* timespec) {
     }
 }
 
-uint32_t obtener_diferencial_de_tiempo_en_milisegundos(struct timespec end, struct timespec start) {
+static uint32_t __obtener_diferencial_de_tiempo_en_milisegundos(struct timespec end, struct timespec start) {
     const uint32_t SECS_TO_MILISECS = 1000;
     const uint32_t NANOSECS_TO_MILISECS = 1000000;
     return (end.tv_sec - start.tv_sec) * SECS_TO_MILISECS + (end.tv_nsec - start.tv_nsec) / NANOSECS_TO_MILISECS;
 }
 
-static void noreturn atender_pcb(void) {
+static void noreturn __atender_pcb(void) {
     for (;;) {
         sem_wait(estado_get_sem(estadoExec));
 
         pthread_mutex_lock(estado_get_mutex(estadoExec));
         t_pcb* pcb = list_get(estado_get_list(estadoExec), 0);
-        log_transition("READY", "EXEC", pcb_get_pid(pcb));
+        __log_transition("READY", "EXEC", pcb_get_pid(pcb));
         pthread_mutex_unlock(estado_get_mutex(estadoExec));
 
         struct timespec start;
-        set_timespec(&start);
+        __set_timespec(&start);
 
         uint8_t headerAEnviar = -1;
         pthread_mutex_lock(&ultimoPIDSuspendidoMutex);
@@ -340,7 +319,7 @@ static void noreturn atender_pcb(void) {
         uint8_t cpuResponse = stream_recv_header(kernel_config_get_socket_dispatch_cpu(kernelConfig));
 
         struct timespec end;
-        set_timespec(&end);
+        __set_timespec(&end);
 
         pthread_mutex_lock(estado_get_mutex(estadoExec));
         pcb = cpu_adapter_recibir_pcb_actualizado_de_cpu(pcb, cpuResponse, kernelConfig, kernelLogger);
@@ -348,7 +327,7 @@ static void noreturn atender_pcb(void) {
         pthread_mutex_unlock(estado_get_mutex(estadoExec));
 
         uint32_t realEjecutado = 0;
-        realEjecutado = obtener_diferencial_de_tiempo_en_milisegundos(end, start);
+        realEjecutado = __obtener_diferencial_de_tiempo_en_milisegundos(end, start);
         log_debug(kernelLogger, "PCB <ID %d> estuvo en ejecución por %d miliseconds", pcb_get_pid(pcb), realEjecutado);
 
         switch (cpuResponse) {
@@ -356,19 +335,19 @@ static void noreturn atender_pcb(void) {
                 actualizar_pcb_por_desalojo(pcb, realEjecutado);
                 pcb_set_estado_actual(pcb, READY);
                 estado_encolar_pcb_atomic(estadoReady, pcb);
-                log_transition("EXEC", "READY", pcb_get_pid(pcb));
+                __log_transition("EXEC", "READY", pcb_get_pid(pcb));
                 sem_post(estado_get_sem(estadoReady));
                 break;
             case HEADER_proceso_terminado:
                 pcb_set_estado_actual(pcb, EXIT);
                 estado_encolar_pcb_atomic(estadoExit, pcb);
-                log_transition("EXEC", "EXIT", pcb_get_pid(pcb));
+                __log_transition("EXEC", "EXIT", pcb_get_pid(pcb));
                 stream_send_empty_buffer(pcb_get_socket(pcb), HEADER_proceso_terminado);
                 sem_post(estado_get_sem(estadoExit));
                 break;
             case HEADER_proceso_bloqueado:
                 actualizar_pcb_por_bloqueo(pcb, realEjecutado, kernel_config_get_alfa(kernelConfig));
-                atender_bloqueo(pcb);
+                __atender_bloqueo(pcb);
                 break;
             default:
                 log_error(kernelLogger, "Error al recibir mensaje de CPU");
@@ -379,9 +358,9 @@ static void noreturn atender_pcb(void) {
     }
 }
 
-static void noreturn planificador_corto_plazo(void) {
+static void noreturn __planificador_corto_plazo(void) {
     pthread_t atenderPCBThread;
-    pthread_create(&atenderPCBThread, NULL, (void*)atender_pcb, NULL);
+    pthread_create(&atenderPCBThread, NULL, (void*)__atender_pcb, NULL);
     pthread_detach(atenderPCBThread);
 
     for (;;) {
@@ -422,7 +401,7 @@ void* encolar_en_new_a_nuevo_pcb_entrante(void* socket) {
         stream_recv_buffer(*socketProceso, instructionsBuffer);
         t_buffer* instructionsBufferCopy = buffer_create_copy(instructionsBuffer);
 
-        uint32_t newPid = obtener_siguiente_pid();
+        uint32_t newPid = __obtener_siguiente_pid();
         t_pcb* newPcb = pcb_create(newPid, tamanio, kernel_config_get_est_inicial(kernelConfig));
         pcb_set_socket(newPcb, socketProceso);
         pcb_set_instruction_buffer(newPcb, instructionsBufferCopy);
@@ -435,7 +414,7 @@ void* encolar_en_new_a_nuevo_pcb_entrante(void* socket) {
         buffer_destroy(bufferPID);
 
         estado_encolar_pcb_atomic(estadoNew, newPcb);
-        log_transition("NULL", "NEW", pcb_get_pid(newPcb));
+        __log_transition("NULL", "NEW", pcb_get_pid(newPcb));
         sem_post(&hayPcbsParaAgregarAlSistema);
         buffer_destroy(instructionsBuffer);
     } else {
@@ -458,7 +437,7 @@ void inicializar_estructuras(void) {
         exit(-1);
     }
 
-    nextPid = 0;  // TODO: Inicializar en 1 para estar en concordancia con memoria y cpu
+    nextPid = 1;
     hayQueDesalojar = false;
     ultimoPIDSuspendido = -1;
 
@@ -486,19 +465,19 @@ void inicializar_estructuras(void) {
     pcbsEsperandoParaIO = estado_create(PCBS_ESPERANDO_PARA_IO);
 
     pthread_t largoPlazoTh;
-    pthread_create(&largoPlazoTh, NULL, (void*)planificador_largo_plazo, NULL);
+    pthread_create(&largoPlazoTh, NULL, (void*)__planificador_largo_plazo, NULL);
     pthread_detach(largoPlazoTh);
 
     pthread_t medianoPlazoTh;
-    pthread_create(&medianoPlazoTh, NULL, (void*)planificador_mediano_plazo, NULL);
+    pthread_create(&medianoPlazoTh, NULL, (void*)__planificador_mediano_plazo, NULL);
     pthread_detach(medianoPlazoTh);
 
     pthread_t cortoPlazoTh;
-    pthread_create(&cortoPlazoTh, NULL, (void*)planificador_corto_plazo, NULL);
+    pthread_create(&cortoPlazoTh, NULL, (void*)__planificador_corto_plazo, NULL);
     pthread_detach(cortoPlazoTh);
 
     pthread_t dispositivoIOTh;
-    pthread_create(&dispositivoIOTh, NULL, (void*)iniciar_dispositivo_io, NULL);
+    pthread_create(&dispositivoIOTh, NULL, (void*)__iniciar_dispositivo_io, NULL);
     pthread_detach(dispositivoIOTh);
 
     log_info(kernelLogger, "Se crean los hilos planificadores");
