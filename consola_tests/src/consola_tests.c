@@ -1,6 +1,4 @@
 #include <CUnit/Basic.h>
-#include <stdbool.h>
-#include <stdio.h>
 
 #include "consola_parser_tests.h"
 #include "testing_utils.h"
@@ -15,9 +13,10 @@ static void consola_tests(void) {
     t_test_case consolaParserTestCases[] = {
         TEST_FUNC(test_es_posible_parsear_un_archivo_valido_de_instrucciones),
         TEST_FUNC(test_es_posible_parsear_un_archivo_valido_de_instrucciones_con_lineas_vacias),
-        TEST_FUNC(test_no_es_posible_parsear_un_archivo_invalido_de_instrucciones_debido_a_la_primer_instruccion),
-        TEST_FUNC(test_no_es_posible_parsear_un_archivo_invalido_de_instrucciones_debido_a_la_ultima_instruccion),
         TEST_FUNC(test_no_es_posible_parsear_un_archivo_invalido_de_instrucciones_con_lineas_vacias_debido_a_la_ultima_instruccion),
+        TEST_FUNC(test_no_es_posible_parsear_un_archivo_invalido_de_instrucciones_debido_a_la_primer_instruccion),
+        TEST_FUNC(test_no_es_posible_parsear_un_archivo_invalido_de_instrucciones_debido_a_la_segunda_instruccion),
+        TEST_FUNC(test_no_es_posible_parsear_un_archivo_invalido_de_instrucciones_debido_a_la_ultima_instruccion),
     };
     ADD_TEST_CASES_TO_SUITE(consolaParserSuite, consolaParserTestCases);
 }

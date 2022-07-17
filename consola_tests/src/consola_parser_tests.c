@@ -1,10 +1,7 @@
 #include "consola_parser_tests.h"
 
 #include <CUnit/Basic.h>
-#include <stdio.h>
-#include <stdlib.h>
 
-#include "buffer.h"
 #include "consola_parser.h"
 
 static t_buffer* buffer = NULL;
