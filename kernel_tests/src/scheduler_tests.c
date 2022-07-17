@@ -1,14 +1,7 @@
 #include "scheduler_tests.h"
 
 #include <CUnit/Basic.h>
-#include <commons/string.h>
-#include <math.h>
-#include <sys/time.h>
-#include <unistd.h>
 
-#include "common_utils.h"
-#include "estado.h"
-#include "pcb.h"
 #include "scheduler.h"
 
 static t_dispatch_handler elegir_pcb;
