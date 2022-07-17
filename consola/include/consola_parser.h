@@ -2,7 +2,6 @@
 #define CONSOLA_PARSER_H_INCLUDED
 
 #include <commons/log.h>
-#include <stdbool.h>
 
 #include "buffer.h"
 

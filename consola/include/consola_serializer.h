@@ -2,7 +2,6 @@
 #define CONSOLA_SERIALIZER_H_INCLUDED
 
 #include "buffer.h"
-#include "common_flags.h"
 
 void consola_serializer_pack_no_args(t_buffer*, uint8_t instruccion);
 void consola_serializer_pack_one_args(t_buffer*, uint8_t instruccion, uint32_t op1);
