@@ -49,6 +49,6 @@ t_pcb* cpu_adapter_recibir_pcb_actualizado_de_cpu(t_pcb* pcbAActualizar, uint8_t
 }
 
 void cpu_adapter_interrumpir_cpu(t_kernel_config* kernelConfig, t_log* kernelLogger) {
-    stream_send_empty_buffer(kernel_config_get_socket_interrupt_cpu(kernelConfig), INT_interrumpir_ejecucion);
+    stream_send_empty_buffer(kernel_config_get_socket_interrupt_cpu(kernelConfig), HEADER_interrumpir_ejecucion);
     log_info(kernelLogger, "Se envía interrupción a CPU");
 }
