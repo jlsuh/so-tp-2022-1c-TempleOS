@@ -2,47 +2,40 @@
 #define COMMON_FLAGS_H_INCLUDED
 
 typedef enum {
+    HEADER_error,
+    HEADER_interrumpir_ejecucion,
     HEADER_lista_instrucciones,
-    HEADER_pid,
-    HEADER_proceso_terminado,
-    HEADER_proceso_bloqueado,
-    HEADER_proceso_desalojado,
-    HEADER_proceso_reactivado,
-    HEADER_proceso_suspendido,
-    HEADER_read,
-    HEADER_write,
-    HEADER_copy,
-    HEADER_tabla_de_paginas,
-    HEADER_solicitud_tabla_paginas,
+    HEADER_marco,
+    HEADER_memoria_insuficiente,
     HEADER_pcb_a_ejecutar,
     HEADER_pcb_a_ejecutar_ultimo_suspendido,
-    HEADER_memoria_insuficiente,
-    HEADER_error,
+    HEADER_pid,
+    HEADER_proceso_bloqueado,
+    HEADER_proceso_desalojado,
+    HEADER_proceso_suspendido,
+    HEADER_proceso_terminado,
+    HEADER_read,
+    HEADER_solicitud_tabla_paginas,
     HEADER_tabla_nivel_2,
-    HEADER_marco,
+    HEADER_write,
 } t_header;
 
 typedef enum {
     HANDSHAKE_consola,
-    HANDSHAKE_ok_continue,
     HANDSHAKE_cpu,
-    HANDSHAKE_kernel,
     HANDSHAKE_dispatch,
     HANDSHAKE_interrupt,
+    HANDSHAKE_kernel,
+    HANDSHAKE_ok_continue
 } t_handshake;
 
 typedef enum {
-    INSTRUCCION_no_op,
-    INSTRUCCION_io,
-    INSTRUCCION_read,
     INSTRUCCION_copy,
-    INSTRUCCION_write,
-    INSTRUCCION_exit
+    INSTRUCCION_exit,
+    INSTRUCCION_io,
+    INSTRUCCION_no_op,
+    INSTRUCCION_read,
+    INSTRUCCION_write
 } t_tipo_instruccion;
-
-typedef enum {
-    INT_interrumpir_ejecucion,
-    INT_interrupcion_recibida,
-} t_interrupciones;
 
 #endif

@@ -12,10 +12,10 @@ int iniciar_servidor(char* ip, char* port) {
     struct addrinfo hints;
     struct addrinfo* serverInfo;
 
-    memset(&hints, 0, sizeof(hints));  // make sure the struct is empty
-    hints.ai_family = AF_UNSPEC;       // don't care IPv4 or IPv6
-    hints.ai_socktype = SOCK_STREAM;   // TCP stream sockets
-    hints.ai_flags = AI_PASSIVE;       // fill in my IP for me
+    memset(&hints, 0, sizeof(hints));
+    hints.ai_family = AF_UNSPEC;
+    hints.ai_socktype = SOCK_STREAM;
+    hints.ai_flags = AI_PASSIVE;
 
     int rv = getaddrinfo(ip, port, &hints, &serverInfo);
     if (rv != 0) {
@@ -58,10 +58,10 @@ int conectar_a_servidor(char* ip, char* port) {
     struct addrinfo* serverInfo;
     struct addrinfo* p;
 
-    memset(&hints, 0, sizeof(hints));  // make sure the struct is empty
-    hints.ai_family = AF_UNSPEC;       // don't care IPv4 or IPv6
-    hints.ai_socktype = SOCK_STREAM;   // TCP stream sockets
-    hints.ai_flags = AI_PASSIVE;       // fill in my IP for me
+    memset(&hints, 0, sizeof(hints));
+    hints.ai_family = AF_UNSPEC;
+    hints.ai_socktype = SOCK_STREAM;
+    hints.ai_flags = AI_PASSIVE;
 
     int rv = getaddrinfo(ip, port, &hints, &serverInfo);
     if (rv != 0) {

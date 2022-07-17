@@ -3,7 +3,6 @@
 
 #include <commons/collections/list.h>
 #include <commons/log.h>
-#include <stdint.h>
 
 #include "buffer.h"
 #include "common_flags.h"
@@ -16,6 +15,6 @@ t_list* instruccion_list_create_from_buffer(t_buffer*, t_log*);
 t_tipo_instruccion instruccion_get_tipo_instruccion(t_instruccion*);
 uint32_t instruccion_get_operando1(t_instruccion*);
 uint32_t instruccion_get_operando2(t_instruccion*);
-void instruccion_destroy(void*);
+void instruccion_destroy(void* Void);
 
 #endif

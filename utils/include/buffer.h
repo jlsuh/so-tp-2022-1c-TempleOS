@@ -9,6 +9,14 @@ typedef struct {
 } t_buffer;
 
 /**
+ * @brief Desempaqueta un string del buffer, leyendo y desempaquetando
+ * previamente la longitud del string
+ *
+ * @example char* unString = buffer_unpack_string(buffer);
+ */
+char *buffer_unpack_string(t_buffer *buffer);
+
+/**
  * @brief Crea un t_buffer*
  */
 t_buffer *buffer_create(void);
@@ -31,14 +39,6 @@ void buffer_destroy(t_buffer *buffer);
 void buffer_pack(t_buffer *buffer, void *streamToAdd, int size);
 
 /**
- * @brief Desempaqueta size bytes del buffer desde el inicio,
- * almacenando lo desempaquetado en dest
- *
- * @example buffer_unpack(buffer, destino, sizeof(destino));
- */
-void buffer_unpack(t_buffer *buffer, void *dest, int size);
-
-/**
  * @brief Agrega al buffer un stringToAdd, empaquetando previamente
  * la longitud del string
  *
@@ -47,11 +47,11 @@ void buffer_unpack(t_buffer *buffer, void *dest, int size);
 void buffer_pack_string(t_buffer *buffer, char *stringToAdd);
 
 /**
- * @brief Desempaqueta un string del buffer, leyendo y desempaquetando
- * previamente la longitud del string
+ * @brief Desempaqueta size bytes del buffer desde el inicio,
+ * almacenando lo desempaquetado en dest
  *
- * @example char* unString = buffer_unpack_string(buffer);
+ * @example buffer_unpack(buffer, destino, sizeof(destino));
  */
-char *buffer_unpack_string(t_buffer *buffer);
+void buffer_unpack(t_buffer *buffer, void *dest, int size);
 
 #endif

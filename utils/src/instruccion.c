@@ -1,12 +1,7 @@
 #include "instruccion.h"
 
-#include <commons/collections/list.h>
-#include <commons/log.h>
 #include <commons/string.h>
 #include <stdlib.h>
-
-#include "buffer.h"
-#include "common_flags.h"
 
 struct t_instruccion {
     t_tipo_instruccion tipoInstruccion;
