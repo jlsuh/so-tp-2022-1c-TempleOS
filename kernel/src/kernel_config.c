@@ -7,7 +7,7 @@
 
 #include "module_config.h"
 
-#define MILISECS_IN_SEC 1000.0
+#define MILISECS_IN_SECS 1000.0
 
 t_log* kernelLogger;
 t_kernel_config* kernelConfig;
@@ -136,7 +136,7 @@ int kernel_config_get_tiempo_maximo_bloqueado(t_kernel_config* self) {
 }
 
 double kernel_config_get_tiempo_maximo_bloqueado_en_secs(t_kernel_config* self) {
-    return self->TIEMPO_MAXIMO_BLOQUEADO / MILISECS_IN_SEC;
+    return self->TIEMPO_MAXIMO_BLOQUEADO / MILISECS_IN_SECS;
 }
 
 bool kernel_config_es_algoritmo_srt(t_kernel_config* self) {
