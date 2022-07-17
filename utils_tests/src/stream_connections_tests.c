@@ -1,12 +1,10 @@
 #include "stream_connections_tests.h"
 
 #include <CUnit/Basic.h>
-#include <commons/config.h>
 #include <stdlib.h>
 #include <sys/socket.h>
 #include <unistd.h>
 
-#include "buffer.h"
 #include "connections.h"
 #include "stream.h"
 
