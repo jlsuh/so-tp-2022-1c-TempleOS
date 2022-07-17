@@ -5,8 +5,7 @@
             "name": "Linux",
             "includePath": [
                 "${workspaceFolder}/../utils/include",
-                "${workspaceFolder}/include",
-                "/home/samsepi0l/Documentos/tp-2022-1c-TempleOS/kernel/include"
+                "${workspaceFolder}/include"
             ],
             "defines": [],
             "compilerPath": "/usr/bin/clang",
