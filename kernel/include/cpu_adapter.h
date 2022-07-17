@@ -1,9 +1,6 @@
 #ifndef CPU_ADAPTER_H_INCLUDED
 #define CPU_ADAPTER_H_INCLUDED
 
-#include <commons/log.h>
-#include <stdint.h>
-
 #include "kernel_config.h"
 #include "pcb.h"
 

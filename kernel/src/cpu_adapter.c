@@ -17,9 +17,8 @@ void cpu_adapter_enviar_pcb_a_cpu(t_pcb* pcbAEnviar, t_kernel_config* kernelConf
     buffer_pack(bufferPcbAEjecutar, &pcAEnviar, sizeof(pcAEnviar));
     buffer_pack(bufferPcbAEjecutar, &tablaPagsAEnviar, sizeof(tablaPagsAEnviar));
 
-    /*TODO: Parametrizar uint8_t header para discernir si el proceso fue el último en suspenderse*/
     stream_send_buffer(kernel_config_get_socket_dispatch_cpu(kernelConfig), header, bufferPcbAEjecutar);
-    stream_send_buffer(kernel_config_get_socket_dispatch_cpu(kernelConfig), HEADER_lista_instrucciones, pcb_get_instruction_buffer(pcbAEnviar));
+    stream_send_buffer(kernel_config_get_socket_dispatch_cpu(kernelConfig), HEADER_lista_instrucciones, pcb_get_instructions_buffer(pcbAEnviar));
 
     buffer_destroy(bufferPcbAEjecutar);
 }
