@@ -92,8 +92,7 @@ static double __calcular_siguiente_estimacion(t_pcb* pcb, double alfa) {
     return __media_exponencial(
         alfa,
         pcb_get_real_anterior(pcb),
-        pcb_get_estimacion_actual(pcb)
-    );
+        pcb_get_estimacion_actual(pcb));
 }
 
 static void __evaluar_suspension_segun_srt(void) {
