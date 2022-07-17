@@ -1,13 +1,8 @@
 #include "pcb.h"
 
-#include <commons/collections/list.h>
-#include <stdbool.h>
-#include <stdint.h>
 #include <unistd.h>
 
 #include "estado.h"
-#include "instruccion.h"
-#include "stream.h"
 
 #define MILISECS_IN_SEC 1000.0
 
@@ -148,11 +143,11 @@ int pcb_get_socket(t_pcb* self) {
     return *self->socketConsola;
 }
 
-t_buffer* pcb_get_instruction_buffer(t_pcb* self) {
+t_buffer* pcb_get_instructions_buffer(t_pcb* self) {
     return self->instructionsBuffer;
 }
 
-void pcb_set_instruction_buffer(t_pcb* self, t_buffer* instructionsBuffer) {
+void pcb_set_instructions_buffer(t_pcb* self, t_buffer* instructionsBuffer) {
     self->instructionsBuffer = instructionsBuffer;
 }
 
