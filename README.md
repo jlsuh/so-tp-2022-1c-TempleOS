@@ -33,7 +33,7 @@
 
 ## Pre-Deploy
 1. Creación de VMs
-    - Nombre: SO Server 2022
+    - Nombre: SO Server
     - Tipo: Linux
     - Versión: Ubuntu 32 bits
     - Usar un archivo de disco duro virtual existente e indicar `.vdi`
@@ -48,7 +48,7 @@
 ## Deploy
 ```bash
 git clone https://<PersonalAccessToken>@github.com/jlsuh/so-tp-2022-1c-TempleOS.git
-cd tp-2022-1c-templeOS
+cd so-tp-2022-1c-TempleOS
 bash deploy.sh <PersonalAccessToken>
 bash config_ip.sh <kernelIP> <memoriaIP> <cpuIP>
 ```
