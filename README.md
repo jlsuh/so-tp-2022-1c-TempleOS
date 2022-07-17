@@ -17,13 +17,13 @@
 </p>
 
 ## Integrantes
-| Apellido, Nombre     | Usuario Github | Módulo                  |
-| -------------------- | -------------- | ----------------------- |
-| Berro, Camila Andrea | @Camila1401    | Memoria                 |
-| Lingeri, Martin      | @MartinLingeri | Memoria                 |
-| Partarrie, Matias    | @matiaspar2000 | Kernel / CPU            |
-| Yarbuh, Juan Ignacio | @Juyah         | Memoria / CPU / Consola |
-| Suh, Joel            | @jlsuh         | Kernel / CPU / Consola  |
+| Apellido, Nombre     | Usuario Github                                     | Módulo                  |
+| -------------------- | -------------------------------------------------- | ----------------------- |
+| Berro, Camila Andrea | [@Camila1401](https://github.com/Camila1401)       | Memoria                 |
+| Lingeri, Martin      | [@MartinLingeri](https://github.com/MartinLingeri) | Memoria                 |
+| Partarrie, Matias    | [@matiaspar2000](https://github.com/matiaspar2000) | Kernel / CPU            |
+| Yarbuh, Juan Ignacio | [@Juyah](https://github.com/Juyah)                 | Memoria / CPU / Consola |
+| Suh, Joel            | [@jlsuh](https://github.com/jlsuh)                 | Kernel / CPU / Consola  |
 
 ## Directivas e Implementación
 | Documento                                                                                         |
