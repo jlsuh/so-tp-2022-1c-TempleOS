@@ -1,7 +1,5 @@
-#include <commons/log.h>
 #include <errno.h>
 #include <pthread.h>
-#include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/socket.h>
@@ -13,7 +11,6 @@
 #include "connections.h"
 #include "marcos.h"
 #include "memoria_config.h"
-#include "memoria_data_holder.h"
 #include "stream.h"
 #include "tabla_nivel_1.h"
 #include "tabla_nivel_2.h"
@@ -24,12 +21,57 @@
 #define NUMBER_OF_ARGS_REQUIRED 2
 
 t_memoria_data_holder* memoriaData;
-bool cpuSinAtender = true;
-bool kernelSinAtender = true;
 pthread_mutex_t mutexMemoriaData;
 
-void __recibir_conexiones(int socketEscucha);
-void* __recibir_conexion(int socketEscucha, int* socketCliente, pthread_t* threadSuscripcion);
+static bool cpuSinAtender;
+static bool kernelSinAtender;
+
+void* __recibir_conexion(int socketEscucha, int* socketCliente, pthread_t* threadSuscripcion) {
+    struct sockaddr cliente = {0};
+    socklen_t len = sizeof(cliente);
+    *socketCliente = accept(socketEscucha, &cliente, &len);
+    if (*socketCliente == -1) {
+        log_error(memoriaData->memoriaLogger, "Error al aceptar conexion de cliente: %s", strerror(errno));
+        exit(-1);
+    }
+    uint8_t handshake = stream_recv_header(*socketCliente);
+    stream_recv_empty_buffer(*socketCliente);
+    void* (*funcion_suscripcion)(void*) = NULL;
+    if (handshake == HANDSHAKE_cpu && cpuSinAtender) {
+        log_info(memoriaData->memoriaLogger, "\e[1;92mSe acepta conexión de CPU en socket [%d]\e[0m", *socketCliente);
+        t_buffer* buffer = buffer_create();
+        uint32_t tamanioPagina = memoriaData->tamanioPagina;
+        uint32_t entradasPorTabla = memoriaData->entradasPorTabla;
+        buffer_pack(buffer, &tamanioPagina, sizeof(tamanioPagina));
+        buffer_pack(buffer, &entradasPorTabla, sizeof(entradasPorTabla));
+        stream_send_buffer(*socketCliente, HANDSHAKE_ok_continue, buffer);
+        buffer_destroy(buffer);
+        funcion_suscripcion = escuchar_peticiones_cpu;
+        cpuSinAtender = false;
+    } else if (handshake == HANDSHAKE_kernel && kernelSinAtender) {
+        log_info(memoriaData->memoriaLogger, "\e[1;92mSe acepta conexión de Kernel en socket [%d]\e[0m", *socketCliente);
+        stream_send_empty_buffer(*socketCliente, HANDSHAKE_ok_continue);
+        funcion_suscripcion = escuchar_peticiones_kernel;
+        kernelSinAtender = false;
+    } else {
+        log_error(memoriaData->memoriaLogger, "Error al recibir handshake de cliente: %s", strerror(errno));
+        exit(-1);
+    }
+    return funcion_suscripcion;
+}
+
+void __recibir_conexiones(int socketEscucha) {
+    pthread_t threadAtencion;
+    int* socketCliente1 = malloc(sizeof(int));
+    int* socketCliente2 = malloc(sizeof(int));
+    void* (*funcion_suscripcion)(void) = NULL;
+    funcion_suscripcion = __recibir_conexion(socketEscucha, socketCliente1, &threadAtencion);
+    pthread_create(&threadAtencion, NULL, (void*)funcion_suscripcion, (void*)socketCliente1);
+    pthread_detach(threadAtencion);
+    funcion_suscripcion = __recibir_conexion(socketEscucha, socketCliente2, &threadAtencion);
+    pthread_create(&threadAtencion, NULL, (void*)funcion_suscripcion, (void*)socketCliente2);
+    pthread_join(threadAtencion, NULL);
+}
 
 int main(int argc, char* argv[]) {
     memoriaData = malloc(sizeof(*memoriaData));
@@ -62,9 +104,6 @@ int main(int argc, char* argv[]) {
     memoriaData->retardoMemoria = memoria_config_get_retardo_memoria(memoriaData->memoriaConfig);
     int paginasPorProceso = memoriaData->entradasPorTabla * memoriaData->entradasPorTabla;
     memoriaData->tamanioMaxArchivo = paginasPorProceso * memoriaData->tamanioPagina;
-
-    pthread_mutex_init(&mutexMemoriaData, NULL);
-
     if (memoria_config_es_algoritmo_sustitucion_clock(memoriaData->memoriaConfig)) {
         memoriaData->seleccionar_victima = seleccionar_victima_clock;
     } else if (memoria_config_es_algoritmo_sustitucion_clock_modificado(memoriaData->memoriaConfig)) {
@@ -73,65 +112,17 @@ int main(int argc, char* argv[]) {
         log_error(memoriaData->memoriaLogger, "No se reconocio el algoritmo de sustitucion");
         exit(-1);
     }
-
     memoriaData->tablasDeNivel1 = crear_tablas_de_nivel_1(memoriaData);
     memoriaData->tablasDeNivel2 = crear_tablas_de_nivel_2(memoriaData);
     memoriaData->marcos = crear_marcos(memoriaData);
     memoriaData->tablaSuspendidos = crear_tabla_de_suspendidos();
 
+    pthread_mutex_init(&mutexMemoriaData, NULL);
+
+    cpuSinAtender = true;
+    kernelSinAtender = true;
+
     __recibir_conexiones(socketEscucha);
 
     return 0;
-}
-
-void __recibir_conexiones(int socketEscucha) {
-    pthread_t threadAtencion;
-    int* socketCliente1 = malloc(sizeof(int));
-    int* socketCliente2 = malloc(sizeof(int));
-    void* (*funcion_suscripcion)(void) = NULL;
-    funcion_suscripcion = __recibir_conexion(socketEscucha, socketCliente1, &threadAtencion);
-    pthread_create(&threadAtencion, NULL, (void*)funcion_suscripcion, (void*)socketCliente1);
-    pthread_detach(threadAtencion);
-
-    funcion_suscripcion = __recibir_conexion(socketEscucha, socketCliente2, &threadAtencion);
-    pthread_create(&threadAtencion, NULL, (void*)funcion_suscripcion, (void*)socketCliente2);
-    pthread_join(threadAtencion, NULL);
-}
-
-void* __recibir_conexion(int socketEscucha, int* socketCliente, pthread_t* threadSuscripcion) {
-    struct sockaddr cliente = {0};
-    socklen_t len = sizeof(cliente);
-    *socketCliente = accept(socketEscucha, &cliente, &len);
-
-    if (*socketCliente == -1) {
-        log_error(memoriaData->memoriaLogger, "Error al aceptar conexion de cliente: %s", strerror(errno));
-        exit(-1);
-    }
-
-    uint8_t handshake = stream_recv_header(*socketCliente);
-    stream_recv_empty_buffer(*socketCliente);
-
-    void* (*funcion_suscripcion)(void*) = NULL;
-    if (handshake == HANDSHAKE_cpu && cpuSinAtender) {
-        log_info(memoriaData->memoriaLogger, "\e[1;92mSe acepta conexión de CPU en socket [%d]\e[0m", *socketCliente);
-        t_buffer* buffer = buffer_create();
-        uint32_t tamanioPagina = memoriaData->tamanioPagina;
-        uint32_t entradasPorTabla = memoriaData->entradasPorTabla;
-        buffer_pack(buffer, &tamanioPagina, sizeof(tamanioPagina));
-        buffer_pack(buffer, &entradasPorTabla, sizeof(entradasPorTabla));
-        stream_send_buffer(*socketCliente, HANDSHAKE_ok_continue, buffer);
-        buffer_destroy(buffer);
-        funcion_suscripcion = escuchar_peticiones_cpu;
-        cpuSinAtender = false;
-    } else if (handshake == HANDSHAKE_kernel && kernelSinAtender) {
-        log_info(memoriaData->memoriaLogger, "\e[1;92mSe acepta conexión de Kernel en socket [%d]\e[0m", *socketCliente);
-        stream_send_empty_buffer(*socketCliente, HANDSHAKE_ok_continue);
-        funcion_suscripcion = escuchar_peticiones_kernel;
-        kernelSinAtender = false;
-    } else {
-        log_error(memoriaData->memoriaLogger, "Error al recibir handshake de cliente: %s", strerror(errno));
-        exit(-1);
-    }
-
-    return funcion_suscripcion;
 }

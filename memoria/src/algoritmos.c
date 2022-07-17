@@ -4,14 +4,13 @@
 #include "tabla_nivel_1.h"
 #include "tabla_nivel_2.h"
 
-typedef struct
-{
+typedef struct {
     int indicePagina;
     bool bitUso;
     bool bitModificado;
 } t_entrada_nivel_2_algoritmo;
 
-void __cargar_tabla(uint32_t nroTablaNivel1, t_entrada_nivel_2_algoritmo* tablaAlgoritmo, t_memoria_data_holder* memoriaData) {
+static void __cargar_tabla(uint32_t nroTablaNivel1, t_entrada_nivel_2_algoritmo* tablaAlgoritmo, t_memoria_data_holder* memoriaData) {
     int* marcos = obtener_marcos(nroTablaNivel1, memoriaData);
     int tamanio = memoriaData->cantidadMarcosProceso;
     int puntero = obtener_puntero(nroTablaNivel1, memoriaData);
@@ -36,7 +35,7 @@ void __cargar_tabla(uint32_t nroTablaNivel1, t_entrada_nivel_2_algoritmo* tablaA
     }
 }
 
-void __descargar_tabla(uint32_t nroTablaNivel1, t_entrada_nivel_2_algoritmo* tablaAlgoritmo, t_memoria_data_holder* memoriaData) {
+static void __descargar_tabla(uint32_t nroTablaNivel1, t_entrada_nivel_2_algoritmo* tablaAlgoritmo, t_memoria_data_holder* memoriaData) {
     int indiceTabla1 = (int)obtener_indice_tabla_nivel_1(nroTablaNivel1, memoriaData);
     int paginaInicialTabla1 = indiceTabla1 * memoriaData->entradasPorTabla * memoriaData->entradasPorTabla;
 

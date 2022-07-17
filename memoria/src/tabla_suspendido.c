@@ -1,8 +1,5 @@
 #include "tabla_suspendido.h"
 
-#include <commons/collections/dictionary.h>
-#include <stdbool.h>
-#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -14,7 +11,7 @@ t_dictionary* crear_tabla_de_suspendidos(void) {
     return dictionary_create();
 }
 
-void __aniadir_a_tabla(uint32_t nroDeTabla1, uint32_t* punteroValue, t_memoria_data_holder* memoriaData) {
+static void __aniadir_a_tabla(uint32_t nroDeTabla1, uint32_t* punteroValue, t_memoria_data_holder* memoriaData) {
     int length = snprintf(NULL, 0, "%d", nroDeTabla1);
     char* nroDeTabla1Str = malloc(length + 1);
     snprintf(nroDeTabla1Str, length + 1, "%d", nroDeTabla1);
@@ -27,7 +24,6 @@ void suspender_proceso(uint32_t nroDeTabla1, t_memoria_data_holder* memoriaData)
     int cantPaginas = memoriaData->entradasPorTabla * memoriaData->entradasPorTabla;
     uint32_t value[cantPaginas];
     int indiceValue = 0;
-
     abrir_archivo(tamanioNroDeTabla1, nroDeTabla1, memoriaData);
     int entradasPorTabla = memoriaData->entradasPorTabla;
     for (int i = 0; i < entradasPorTabla; i++) {
@@ -47,7 +43,6 @@ void suspender_proceso(uint32_t nroDeTabla1, t_memoria_data_holder* memoriaData)
     }
     limpiar_tabla_nivel_1(nroDeTabla1, memoriaData);
     cerrar_archivo(tamanioNroDeTabla1, memoriaData);
-
     uint32_t* punteroValue = malloc((indiceValue + 2) * sizeof(*punteroValue));
     punteroValue[0] = tamanioNroDeTabla1;
     punteroValue[1] = indiceValue;
@@ -85,7 +80,6 @@ bool esta_suspendido(uint32_t nroTablaNivel1, t_memoria_data_holder* memoriaData
     snprintf(nroDeTabla1Str, length + 1, "%d", nroTablaNivel1);
     bool estaSuspendido = dictionary_has_key(memoriaData->tablaSuspendidos, nroDeTabla1Str);
     free(nroDeTabla1Str);
-
     return estaSuspendido;
 }
 

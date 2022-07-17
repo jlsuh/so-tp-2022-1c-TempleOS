@@ -1,6 +1,5 @@
 #include "memoria_config.h"
 
-#include <commons/config.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -43,36 +42,12 @@ t_memoria_config* memoria_config_create(char* memoriaConfigPath, t_log* memoriaL
     return self;
 }
 
-void memoria_config_destroy(t_memoria_config* self) {
-    free(self->IP_ESCUCHA);
-    free(self->PUERTO_ESCUCHA);
-    free(self->ALGORITMO_REEMPLAZO);
-    free(self->PATH_SWAP);
-    free(self);
-}
-
 char* memoria_config_get_ip_escucha(t_memoria_config* self) {
     return self->IP_ESCUCHA;
 }
 
 char* memoria_config_get_puerto_escucha(t_memoria_config* self) {
     return self->PUERTO_ESCUCHA;
-}
-
-int memoria_config_set_kernel_socket(t_memoria_config* self, int socket) {
-    return self->KERNEL_SOCKET = socket;
-}
-
-int memoria_config_set_cpu_socket(t_memoria_config* self, int socket) {
-    return self->CPU_SOCKET = socket;
-}
-
-int memoria_config_get_kernel_socket(t_memoria_config* self) {
-    return self->KERNEL_SOCKET;
-}
-
-int memoria_config_get_cpu_socket(t_memoria_config* self) {
-    return self->CPU_SOCKET;
 }
 
 int memoria_config_get_tamanio_memoria(t_memoria_config* self) {
@@ -101,10 +76,6 @@ int memoria_config_get_retardo_swap(t_memoria_config* self) {
 
 int memoria_config_get_retardo_memoria(t_memoria_config* self) {
     return self->RETARDO_MEMORIA;
-}
-
-int memoria_config_get_marcos_totales(t_memoria_config* self) {
-    return self->TAM_MEMORIA / self->TAM_PAGINA;
 }
 
 int memoria_config_get_procesos_totales(t_memoria_config* self) {

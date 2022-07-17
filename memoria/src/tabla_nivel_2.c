@@ -1,17 +1,13 @@
 #include "tabla_nivel_2.h"
 
-#include <stdbool.h>
-#include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
-#include <unistd.h>
 
 #include "common_utils.h"
 #include "marcos.h"
 #include "tabla_nivel_1.h"
 
-typedef struct
-{
+typedef struct {
     int indiceMarco;
     bool bitPresencia;
     bool bitUso;
@@ -23,11 +19,11 @@ struct t_tabla_nivel_2 {
     t_entrada_nivel_2* entradaNivel2;
 };
 
-int __obtener_tabla2(int nroPagina, t_memoria_data_holder* memoriaData) {
+static int __obtener_tabla2(int nroPagina, t_memoria_data_holder* memoriaData) {
     return nroPagina / memoriaData->entradasPorTabla;
 }
 
-int __obtener_entrada(int nroPagina, t_memoria_data_holder* memoriaData) {
+static int __obtener_entrada(int nroPagina, t_memoria_data_holder* memoriaData) {
     int entradasPorTabla = memoriaData->entradasPorTabla;
 
     return (nroPagina % (entradasPorTabla * entradasPorTabla)) % entradasPorTabla;
@@ -37,9 +33,7 @@ t_tabla_nivel_2* crear_tablas_de_nivel_2(t_memoria_data_holder* memoriaData) {
     int cantidadProcesosMax = memoriaData->cantidadProcesosMax;
     int entradasPorTabla = memoriaData->entradasPorTabla;
     int cantidadTablasNivel2Max = cantidadProcesosMax * entradasPorTabla;
-
     t_tabla_nivel_2* tablasDeNivel2 = malloc(cantidadTablasNivel2Max * sizeof(*tablasDeNivel2));
-
     log_info(memoriaData->memoriaLogger, "\e[1;93mSe crean las tablas de nivel 2\e[0m");
     for (int i = 0; i < cantidadTablasNivel2Max; i++) {
         tablasDeNivel2[i].entradaNivel2 = malloc(entradasPorTabla * sizeof(t_entrada_nivel_2));
@@ -57,7 +51,6 @@ t_tabla_nivel_2* crear_tablas_de_nivel_2(t_memoria_data_holder* memoriaData) {
 
 void actualizar_escritura_pagina(int nroPagina, int nroTablaNivel2, t_memoria_data_holder* memoriaData) {
     t_tabla_nivel_2* tablasDeNivel2 = memoriaData->tablasDeNivel2;
-
     int entrada = __obtener_entrada(nroPagina, memoriaData);
     tablasDeNivel2[nroTablaNivel2].entradaNivel2[entrada].bitUso = true;
     tablasDeNivel2[nroTablaNivel2].entradaNivel2[entrada].bitModificado = true;
@@ -65,7 +58,6 @@ void actualizar_escritura_pagina(int nroPagina, int nroTablaNivel2, t_memoria_da
 
 void actualizar_lectura_pagina(int nroPagina, int nroTablaNivel2, t_memoria_data_holder* memoriaData) {
     t_tabla_nivel_2* tablasDeNivel2 = memoriaData->tablasDeNivel2;
-
     int entrada = __obtener_entrada(nroPagina, memoriaData);
     tablasDeNivel2[nroTablaNivel2].entradaNivel2[entrada].bitUso = true;
 }
@@ -80,7 +72,6 @@ void swap_out(int nroDeTabla2, int entradaDeTabla2, int marco, t_memoria_data_ho
         intervalo_de_pausa(memoriaData->retardoSwap);
         memcpy((void*)(memoriaData->inicio_archivo + memoriaData->tamanioPagina * paginaLocal), (void*)(memoriaData->memoriaPrincipal + marco * memoriaData->tamanioPagina), memoriaData->tamanioPagina);
         memoriaData->tablasDeNivel2[nroDeTabla2].entradaNivel2[entradaDeTabla2].bitPaginaEnSwap = true;
-
         log_info(memoriaData->memoriaLogger, "<\e[0;96m(Acceso a disco)\e[0m> Se escribió en disco la <\e[1;95mpágina [%d] del proceso [%d]\e[0m> con <\e[1;95mmarco [%d]\e[0m> <Bit Modificado = 1>", paginaLocal, tablaNivel1, marco);
     } else {
         log_info(memoriaData->memoriaLogger, "La <\e[1;95mpágina [%d] del proceso [%d]\e[0m> con <\e[1;95mmarco [%d]\e[0m> no se encuentra modificada <Bit Modificado = 0>", pagina, tablaNivel1, marco);
@@ -100,9 +91,9 @@ void swap_in(int nroDeTabla2, int entradaDeTabla2, int marco, t_memoria_data_hol
         int paginaLocal = obtener_indice(pagina, memoriaData);
         intervalo_de_pausa(memoriaData->retardoSwap);
         memcpy((void*)(memoriaData->memoriaPrincipal + marco * memoriaData->tamanioPagina), (void*)(memoriaData->inicio_archivo + memoriaData->tamanioPagina * paginaLocal), memoriaData->tamanioPagina);
-        log_info(memoriaData->memoriaLogger, "<\e[0;96m(Acceso a disco)\e[0m> Se trae de disco la <\e[1;95mpágina [%d] del proceso [%d]\e[0m> al <\e[1;95mmarco [%d]\e[0m> <Bit Página en Swap = 1>", pagina,tablaNivel1, marco);
+        log_info(memoriaData->memoriaLogger, "<\e[0;96m(Acceso a disco)\e[0m> Se trae de disco la <\e[1;95mpágina [%d] del proceso [%d]\e[0m> al <\e[1;95mmarco [%d]\e[0m> <Bit Página en Swap = 1>", pagina, tablaNivel1, marco);
     } else {
-        log_info(memoriaData->memoriaLogger, "La <\e[1;95mpágina [%d] del proceso [%d]\e[0m> no tiene datos en disco para escribir en <\e[1;95mmarco [%d]\e[0m> <Bit Página en Swap = 0>", pagina,tablaNivel1, marco);
+        log_info(memoriaData->memoriaLogger, "La <\e[1;95mpágina [%d] del proceso [%d]\e[0m> no tiene datos en disco para escribir en <\e[1;95mmarco [%d]\e[0m> <Bit Página en Swap = 0>", pagina, tablaNivel1, marco);
     }
     asignar_pagina_a_marco(pagina, marco, memoriaData);
 }
@@ -110,7 +101,6 @@ void swap_in(int nroDeTabla2, int entradaDeTabla2, int marco, t_memoria_data_hol
 void limpiar_tabla_nivel_2(int nroDeTabla2, t_memoria_data_holder* memoriaData) {
     int entradasPorTabla = memoriaData->entradasPorTabla;
     t_tabla_nivel_2* tablasDeNivel2 = memoriaData->tablasDeNivel2;
-
     for (int i = 0; i < entradasPorTabla; i++) {
         tablasDeNivel2[nroDeTabla2].entradaNivel2[i].indiceMarco = -1;
         tablasDeNivel2[nroDeTabla2].entradaNivel2[i].bitPresencia = false;
@@ -160,20 +150,4 @@ void setear_bit_uso(int nroPagina, bool bitUso, t_memoria_data_holder* memoriaDa
     int entrada = __obtener_entrada(nroPagina, memoriaData);
     int nroDeTabla2 = __obtener_tabla2(nroPagina, memoriaData);
     memoriaData->tablasDeNivel2[nroDeTabla2].entradaNivel2[entrada].bitUso = bitUso;
-}
-
-int obtener_victima_clock_con_indice_inicial(uint32_t nroDeTabla2, int indicePagina, t_memoria_data_holder* memoriaData) {
-    for (; indicePagina < memoriaData->entradasPorTabla; indicePagina++) {
-        bool presencia = memoriaData->tablasDeNivel2[nroDeTabla2].entradaNivel2[indicePagina].bitPresencia;
-        if (!presencia) {
-            continue;
-        }
-        bool uso = memoriaData->tablasDeNivel2[nroDeTabla2].entradaNivel2[indicePagina].bitUso;
-        if (uso) {
-            memoriaData->tablasDeNivel2[nroDeTabla2].entradaNivel2[indicePagina].bitUso = false;
-        } else {
-            return indicePagina;
-        }
-    }
-    return -1;
 }

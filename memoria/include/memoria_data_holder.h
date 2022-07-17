@@ -11,7 +11,8 @@ typedef struct t_proceso_suspendido t_proceso_suspendido;
 typedef struct t_marcos t_marcos;
 typedef struct t_memoria_config t_memoria_config;
 typedef struct t_memoria_data_holder t_memoria_data_holder;
-struct t_memoria_data_holder{
+
+struct t_memoria_data_holder {
     t_log* memoriaLogger;
     t_memoria_config* memoriaConfig;
     void* memoriaPrincipal;
