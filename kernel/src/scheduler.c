@@ -8,6 +8,7 @@
 #include "cpu_adapter.h"
 #include "instruccion.h"
 #include "mem_adapter.h"
+#include "stream.h"
 
 extern t_log* kernelLogger;
 extern t_kernel_config* kernelConfig;
@@ -404,7 +405,7 @@ void* encolar_en_new_a_nuevo_pcb_entrante(void* socket) {
         uint32_t newPid = __obtener_siguiente_pid();
         t_pcb* newPcb = pcb_create(newPid, tamanio, kernel_config_get_est_inicial(kernelConfig));
         pcb_set_socket(newPcb, socketProceso);
-        pcb_set_instruction_buffer(newPcb, instructionsBufferCopy);
+        pcb_set_instructions_buffer(newPcb, instructionsBufferCopy);
 
         log_info(kernelLogger, "Creación de nuevo proceso ID %d de tamaño %d mediante <socket %d>", pcb_get_pid(newPcb), tamanio, *socketProceso);
 
