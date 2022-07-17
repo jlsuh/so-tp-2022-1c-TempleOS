@@ -1,11 +1,8 @@
 #include "estado.h"
 
-#include <pthread.h>
-#include <semaphore.h>
+#include <stdlib.h>
 
-#include "common_flags.h"
 #include "common_utils.h"
-#include "pcb.h"
 
 struct t_estado {
     t_nombre_estado nombreEstado;
@@ -80,10 +77,6 @@ void estado_encolar_pcb_atomic(t_estado* estadoDest, t_pcb* targetPcb) {
     pthread_mutex_lock(estado_get_mutex(estadoDest));
     list_add(estado_get_list(estadoDest), targetPcb);
     pthread_mutex_unlock(estado_get_mutex(estadoDest));
-}
-
-t_nombre_estado estado_get_nombre_estado(t_estado* self) {
-    return self->nombreEstado;
 }
 
 t_list* estado_get_list(t_estado* self) {

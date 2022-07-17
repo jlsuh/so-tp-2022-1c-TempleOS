@@ -32,7 +32,7 @@ void pcb_marcar_tiempo_final_como_no_establecido(t_pcb*);
 void pcb_marcar_tiempo_inicial_bloqueado(t_pcb*);
 void pcb_set_estado_actual(t_pcb*, uint8_t estadoActual);
 void pcb_set_estimacion_actual(t_pcb*, double estimacionActual);
-void pcb_set_instructions_buffer(t_pcb*, t_buffer* instructionsBuffer);
+void pcb_set_instructions_buffer(t_pcb*, t_buffer*);
 void pcb_set_program_counter(t_pcb*, uint32_t programCounter);
 void pcb_set_real_anterior(t_pcb*, double realAnterior);
 void pcb_set_reales_ejecutados_hasta_ahora(t_pcb*, double realesEjecutadosHastaAhora);

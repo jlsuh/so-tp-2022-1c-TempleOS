@@ -1,5 +1,6 @@
 #include "pcb.h"
 
+#include <stdlib.h>
 #include <unistd.h>
 
 #include "estado.h"

@@ -2,9 +2,7 @@
 
 #include <stdlib.h>
 
-#include "buffer.h"
 #include "common_flags.h"
-#include "kernel_config.h"
 #include "stream.h"
 
 void cpu_adapter_enviar_pcb_a_cpu(t_pcb* pcbAEnviar, t_kernel_config* kernelConfig, t_log* kernelLogger, uint8_t header) {

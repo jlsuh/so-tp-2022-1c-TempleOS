@@ -1,9 +1,6 @@
 #ifndef SCHEDULER_H_INCLUDED
 #define SCHEDULER_H_INCLUDED
 
-#include <pcb.h>
-#include <stdint.h>
-
 #include "estado.h"
 
 typedef t_pcb* (*t_dispatch_handler)(t_estado*, double);

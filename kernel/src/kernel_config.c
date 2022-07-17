@@ -99,12 +99,12 @@ char* kernel_config_get_ip_memoria(t_kernel_config* self) {
     return self->IP_MEMORIA;
 }
 
-void kernel_config_set_socket_dispatch_cpu(t_kernel_config* self, int socket) {
-    self->SOCKET_DISPATCH_CPU = socket;
+void kernel_config_set_socket_dispatch_cpu(t_kernel_config* self, int socketDispatch) {
+    self->SOCKET_DISPATCH_CPU = socketDispatch;
 }
 
-void kernel_config_set_socket_interrupt_cpu(t_kernel_config* self, int socket) {
-    self->SOCKET_INTERRUPT_CPU = socket;
+void kernel_config_set_socket_interrupt_cpu(t_kernel_config* self, int socketInterrupt) {
+    self->SOCKET_INTERRUPT_CPU = socketInterrupt;
 }
 
 void kernel_config_set_socket_memoria(t_kernel_config* self, int socketMemoria) {
