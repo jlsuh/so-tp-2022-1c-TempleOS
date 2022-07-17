@@ -41,5 +41,6 @@ void pcb_set_tabla_pagina_primer_nivel(t_pcb*, uint32_t tablaPaginaPrimerNivel);
 void pcb_set_tiempo_de_bloqueo(t_pcb*, uint32_t tiempoDeBloqueo);
 void pcb_set_veces_bloqueado(t_pcb*, int vecesBloqueado);
 void pcb_test_and_set_tiempo_final_bloqueado(t_pcb*);
+double pcb_get_tiempo_de_bloqueo_en_secs(t_pcb*);
 
 #endif

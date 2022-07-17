@@ -7,8 +7,8 @@
 
 #include "module_config.h"
 
-/* Se mueven acá las declaraciones pues de lo contrario es una referencia
-   sin definir en la carpeta de tests (excluye al archivo con main) */
+#define MILISECS_IN_SEC 1000.0
+
 t_log* kernelLogger;
 t_kernel_config* kernelConfig;
 
@@ -131,12 +131,12 @@ double kernel_config_get_alfa(t_kernel_config* self) {
     return self->ALFA;
 }
 
-char* kernel_config_get_algoritmo(t_kernel_config* self) {
-    return self->ALGORITMO_PLANIFICACION;
-}
-
 int kernel_config_get_tiempo_maximo_bloqueado(t_kernel_config* self) {
     return self->TIEMPO_MAXIMO_BLOQUEADO;
+}
+
+double kernel_config_get_tiempo_maximo_bloqueado_en_secs(t_kernel_config* self) {
+    return self->TIEMPO_MAXIMO_BLOQUEADO / MILISECS_IN_SEC;
 }
 
 bool kernel_config_es_algoritmo_srt(t_kernel_config* self) {

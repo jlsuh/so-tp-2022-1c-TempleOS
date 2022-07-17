@@ -7,7 +7,6 @@ typedef struct t_kernel_config t_kernel_config;
 
 bool kernel_config_es_algoritmo_fifo(t_kernel_config *);
 bool kernel_config_es_algoritmo_srt(t_kernel_config *);
-char *kernel_config_get_algoritmo(t_kernel_config *);
 char *kernel_config_get_ip_cpu(t_kernel_config *);
 char *kernel_config_get_ip_escucha(t_kernel_config *);
 char *kernel_config_get_ip_memoria(t_kernel_config *);
@@ -27,5 +26,6 @@ void kernel_config_destroy(t_kernel_config *);
 void kernel_config_set_socket_dispatch_cpu(t_kernel_config *, int socket);
 void kernel_config_set_socket_interrupt_cpu(t_kernel_config *, int socket);
 void kernel_config_set_socket_memoria(t_kernel_config *, int socketMemoria);
+double kernel_config_get_tiempo_maximo_bloqueado_en_secs(t_kernel_config*);
 
 #endif
