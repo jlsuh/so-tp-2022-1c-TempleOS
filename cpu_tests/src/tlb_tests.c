@@ -28,16 +28,6 @@ void test_tlb_tear_down(void) {
     free(tlbs);
 }
 
-/*
-static void __tlb_print_entries(t_tlb* tlb) {
-    puts("");
-    printf("TLB de algoritmo: %s\n", tlb_get_algoritmo_reemplazo(tlb));
-    for (int i = 0; i < tlb_get_cantidad_entradas_totales(tlb); i++) {
-        printf("| Entrada %d\t| numeroPagina %d\t| marco %d\t| instanteDeTiempo %d\t|\n", i, entrada_tlb_get_numero_pagina(tlb, i), entrada_tlb_get_marco(tlb, i), entrada_tlb_get_instante_de_tiempo(tlb, i));
-    }
-}
-*/
-
 static void __assert_entrada_tlb(t_tlb* tlb, uint32_t index, uint32_t numeroPagina, uint32_t marco, uint32_t instanteDeTiempo) {
     CU_ASSERT_EQUAL(entrada_tlb_get_numero_pagina(tlb, index), numeroPagina);
     CU_ASSERT_EQUAL(entrada_tlb_get_marco(tlb, index), marco);
