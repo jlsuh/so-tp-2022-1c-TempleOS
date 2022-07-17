@@ -1,11 +1,8 @@
 #include "mem_adapter.h"
 
 #include <stdlib.h>
-#include <unistd.h>
 
-#include "buffer.h"
 #include "common_flags.h"
-#include "kernel_config.h"
 #include "stream.h"
 
 pthread_mutex_t mutexSocketMemoria;
