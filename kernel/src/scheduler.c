@@ -13,11 +13,11 @@
 extern t_log* kernelLogger;
 extern t_kernel_config* kernelConfig;
 
-typedef void (*t_suspension_handler)(void);
+typedef void (*t_preemption_handler)(void);
 
 static t_dispatch_handler elegir_pcb;
 static t_onBlocked_handler actualizar_pcb_por_bloqueo;
-static t_suspension_handler evaluar_suspension;
+static t_preemption_handler evaluar_desalojo;
 
 static bool hayQueDesalojar;
 static int ultimoPIDSuspendido;
@@ -69,7 +69,7 @@ t_pcb* elegir_pcb_segun_fifo(t_estado* estado, double _) {
     return estado_desencolar_primer_pcb_atomic(estado);
 }
 
-static void __evaluar_suspension_segun_fifo(void) {}
+static void __evaluar_desalojo_segun_fifo(void) {}
 
 static void __actualizar_pcb_por_bloqueo_segun_fifo(t_pcb* _, uint32_t __, double ___) {}
 
@@ -97,7 +97,7 @@ static double __calcular_siguiente_estimacion(t_pcb* pcb, double alfa) {
         pcb_get_estimacion_actual(pcb));
 }
 
-static void __evaluar_suspension_segun_srt(void) {
+static void __evaluar_desalojo_segun_srt(void) {
     pthread_mutex_lock(&hayQueDesalojarMutex);
     if (hayQueDesalojar) {
         hayQueDesalojar = false;
@@ -368,7 +368,7 @@ static void noreturn __planificador_corto_plazo(void) {
         sem_wait(estado_get_sem(estadoReady));
         log_info(kernelLogger, "Se toma una instancia de READY");
 
-        evaluar_suspension();
+        evaluar_desalojo();
 
         sem_wait(&dispatchPermitido);
         log_info(kernelLogger, "Se permite dispatch");
@@ -427,11 +427,11 @@ void* encolar_en_new_a_nuevo_pcb_entrante(void* socket) {
 void inicializar_estructuras(void) {
     if (kernel_config_es_algoritmo_srt(kernelConfig)) {
         elegir_pcb = elegir_pcb_segun_srt;
-        evaluar_suspension = __evaluar_suspension_segun_srt;
+        evaluar_desalojo = __evaluar_desalojo_segun_srt;
         actualizar_pcb_por_bloqueo = actualizar_pcb_por_bloqueo_segun_srt;
     } else if (kernel_config_es_algoritmo_fifo(kernelConfig)) {
         elegir_pcb = elegir_pcb_segun_fifo;
-        evaluar_suspension = __evaluar_suspension_segun_fifo;
+        evaluar_desalojo = __evaluar_desalojo_segun_fifo;
         actualizar_pcb_por_bloqueo = __actualizar_pcb_por_bloqueo_segun_fifo;
     } else {
         log_error(kernelLogger, "No se pudo inicializar el planificador, no se encontró un algoritmo de planificación válido");
