@@ -1,4 +1,4 @@
-#include "cpu_memoria_cliente.h"
+#include "cpu_mem_client.h"
 
 #include <stdlib.h>
 

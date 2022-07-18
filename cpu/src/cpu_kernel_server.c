@@ -7,7 +7,7 @@
 
 #include "common_utils.h"
 #include "cpu_config.h"
-#include "cpu_memoria_cliente.h"
+#include "cpu_mem_client.h"
 #include "cpu_pcb.h"
 #include "instruccion.h"
 #include "stream.h"
